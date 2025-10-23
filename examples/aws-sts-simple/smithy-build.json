@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "sources": ["model"],
+  "maven": {
+    "dependencies": [
+      "software.amazon.smithy:smithy-aws-traits:1.51.0",
+      "io.smithy.erlang:smithy-erlang:0.1.0"
+    ],
+    "repositories": [
+      {
+        "url": "file://${user.home}/.m2/repository"
+      }
+    ]
+  },
+  "plugins": {
+    "erlang-client-codegen": {
+      "service": "com.amazonaws.sts#AWSSecurityTokenService",
+      "module": "sts_client",
+      "outputDir": "src/generated"
+    }
+  }
+}
