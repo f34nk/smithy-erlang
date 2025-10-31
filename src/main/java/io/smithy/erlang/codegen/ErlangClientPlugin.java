@@ -5,6 +5,7 @@ import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.*;
+import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
 
@@ -205,13 +206,17 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             uri = "/";
         }
         
-        // Find @httpLabel members in input
+        // Find @httpLabel and @httpHeader members in input
         List<MemberShape> httpLabelMembers = new ArrayList<>();
+        List<MemberShape> httpHeaderMembers = new ArrayList<>();
         if (operation.getInput().isPresent()) {
             StructureShape input = model.expectShape(operation.getInput().get(), StructureShape.class);
             for (MemberShape member : input.getAllMembers().values()) {
                 if (member.hasTrait(HttpLabelTrait.class)) {
                     httpLabelMembers.add(member);
+                }
+                if (member.hasTrait(HttpHeaderTrait.class)) {
+                    httpHeaderMembers.add(member);
                 }
             }
         }
@@ -233,9 +238,6 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 // Path parameters need substitution
                 writer.write("%% Build URL with path parameters");
                 writer.write("Uri0 = <<\"$L\">>,", uri);
-                
-                // Parse URI template to get labels
-                UriTemplate template = new UriTemplate(uri);
                 
                 // Generate substitution code for each @httpLabel member
                 for (int i = 0; i < httpLabelMembers.size(); i++) {
@@ -262,7 +264,51 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             
             writer.write("");
             writer.write("Body = jsx:encode(Input),");
-            writer.write("Headers = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
+            writer.write("");
+            
+            // Generate headers with @httpHeader members
+            if (httpHeaderMembers.isEmpty()) {
+                // No custom headers
+                writer.write("%% Headers");
+                writer.write("Headers = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
+            } else {
+                // Build headers with @httpHeader members
+                writer.write("%% Build headers with @httpHeader members");
+                writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
+                
+                for (int i = 0; i < httpHeaderMembers.size(); i++) {
+                    MemberShape member = httpHeaderMembers.get(i);
+                    String memberName = member.getMemberName();
+                    String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
+                    
+                    // Get header name from trait
+                    String headerName = member.expectTrait(HttpHeaderTrait.class).getValue();
+                    
+                    // Check if member is required
+                    boolean isRequired = member.hasTrait(software.amazon.smithy.model.traits.RequiredTrait.class);
+                    
+                    if (isRequired) {
+                        // Required header - always add it
+                        writer.write("$LValue = ensure_binary(maps:get(<<\"$L\">>, Input)),",
+                                capitalize(erlangFieldName), memberName);
+                        writer.write("Headers$L = [{<<\"$L\">>, $LValue} | Headers$L],",
+                                i + 1, headerName, capitalize(erlangFieldName), i);
+                    } else {
+                        // Optional header - add conditionally
+                        writer.write("Headers$L = case maps:get(<<\"$L\">>, Input, undefined) of",
+                                i + 1, memberName);
+                        writer.indent();
+                        writer.write("undefined -> Headers$L;", i);
+                        writer.write("$LValue -> [{<<\"$L\">>, ensure_binary($LValue)} | Headers$L]",
+                                capitalize(erlangFieldName), headerName, capitalize(erlangFieldName), i);
+                        writer.dedent();
+                        writer.write("end,");
+                    }
+                }
+                
+                writer.write("Headers = Headers$L,", httpHeaderMembers.size());
+            }
+            
             writer.write("");
             writer.write("%% Make HTTP request");
             writer.write("Request = case Method of");
