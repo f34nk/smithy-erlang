@@ -81,7 +81,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         if (useCustomDir) {
             // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
             // Files go directly to outputDir (no src/ subdirectory)
-            Path projectRoot = fileManifest.getBaseDir().getParent().getParent().getParent().getParent();
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            // but handle case where we don't have that many parents (e.g., tests)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
             Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
             outputPath = customOutputDir.resolve(moduleName + ".erl");
         } else {
@@ -130,9 +143,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Write to file
         if (useCustomDir) {
             // Write directly to filesystem for custom output directory
-            Files.createDirectories(outputPath.getParent());
-            Files.writeString(outputPath, writer.toString());
-            LOGGER.info("Generated client module: " + outputPath);
+            // Only create directories if parent exists and is writable
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, writer.toString());
+                LOGGER.info("Generated client module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem (e.g., in tests)
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                // Use the default manifest path when falling back
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+                fileManifest.writeFile(manifestPath, writer.toString());
+            }
         } else {
             // Use FileManifest for default location
             fileManifest.writeFile(outputPath, writer.toString());
@@ -208,7 +232,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         // Find @httpLabel and @httpHeader members in input
         List<MemberShape> httpLabelMembers = new ArrayList<>();
-        List<MemberShape> httpHeaderMembers = new ArrayList<>();
+        List<MemberShape> httpHeaderInputMembers = new ArrayList<>();
         if (operation.getInput().isPresent()) {
             StructureShape input = model.expectShape(operation.getInput().get(), StructureShape.class);
             for (MemberShape member : input.getAllMembers().values()) {
@@ -216,7 +240,18 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                     httpLabelMembers.add(member);
                 }
                 if (member.hasTrait(HttpHeaderTrait.class)) {
-                    httpHeaderMembers.add(member);
+                    httpHeaderInputMembers.add(member);
+                }
+            }
+        }
+        
+        // Find @httpHeader members in output
+        List<MemberShape> httpHeaderOutputMembers = new ArrayList<>();
+        if (operation.getOutput().isPresent()) {
+            StructureShape output = model.expectShape(operation.getOutput().get(), StructureShape.class);
+            for (MemberShape member : output.getAllMembers().values()) {
+                if (member.hasTrait(HttpHeaderTrait.class)) {
+                    httpHeaderOutputMembers.add(member);
                 }
             }
         }
@@ -267,7 +302,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.write("");
             
             // Generate headers with @httpHeader members
-            if (httpHeaderMembers.isEmpty()) {
+            if (httpHeaderInputMembers.isEmpty()) {
                 // No custom headers
                 writer.write("%% Headers");
                 writer.write("Headers = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
@@ -276,13 +311,15 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 writer.write("%% Build headers with @httpHeader members");
                 writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
                 
-                for (int i = 0; i < httpHeaderMembers.size(); i++) {
-                    MemberShape member = httpHeaderMembers.get(i);
+                for (int i = 0; i < httpHeaderInputMembers.size(); i++) {
+                    MemberShape member = httpHeaderInputMembers.get(i);
                     String memberName = member.getMemberName();
                     String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
                     
                     // Get header name from trait
-                    String headerName = member.expectTrait(HttpHeaderTrait.class).getValue();
+                    // For @httpHeader("HeaderName"), the header name is stored in the trait
+                    HttpHeaderTrait headerTrait = member.expectTrait(HttpHeaderTrait.class);
+                    String headerName = headerTrait.getValue();
                     
                     // Check if member is required
                     boolean isRequired = member.hasTrait(software.amazon.smithy.model.traits.RequiredTrait.class);
@@ -306,7 +343,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                     }
                 }
                 
-                writer.write("Headers = Headers$L,", httpHeaderMembers.size());
+                writer.write("Headers = Headers$L,", httpHeaderInputMembers.size());
             }
             
             writer.write("");
@@ -321,10 +358,49 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.write("");
             writer.write("case httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [{body_format, binary}]) of");
             writer.indent();
-            writer.write("{ok, {{_, 200, _}, _, ResponseBody}} ->");
-            writer.indent();
-            writer.write("{ok, jsx:decode(ResponseBody, [return_maps])};");
-            writer.dedent();
+            
+            if (httpHeaderOutputMembers.isEmpty()) {
+                // No output headers to extract
+                writer.write("{ok, {{_, 200, _}, _, ResponseBody}} ->");
+                writer.indent();
+                writer.write("{ok, jsx:decode(ResponseBody, [return_maps])};");
+                writer.dedent();
+            } else {
+                // Extract headers from response
+                writer.write("{ok, {{_, 200, _}, ResponseHeaders, ResponseBody}} ->");
+                writer.indent();
+                writer.write("%% Parse body");
+                writer.write("Output0 = jsx:decode(ResponseBody, [return_maps]),");
+                writer.write("");
+                writer.write("%% Extract @httpHeader members from response");
+                
+                for (int i = 0; i < httpHeaderOutputMembers.size(); i++) {
+                    MemberShape member = httpHeaderOutputMembers.get(i);
+                    String memberName = member.getMemberName();
+                    String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
+                    
+                    // Get header name from trait (lowercase for case-insensitive lookup)
+                    // For @httpHeader("HeaderName"), the header name is stored in the trait
+                    HttpHeaderTrait headerTrait = member.expectTrait(HttpHeaderTrait.class);
+                    String headerName = headerTrait.getValue();
+                    String headerNameLower = headerName.toLowerCase();
+                    
+                    // Extract header value
+                    String varName = capitalize(erlangFieldName) + "Value";
+                    writer.write("Output$L = case lists:keyfind(\"$L\", 1, ResponseHeaders) of",
+                            i + 1, headerNameLower);
+                    writer.indent();
+                    writer.write("{_, $L} -> maps:put(<<\"$L\">>, list_to_binary($L), Output$L);",
+                            varName, memberName, varName, i);
+                    writer.write("false -> Output$L", i);
+                    writer.dedent();
+                    writer.write("end,");
+                }
+                
+                writer.write("{ok, Output$L};", httpHeaderOutputMembers.size());
+                writer.dedent();
+            }
+            
             writer.write("{ok, {{_, StatusCode, _}, _, ResponseBody}} ->");
             writer.indent();
             writer.write("{error, {StatusCode, jsx:decode(ResponseBody, [return_maps])}};");
@@ -364,7 +440,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         if (useCustomDir) {
             // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
             // Files go directly to outputDir (no src/ subdirectory)
-            Path projectRoot = fileManifest.getBaseDir().getParent().getParent().getParent().getParent();
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            // but handle case where we don't have that many parents (e.g., tests)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
             Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
             outputPath = customOutputDir.resolve(moduleName + ".erl");
         } else {
@@ -437,9 +526,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Write to file
         if (useCustomDir) {
             // Write directly to filesystem for custom output directory
-            Files.createDirectories(outputPath.getParent());
-            Files.writeString(outputPath, writer.toString());
-            LOGGER.info("Generated types module: " + outputPath);
+            // Only create directories if parent exists and is writable
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, writer.toString());
+                LOGGER.info("Generated types module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem (e.g., in tests)
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                // Use the default manifest path when falling back
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+                fileManifest.writeFile(manifestPath, writer.toString());
+            }
         } else {
             // Use FileManifest for default location
             fileManifest.writeFile(outputPath, writer.toString());

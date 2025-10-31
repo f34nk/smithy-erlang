@@ -181,4 +181,97 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         // ListBuckets has no path parameters, should use simple URI
         assertGeneratedCodeContains(clientFile, "No path parameters");
     }
+    
+    // ===== @httpHeader Output Tests =====
+    
+    @Test
+    public void testGetObjectExtractsOutputHeaders() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify response headers are captured
+        assertGeneratedCodeContains(clientFile, "{ok, {{_, 200, _}, ResponseHeaders, ResponseBody}}");
+        assertGeneratedCodeContains(clientFile, "Extract @httpHeader members from response");
+    }
+    
+    @Test
+    public void testGetObjectExtractsETagHeader() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify ETag header is extracted from response
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"etag\", 1, ResponseHeaders)");
+        assertGeneratedCodeContains(clientFile, "maps:put(<<\"ETag\"");
+    }
+    
+    @Test
+    public void testGetObjectExtractsContentTypeHeader() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify Content-Type header is extracted from response
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"content-type\", 1, ResponseHeaders)");
+        assertGeneratedCodeContains(clientFile, "maps:put(<<\"ContentType\"");
+    }
+    
+    @Test
+    public void testGetObjectExtractsContentLengthHeader() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify X-Content-Length header is extracted from response
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"x-content-length\", 1, ResponseHeaders)");
+        assertGeneratedCodeContains(clientFile, "maps:put(<<\"ContentLength\"");
+    }
+    
+    @Test
+    public void testPutObjectExtractsETagHeader() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify PutObject also extracts ETag from response
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"etag\", 1, ResponseHeaders)");
+    }
+    
+    @Test
+    public void testHeaderExtractionIsCaseInsensitive() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify headers are looked up in lowercase for case-insensitive matching
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"etag\"");
+        assertGeneratedCodeContains(clientFile, "lists:keyfind(\"content-type\"");
+    }
+    
+    @Test
+    public void testHeaderExtractionHandlesMissingHeaders() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify missing headers are handled (false case)
+        assertGeneratedCodeContains(clientFile, "false -> Output");
+    }
+    
+    @Test
+    public void testOutputHeadersBuiltIncrementally() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify incremental output building (Output0 -> Output1 -> ...)
+        assertGeneratedCodeContains(clientFile, "Output0 = jsx:decode(ResponseBody");
+        assertGeneratedCodeContains(clientFile, "Output1 =");
+    }
+    
+    @Test
+    public void testListBucketsWithoutOutputHeaders() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // ListBuckets has no output headers, should use simple response handling
+        // Count occurrences - should have at least one simple pattern for ListBuckets
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        assertTrue(content.contains("{ok, {{_, 200, _}, _, ResponseBody}}"),
+                "Should have simple response pattern for operations without output headers");
+    }
 }
