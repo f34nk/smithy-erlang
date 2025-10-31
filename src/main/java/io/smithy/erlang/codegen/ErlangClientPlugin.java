@@ -112,6 +112,10 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
         writer.write("");
         
+        // Include types header file for type specs
+        writer.write("-include(\"$L_types.hrl\").", moduleName);
+        writer.write("");
+        
         // Get all operations
         List<OperationShape> operations = service.getOperations().stream()
                 .map(shapeId -> model.expectShape(shapeId, OperationShape.class))
