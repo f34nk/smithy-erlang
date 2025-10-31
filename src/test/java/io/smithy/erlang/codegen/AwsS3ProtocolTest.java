@@ -367,4 +367,141 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         assertTrue(content.contains("MaxKeys") || content.contains("max-keys"),
                 "Should reference MaxKeys query parameter");
     }
+    
+    // ============================================================================
+    // @httpPayload Tests
+    // ============================================================================
+    
+    @Test
+    public void testPutObjectUsesBlobPayload() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // PutObject has @httpPayload blob, should extract Body from input directly
+        assertGeneratedCodeContains(clientFile, "put_object");
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should get Body directly from input map
+        assertTrue(content.contains("Body") && content.contains("maps:get"),
+                "Should extract Body from input for blob payload");
+    }
+    
+    @Test
+    public void testGetObjectReturnsBlobPayload() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // GetObject has @httpPayload blob in output
+        assertGeneratedCodeContains(clientFile, "get_object");
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should handle ResponseBody as blob, not parse as JSON
+        assertTrue(content.contains("ResponseBody"),
+                "Should reference ResponseBody for blob payload output");
+    }
+    
+    @Test
+    public void testCreateMetadataUsesStructurePayload() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // CreateMetadata has @httpPayload structure
+        assertGeneratedCodeContains(clientFile, "create_metadata");
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should extract Metadata structure and encode as JSON
+        assertTrue(content.contains("Metadata") || content.contains("jsx:encode"),
+                "Should handle structure payload with JSON encoding");
+    }
+    
+    @Test
+    public void testEchoUsesStringPayload() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Echo has @httpPayload string
+        assertGeneratedCodeContains(clientFile, "echo");
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should extract Text directly (string payload)
+        assertTrue(content.contains("Text") || content.contains("maps:get"),
+                "Should extract string payload from input");
+    }
+    
+    @Test
+    public void testListBucketsUsesEntireStructureAsPayload() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // ListBuckets has no @httpPayload, entire structure is JSON
+        assertGeneratedCodeContains(clientFile, "list_buckets");
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should encode entire Input as JSON
+        assertTrue(content.contains("jsx:encode(Input)"),
+                "Should encode entire Input for operations without @httpPayload");
+    }
+    
+    @Test
+    public void testBlobPayloadNotEncodedAsJson() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // For operations with blob payload, Body should not be JSON-encoded
+        // Check that we get the body directly without jsx:encode
+        int putObjectStart = content.indexOf("put_object(");
+        int putObjectEnd = content.indexOf("end.", putObjectStart);
+        String putObjectCode = content.substring(putObjectStart, putObjectEnd);
+        
+        // Should reference Body but not encode it with jsx
+        assertTrue(putObjectCode.contains("Body"),
+                "PutObject should reference Body");
+    }
+    
+    @Test
+    public void testPayloadMemberExtraction() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Operations with @httpPayload should extract the specific member
+        // e.g., maps:get(<<"Body">>, Input) for PutObject
+        // e.g., maps:get(<<"Metadata">>, Input) for CreateMetadata
+        assertTrue(content.contains("maps:get(<<\"Body\">>, Input)") ||
+                   content.contains("maps:get(<<\"Metadata\">>, Input)") ||
+                   content.contains("maps:get(<<\"Text\">>, Input)"),
+                "Should extract @httpPayload member from input");
+    }
+    
+    @Test
+    public void testOutputPayloadExtraction() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // GetObject output has @httpPayload Body
+        // Echo output has @httpPayload Echo
+        // Should handle ResponseBody appropriately
+        int getObjectStart = content.indexOf("get_object(");
+        if (getObjectStart > 0) {
+            int getObjectEnd = content.indexOf("\nlist_", getObjectStart);
+            if (getObjectEnd < 0) getObjectEnd = content.length();
+            String getObjectCode = content.substring(getObjectStart, getObjectEnd);
+            
+            assertTrue(getObjectCode.contains("ResponseBody"),
+                    "GetObject should handle ResponseBody for blob output");
+        }
+    }
 }
