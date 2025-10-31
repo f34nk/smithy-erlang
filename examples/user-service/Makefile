@@ -1,6 +1,6 @@
-.PHONY: all clean generate test validate
+.PHONY: all clean generate test validate compile
 
-all: clean generate test
+all: clean generate test compile
 
 generate:
 	# 
@@ -16,10 +16,18 @@ test:
 	rebar3 eunit
 
 clean:
-	rm -rf build _build src/generated/*.erl
+	rm -rf build _build src/generated/*.erl rebar3.crashdump
 
 validate:
 	#
 	# Validate the Smithy model
 	#
 	smithy validate model/
+
+compile:
+	#
+	# Compile the code and analyze with Dialyzer
+	#
+	rebar3 lock
+	rebar3 compile
+	rebar3 dialyzer
