@@ -5,6 +5,7 @@ import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.*;
+import software.amazon.smithy.model.traits.HttpLabelTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
 
 import java.io.IOException;
@@ -152,6 +153,36 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.write("list_to_binary(uri_string:quote(String)).");
         writer.dedent();
         writer.write("");
+        
+        // Generate ensure_binary helper
+        writer.writeComment("Convert a value to binary for use in URI substitution");
+        writer.write("");
+        writer.writeComment("@spec ensure_binary(term()) -> binary().");
+        writer.write("ensure_binary(Value) when is_binary(Value) ->");
+        writer.indent();
+        writer.write("Value;");
+        writer.dedent();
+        writer.write("ensure_binary(Value) when is_list(Value) ->");
+        writer.indent();
+        writer.write("list_to_binary(Value);");
+        writer.dedent();
+        writer.write("ensure_binary(Value) when is_integer(Value) ->");
+        writer.indent();
+        writer.write("integer_to_binary(Value);");
+        writer.dedent();
+        writer.write("ensure_binary(Value) when is_float(Value) ->");
+        writer.indent();
+        writer.write("float_to_binary(Value);");
+        writer.dedent();
+        writer.write("ensure_binary(Value) when is_atom(Value) ->");
+        writer.indent();
+        writer.write("atom_to_binary(Value, utf8);");
+        writer.dedent();
+        writer.write("ensure_binary(Value) ->");
+        writer.indent();
+        writer.write("list_to_binary(io_lib:format(\"~p\", [Value])).");
+        writer.dedent();
+        writer.write("");
     }
     
     private void generateOperation(
@@ -174,13 +205,62 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             uri = "/";
         }
         
+        // Find @httpLabel members in input
+        List<MemberShape> httpLabelMembers = new ArrayList<>();
+        if (operation.getInput().isPresent()) {
+            StructureShape input = model.expectShape(operation.getInput().get(), StructureShape.class);
+            for (MemberShape member : input.getAllMembers().values()) {
+                if (member.hasTrait(HttpLabelTrait.class)) {
+                    httpLabelMembers.add(member);
+                }
+            }
+        }
+        
         writer.writeComment("Calls the " + operation.getId().getName() + " operation");
         writer.writeSpec(opName, "(Client :: map(), Input :: map()) -> {ok, map()} | {error, term()}");
         writer.writeFunction(opName, "Client, Input", () -> {
             writer.write("Method = <<\"$L\">>,", method);
-            writer.write("Uri = <<\"$L\">>,", uri);
             writer.write("Endpoint = maps:get(endpoint, Client),");
-            writer.write("Url = <<Endpoint/binary, Uri/binary>>,");
+            writer.write("");
+            
+            // Generate URI with path parameter substitution
+            if (httpLabelMembers.isEmpty()) {
+                // No path parameters - use URI as-is
+                writer.write("%% No path parameters");
+                writer.write("Uri = <<\"$L\">>,", uri);
+                writer.write("Url = <<Endpoint/binary, Uri/binary>>,");
+            } else {
+                // Path parameters need substitution
+                writer.write("%% Build URL with path parameters");
+                writer.write("Uri0 = <<\"$L\">>,", uri);
+                
+                // Parse URI template to get labels
+                UriTemplate template = new UriTemplate(uri);
+                
+                // Generate substitution code for each @httpLabel member
+                for (int i = 0; i < httpLabelMembers.size(); i++) {
+                    MemberShape member = httpLabelMembers.get(i);
+                    String memberName = member.getMemberName();
+                    String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
+                    
+                    // Get the label name (defaults to member name if not specified)
+                    String labelName = memberName;
+                    
+                    // Extract value from input and URL encode it
+                    writer.write("$LValue = maps:get(<<\"$L\">>, Input),", 
+                            capitalize(erlangFieldName), memberName);
+                    writer.write("$LEncoded = url_encode(ensure_binary($LValue)),",
+                            capitalize(erlangFieldName), capitalize(erlangFieldName));
+                    
+                    // Substitute into URI
+                    writer.write("Uri$L = binary:replace(Uri$L, <<\"{$L}\">>, $LEncoded),",
+                            i + 1, i, labelName, capitalize(erlangFieldName));
+                }
+                
+                writer.write("Url = <<Endpoint/binary, Uri$L/binary>>,", httpLabelMembers.size());
+            }
+            
+            writer.write("");
             writer.write("Body = jsx:encode(Input),");
             writer.write("Headers = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
             writer.write("");
@@ -210,6 +290,16 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.dedent();
             writer.write("end.");
         });
+    }
+    
+    /**
+     * Capitalize the first letter of a string.
+     */
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
     
     private void generateTypesModule(
