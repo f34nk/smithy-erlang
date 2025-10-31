@@ -7,6 +7,7 @@ import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.*;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
 import software.amazon.smithy.model.traits.HttpQueryTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
 
@@ -359,19 +360,58 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
             }
             
+            // Generate request body based on @httpPayload
             writer.write("");
-            writer.write("Body = jsx:encode(Input),");
+            MemberShape payloadMember = null;
+            if (operation.getInput().isPresent()) {
+                StructureShape input = model.expectShape(operation.getInput().get(), StructureShape.class);
+                for (MemberShape member : input.getAllMembers().values()) {
+                    if (member.hasTrait(HttpPayloadTrait.class)) {
+                        payloadMember = member;
+                        break;
+                    }
+                }
+            }
+            
+            String contentType;
+            if (payloadMember == null) {
+                // No @httpPayload - entire structure is JSON
+                writer.write("%% No @httpPayload - encode entire structure as JSON");
+                writer.write("Body = jsx:encode(Input),");
+                contentType = "application/json";
+            } else {
+                // @httpPayload present - extract member and handle by type
+                String memberName = payloadMember.getMemberName();
+                Shape targetShape = model.expectShape(payloadMember.getTarget());
+                
+                writer.write("%% @httpPayload - extract payload member");
+                if (targetShape.isBlobShape()) {
+                    // Blob payload - use directly as binary
+                    writer.write("Body = maps:get(<<\"$L\">>, Input),", memberName);
+                    contentType = "application/octet-stream";
+                } else if (targetShape.isStringShape()) {
+                    // String payload - convert to binary
+                    writer.write("PayloadString = maps:get(<<\"$L\">>, Input),", memberName);
+                    writer.write("Body = ensure_binary(PayloadString),");
+                    contentType = "text/plain";
+                } else {
+                    // Structure payload - encode as JSON
+                    writer.write("PayloadData = maps:get(<<\"$L\">>, Input),", memberName);
+                    writer.write("Body = jsx:encode(PayloadData),");
+                    contentType = "application/json";
+                }
+            }
             writer.write("");
             
             // Generate headers with @httpHeader members
             if (httpHeaderInputMembers.isEmpty()) {
                 // No custom headers
                 writer.write("%% Headers");
-                writer.write("Headers = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
+                writer.write("Headers = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
             } else {
                 // Build headers with @httpHeader members
                 writer.write("%% Build headers with @httpHeader members");
-                writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"application/json\">>}],");
+                writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
                 
                 for (int i = 0; i < httpHeaderInputMembers.size(); i++) {
                     MemberShape member = httpHeaderInputMembers.get(i);
@@ -421,18 +461,76 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.write("case httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [{body_format, binary}]) of");
             writer.indent();
             
+            // Check for output payload
+            MemberShape outputPayloadMember = null;
+            if (operation.getOutput().isPresent()) {
+                StructureShape output = model.expectShape(operation.getOutput().get(), StructureShape.class);
+                for (MemberShape member : output.getAllMembers().values()) {
+                    if (member.hasTrait(HttpPayloadTrait.class)) {
+                        outputPayloadMember = member;
+                        break;
+                    }
+                }
+            }
+            
             if (httpHeaderOutputMembers.isEmpty()) {
                 // No output headers to extract
                 writer.write("{ok, {{_, 200, _}, _, ResponseBody}} ->");
                 writer.indent();
-                writer.write("{ok, jsx:decode(ResponseBody, [return_maps])};");
+                
+                // Handle response body based on @httpPayload
+                if (outputPayloadMember == null) {
+                    // No @httpPayload - parse entire response as JSON
+                    writer.write("{ok, jsx:decode(ResponseBody, [return_maps])};");
+                } else {
+                    // @httpPayload present - handle by type
+                    String memberName = outputPayloadMember.getMemberName();
+                    Shape targetShape = model.expectShape(outputPayloadMember.getTarget());
+                    
+                    if (targetShape.isBlobShape()) {
+                        // Blob payload - return body directly in map
+                        writer.write("{ok, #{<<\"$L\">> => ResponseBody}};", memberName);
+                    } else if (targetShape.isStringShape()) {
+                        // String payload - convert to string/binary
+                        writer.write("{ok, #{<<\"$L\">> => ResponseBody}};", memberName);
+                    } else {
+                        // Structure payload - parse JSON
+                        writer.write("PayloadData = jsx:decode(ResponseBody, [return_maps]),");
+                        writer.write("{ok, #{<<\"$L\">> => PayloadData}};", memberName);
+                    }
+                }
                 writer.dedent();
             } else {
                 // Extract headers from response
                 writer.write("{ok, {{_, 200, _}, ResponseHeaders, ResponseBody}} ->");
                 writer.indent();
-                writer.write("%% Parse body");
-                writer.write("Output0 = jsx:decode(ResponseBody, [return_maps]),");
+                
+                // Handle response body based on @httpPayload
+                if (outputPayloadMember == null) {
+                    // No @httpPayload - parse entire response as JSON
+                    writer.write("%% Parse body");
+                    writer.write("Output0 = jsx:decode(ResponseBody, [return_maps]),");
+                } else {
+                    // @httpPayload present - handle by type
+                    String memberName = outputPayloadMember.getMemberName();
+                    Shape targetShape = model.expectShape(outputPayloadMember.getTarget());
+                    
+                    if (targetShape.isBlobShape()) {
+                        // Blob payload - use body directly
+                        writer.write("%% Blob payload");
+                        writer.write("Output0 = #{<<\"$L\">> => ResponseBody},", memberName);
+                    } else if (targetShape.isStringShape()) {
+                        // String payload
+                        writer.write("%% String payload");
+                        writer.write("Output0 = #{<<\"$L\">> => ResponseBody},", memberName);
+                    } else {
+                        // Structure payload - parse JSON
+                        writer.write("%% Structure payload");
+                        writer.write("PayloadData = jsx:decode(ResponseBody, [return_maps]),");
+                        writer.write("Output0 = #{<<\"$L\">> => PayloadData},", memberName);
+                    }
+                }
+                
                 writer.write("");
                 writer.write("%% Extract @httpHeader members from response");
                 

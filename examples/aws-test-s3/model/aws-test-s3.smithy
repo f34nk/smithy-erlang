@@ -10,6 +10,8 @@ service S3Test {
         PutObject
         ListBuckets
         ListObjects
+        CreateMetadata
+        Echo
     ]
 }
 
@@ -161,6 +163,51 @@ structure NoSuchKey {
     Message: String
     
     Key: String
+}
+
+/// Create metadata (tests structure payload)
+@http(method: "POST", uri: "/metadata")
+operation CreateMetadata {
+    input: CreateMetadataInput
+    output: CreateMetadataOutput
+}
+
+structure CreateMetadataInput {
+    @httpPayload
+    @required
+    Metadata: MetadataDocument
+}
+
+structure MetadataDocument {
+    Title: String
+    Author: String
+    Tags: TagList
+}
+
+list TagList {
+    member: String
+}
+
+structure CreateMetadataOutput {
+    Id: String
+}
+
+/// Echo text (tests string payload)
+@http(method: "POST", uri: "/echo")
+operation Echo {
+    input: EchoInput
+    output: EchoOutput
+}
+
+structure EchoInput {
+    @httpPayload
+    @required
+    Text: String
+}
+
+structure EchoOutput {
+    @httpPayload
+    Echo: String
 }
 
 @error("client")

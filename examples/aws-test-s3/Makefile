@@ -1,6 +1,12 @@
 .PHONY: all clean generate test validate
 
-all: clean generate test
+all: copy-model clean generate test
+
+copy-model:
+	#
+	# Copy the model from the JAVA test
+	#
+	cp ../../src/test/resources/models/aws-test-s3.smithy model/
 
 generate:
 	# 
