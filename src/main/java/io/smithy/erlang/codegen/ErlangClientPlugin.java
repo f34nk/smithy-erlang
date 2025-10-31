@@ -7,6 +7,7 @@ import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.*;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
+import software.amazon.smithy.model.traits.HttpQueryTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
 
 import java.io.IOException;
@@ -230,9 +231,10 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             uri = "/";
         }
         
-        // Find @httpLabel and @httpHeader members in input
+        // Find @httpLabel, @httpHeader, and @httpQuery members in input
         List<MemberShape> httpLabelMembers = new ArrayList<>();
         List<MemberShape> httpHeaderInputMembers = new ArrayList<>();
+        List<MemberShape> httpQueryMembers = new ArrayList<>();
         if (operation.getInput().isPresent()) {
             StructureShape input = model.expectShape(operation.getInput().get(), StructureShape.class);
             for (MemberShape member : input.getAllMembers().values()) {
@@ -241,6 +243,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 }
                 if (member.hasTrait(HttpHeaderTrait.class)) {
                     httpHeaderInputMembers.add(member);
+                }
+                if (member.hasTrait(HttpQueryTrait.class)) {
+                    httpQueryMembers.add(member);
                 }
             }
         }
@@ -264,11 +269,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.write("");
             
             // Generate URI with path parameter substitution
+            String uriVariable;
             if (httpLabelMembers.isEmpty()) {
                 // No path parameters - use URI as-is
                 writer.write("%% No path parameters");
                 writer.write("Uri = <<\"$L\">>,", uri);
-                writer.write("Url = <<Endpoint/binary, Uri/binary>>,");
+                uriVariable = "Uri";
             } else {
                 // Path parameters need substitution
                 writer.write("%% Build URL with path parameters");
@@ -294,7 +300,63 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                             i + 1, i, labelName, capitalize(erlangFieldName));
                 }
                 
-                writer.write("Url = <<Endpoint/binary, Uri$L/binary>>,", httpLabelMembers.size());
+                uriVariable = "Uri" + httpLabelMembers.size();
+            }
+            
+            // Generate query string from @httpQuery parameters
+            if (httpQueryMembers.isEmpty()) {
+                // No query parameters
+                writer.write("Url = <<Endpoint/binary, $L/binary>>,", uriVariable);
+            } else {
+                // Build query string incrementally
+                writer.write("");
+                writer.write("%% Build query string from @httpQuery parameters");
+                writer.write("QueryPairs0 = [],");
+                
+                for (int i = 0; i < httpQueryMembers.size(); i++) {
+                    MemberShape member = httpQueryMembers.get(i);
+                    String memberName = member.getMemberName();
+                    String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
+                    
+                    // Get query parameter name from trait
+                    HttpQueryTrait queryTrait = member.expectTrait(HttpQueryTrait.class);
+                    String queryName = queryTrait.getValue();
+                    
+                    // Determine target shape type for conversion
+                    Shape targetShape = model.expectShape(member.getTarget());
+                    String conversionFunc = "ensure_binary";
+                    
+                    // Use integer_to_binary for integer types
+                    if (targetShape.isIntegerShape() || targetShape.isLongShape() || 
+                        targetShape.isShortShape() || targetShape.isByteShape()) {
+                        conversionFunc = "integer_to_binary";
+                    }
+                    
+                    // All query parameters are optional (use default of undefined)
+                    writer.write("QueryPairs$L = case maps:get(<<\"$L\">>, Input, undefined) of",
+                            i + 1, memberName);
+                    writer.indent();
+                    writer.write("undefined -> QueryPairs$L;", i);
+                    writer.write("$LVal -> [{<<\"$L\">>, $L($LVal)} | QueryPairs$L]",
+                            capitalize(erlangFieldName), queryName, conversionFunc, capitalize(erlangFieldName), i);
+                    writer.dedent();
+                    writer.write("end,");
+                }
+                
+                // Compose query string
+                writer.write("");
+                writer.write("QueryString = case QueryPairs$L of", httpQueryMembers.size());
+                writer.indent();
+                writer.write("[] -> <<\"\">>;");
+                writer.write("Pairs ->");
+                writer.indent();
+                writer.write("Encoded = uri_string:compose_query(Pairs),");
+                writer.write("<<\"?\", Encoded/binary>>");
+                writer.dedent();
+                writer.dedent();
+                writer.write("end,");
+                writer.write("");
+                writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
             }
             
             writer.write("");
