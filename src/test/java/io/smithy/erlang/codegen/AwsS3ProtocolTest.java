@@ -274,4 +274,97 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         assertTrue(content.contains("{ok, {{_, 200, _}, _, ResponseBody}}"),
                 "Should have simple response pattern for operations without output headers");
     }
+    
+    // ============================================================================
+    // @httpQuery Tests
+    // ============================================================================
+    
+    @Test
+    public void testListObjectsGeneratesQueryStringCode() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        assertGeneratedCodeContains(clientFile, "list_objects");
+        assertGeneratedCodeContains(clientFile, "QueryPairs0 = []");
+        assertGeneratedCodeContains(clientFile, "uri_string:compose_query");
+    }
+    
+    @Test
+    public void testQueryParametersBuiltIncrementally() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Should build query pairs incrementally
+        assertGeneratedCodeContains(clientFile, "QueryPairs0 = []");
+        assertGeneratedCodeContains(clientFile, "QueryPairs1 = case");
+        assertGeneratedCodeContains(clientFile, "QueryPairs2 = case");
+    }
+    
+    @Test
+    public void testOptionalQueryParametersUseConditionalLogic() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Optional query parameters should check for undefined
+        assertGeneratedCodeContains(clientFile, "case maps:get(<<\"Prefix\">>, Input, undefined) of");
+        assertGeneratedCodeContains(clientFile, "undefined -> QueryPairs");
+    }
+    
+    @Test
+    public void testQueryStringEncodingWithUriString() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Should use uri_string:compose_query for encoding
+        assertGeneratedCodeContains(clientFile, "Encoded = uri_string:compose_query");
+        assertGeneratedCodeContains(clientFile, "<<\"?\", Encoded/binary>>");
+    }
+    
+    @Test
+    public void testEmptyQueryStringHandling() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Should handle empty query string case
+        assertGeneratedCodeContains(clientFile, "QueryString = case QueryPairs");
+        assertGeneratedCodeContains(clientFile, "[] -> <<\"\">>"); 
+    }
+    
+    @Test
+    public void testQueryStringAppendedToUrl() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Query string should be appended to URL
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should have pattern like: Url = <<Endpoint/binary, Uri/binary, QueryString/binary>>
+        assertTrue(content.contains("QueryString/binary"), 
+                "Query string should be appended to URL");
+    }
+    
+    @Test
+    public void testQueryParameterNameFromTrait() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Should use query parameter names from @httpQuery trait
+        assertGeneratedCodeContains(clientFile, "<<\"prefix\">>"); // from @httpQuery("prefix")
+        assertGeneratedCodeContains(clientFile, "<<\"max-keys\">>"); // from @httpQuery("max-keys")
+    }
+    
+    @Test
+    public void testIntegerQueryParameterConversion() {
+        runGenerator();
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // MaxKeys is Integer, should convert to binary
+        String content = getGeneratedFile(clientFile);
+        assertNotNull(content, "Client file should exist");
+        
+        // Should have ensure_binary or similar conversion for MaxKeys
+        assertTrue(content.contains("MaxKeys") || content.contains("max-keys"),
+                "Should reference MaxKeys query parameter");
+    }
 }

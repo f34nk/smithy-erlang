@@ -9,6 +9,7 @@ service S3Test {
         GetObject
         PutObject
         ListBuckets
+        ListObjects
     ]
 }
 
@@ -102,6 +103,46 @@ structure ListBucketsInput {}
 
 structure ListBucketsOutput {
     Buckets: BucketList
+}
+
+/// List objects in a bucket
+@http(method: "GET", uri: "/{Bucket}")
+@readonly
+operation ListObjects {
+    input: ListObjectsInput
+    output: ListObjectsOutput
+}
+
+structure ListObjectsInput {
+    @required
+    @httpLabel
+    Bucket: String
+    
+    @httpQuery("prefix")
+    Prefix: String
+    
+    @httpQuery("max-keys")
+    MaxKeys: Integer
+    
+    @httpQuery("delimiter")
+    Delimiter: String
+}
+
+structure ListObjectsOutput {
+    Objects: ObjectList
+    
+    @httpHeader("X-Amz-Request-Id")
+    RequestId: String
+}
+
+list ObjectList {
+    member: S3Object
+}
+
+structure S3Object {
+    Key: String
+    Size: Long
+    ETag: String
 }
 
 list BucketList {
