@@ -48,7 +48,7 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
     @Test
     public void testTypesFileGenerated() {
         runGenerator();
-        String typesFile = "src/" + getModuleName() + "_types.erl";
+        String typesFile = "src/" + getModuleName() + "_types.hrl";
         assertFileGenerated(typesFile);
     }
     

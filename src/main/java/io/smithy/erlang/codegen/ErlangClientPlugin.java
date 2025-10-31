@@ -58,8 +58,8 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Generate client module
             generateClientModule(service, model, symbolProvider, settings, fileManifest);
             
-            // Generate types module
-            generateTypesModule(service, model, symbolProvider, settings, fileManifest);
+            // Generate types header file
+            generateTypesHeader(service, model, symbolProvider, settings, fileManifest);
             
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
@@ -584,7 +584,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
     
-    private void generateTypesModule(
+    private void generateTypesHeader(
             ServiceShape service,
             Model model,
             ErlangSymbolProvider symbolProvider,
@@ -593,7 +593,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         String moduleName = settings.getModule() + "_types";
         
-        // Determine output path
+        // Determine output path for .hrl file
         Path outputPath;
         boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
         
@@ -615,17 +615,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
             
             Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
-            outputPath = customOutputDir.resolve(moduleName + ".erl");
+            outputPath = customOutputDir.resolve(moduleName + ".hrl");
         } else {
             // Use default FileManifest location (includes src/ subdirectory)
-            outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+            outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".hrl");
         }
         
         ErlangWriter writer = new ErlangWriter();
         
-        writer.writeModule(moduleName);
+        // Add header guards
+        String headerGuard = moduleName.toUpperCase() + "_HRL";
+        writer.write("-ifndef($L).", headerGuard);
+        writer.write("-define($L, true).", headerGuard);
         writer.write("");
-        writer.writeComment("Generated types for Smithy model");
+        writer.writeComment("Generated type definitions for Smithy model");
         writer.write("");
         
         // Track all structures and collect them
@@ -683,6 +686,10 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             generateStructure(structure, model, symbolProvider, writer);
         }
         
+        // Close header guard
+        writer.write("");
+        writer.write("-endif.");
+        
         // Write to file
         if (useCustomDir) {
             // Write directly to filesystem for custom output directory
@@ -692,12 +699,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                     Files.createDirectories(outputPath.getParent());
                 }
                 Files.writeString(outputPath, writer.toString());
-                LOGGER.info("Generated types module: " + outputPath);
+                LOGGER.info("Generated types header: " + outputPath);
             } catch (java.nio.file.FileSystemException e) {
                 // Fall back to FileManifest if we can't write to filesystem (e.g., in tests)
                 LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
                 // Use the default manifest path when falling back
-                Path manifestPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".hrl");
                 fileManifest.writeFile(manifestPath, writer.toString());
             }
         } else {
