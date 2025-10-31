@@ -117,6 +117,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.write("{ok, Config}.");
         });
         
+        // Generate URL encoding helper function
+        generateUrlEncodeHelper(writer);
+        
         // Generate operation functions
         for (OperationShape operation : operations) {
             generateOperation(operation, model, symbolProvider, writer);
@@ -132,6 +135,23 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Use FileManifest for default location
             fileManifest.writeFile(outputPath, writer.toString());
         }
+    }
+    
+    private void generateUrlEncodeHelper(ErlangWriter writer) {
+        writer.write("");
+        writer.writeComment("URL encode a value for use in URI path parameters");
+        writer.writeComment("Uses RFC 3986 compliant encoding via uri_string:quote/1");
+        writer.write("");
+        writer.writeComment("@spec url_encode(binary() | list()) -> binary().");
+        writer.write("url_encode(Binary) when is_binary(Binary) ->");
+        writer.indent();
+        writer.write("url_encode(binary_to_list(Binary));");
+        writer.dedent();
+        writer.write("url_encode(String) when is_list(String) ->");
+        writer.indent();
+        writer.write("list_to_binary(uri_string:quote(String)).");
+        writer.dedent();
+        writer.write("");
     }
     
     private void generateOperation(
