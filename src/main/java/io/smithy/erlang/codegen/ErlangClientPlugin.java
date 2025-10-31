@@ -266,21 +266,40 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         }
         
+        // Generate -spec with record types
+        String inputType = "map()";
+        String outputType = "map()";
+        
+        if (operation.getInput().isPresent()) {
+            ShapeId inputId = operation.getInput().get();
+            String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
+            inputType = "#" + inputRecordName + "{}";
+        }
+        
+        if (operation.getOutput().isPresent()) {
+            ShapeId outputId = operation.getOutput().get();
+            String outputRecordName = ErlangSymbolProvider.toErlangName(outputId.getName());
+            outputType = "#" + outputRecordName + "{}";
+        }
+        
         writer.writeComment("Calls the " + operation.getId().getName() + " operation");
-        writer.writeSpec(opName, "(Client :: map(), Input :: map()) -> {ok, map()} | {error, term()}");
-        writer.writeFunction(opName, "Client, Input", () -> {
-            writer.write("Method = <<\"$L\">>,", method);
-            writer.write("Endpoint = maps:get(endpoint, Client),");
-            writer.write("");
-            
-            // Generate URI with path parameter substitution
-            String uriVariable;
-            if (httpLabelMembers.isEmpty()) {
-                // No path parameters - use URI as-is
-                writer.write("%% No path parameters");
-                writer.write("Uri = <<\"$L\">>,", uri);
-                uriVariable = "Uri";
-            } else {
+        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
+                opName, inputType, outputType);
+        // Add guard to ensure runtime uses maps
+        writer.write("$L(Client, Input) when is_map(Input) ->", opName);
+        writer.indent();
+        writer.write("Method = <<\"$L\">>,", method);
+        writer.write("Endpoint = maps:get(endpoint, Client),");
+        writer.write("");
+        
+        // Generate URI with path parameter substitution
+        String uriVariable;
+        if (httpLabelMembers.isEmpty()) {
+            // No path parameters - use URI as-is
+            writer.write("%% No path parameters");
+            writer.write("Uri = <<\"$L\">>,", uri);
+            uriVariable = "Uri";
+        } else {
                 // Path parameters need substitution
                 writer.write("%% Build URL with path parameters");
                 writer.write("Uri0 = <<\"$L\">>,", uri);
@@ -571,11 +590,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.dedent();
             writer.write("{error, Reason} ->");
             writer.indent();
-            writer.write("{error, Reason}");
-            writer.dedent();
-            writer.dedent();
-            writer.write("end.");
-        });
+        writer.write("{error, Reason}");
+        writer.dedent();
+        writer.dedent();
+        writer.write("end.");
+        writer.dedent();
     }
     
     /**
