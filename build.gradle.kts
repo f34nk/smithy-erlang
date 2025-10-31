@@ -21,6 +21,7 @@ dependencies {
     implementation("software.amazon.smithy:smithy-protocol-traits:1.51.0")
     implementation("software.amazon.smithy:smithy-rules-engine:1.51.0")
     implementation("software.amazon.smithy:smithy-waiters:1.51.0")
+    implementation("software.amazon.smithy:smithy-smoke-test-traits:1.51.0")
     
     // Testing
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
