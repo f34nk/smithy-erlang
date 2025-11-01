@@ -9,3 +9,8 @@ _build/
 .rebar3/
 *.beam
 erl_crash.dump
+
+# ignore copied files
+model/aws-s3-client.smithy
+src/aws_sigv4.erl
+test/aws_sigv4_test.erl
