@@ -64,6 +64,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Copy AWS SigV4 module
             copyAwsSigV4Module(settings, fileManifest);
             
+            // Copy AWS credentials module
+            copyAwsCredentialsModule(settings, fileManifest);
+            
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Erlang client code", e);
@@ -955,6 +958,67 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, sigv4Content);
+        }
+    }
+    
+    private void copyAwsCredentialsModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS credentials module to generated output");
+        
+        // Read aws_credentials.erl from resources
+        java.io.InputStream credStream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        if (credStream == null) {
+            LOGGER.warning("aws_credentials.erl not found in resources, skipping");
+            return;
+        }
+        
+        String credContent = new String(credStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        credStream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_credentials.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_credentials.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, credContent);
+                LOGGER.info("Copied AWS credentials module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_credentials.erl");
+                fileManifest.writeFile(manifestPath, credContent);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, credContent);
         }
     }
 }
