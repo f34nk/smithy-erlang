@@ -11,7 +11,10 @@
     canonicalize_query_string/1,
     canonicalize_headers/1,
     signed_header_list/1,
-    hash_sha256/1
+    hash_sha256/1,
+    create_string_to_sign/3,
+    credential_scope/3,
+    iso8601_datetime/0
 ]).
 
 %% @doc Sign an HTTP request using AWS Signature Version 4
@@ -216,6 +219,93 @@ hash_sha256(Data) ->
     Hash = crypto:hash(sha256, Data),
     %% Convert to lowercase hex string
     binary:encode_hex(Hash, lowercase).
+
+%%====================================================================
+%% String to Sign Generation (Step 3.3)
+%%====================================================================
+
+%% @doc Create string to sign from canonical request
+%%
+%% The string to sign consists of:
+%% 1. Algorithm identifier (AWS4-HMAC-SHA256)
+%% 2. DateTime in ISO8601 format (YYYYMMDDTHHMMSSZ)
+%% 3. Credential scope (YYYYMMDD/region/service/aws4_request)
+%% 4. Hashed canonical request (SHA256 hex)
+%%
+%% Format:
+%% AWS4-HMAC-SHA256\n
+%% <DateTime>\n
+%% <CredentialScope>\n
+%% <HashedCanonicalRequest>
+%%
+%% @param DateTime ISO8601 timestamp (e.g., <<"20230101T120000Z">>)
+%% @param CredentialScope Credential scope string
+%% @param CanonicalRequest The canonical request to hash
+%% @returns String to sign as binary
+-spec create_string_to_sign(
+    DateTime :: binary(),
+    CredentialScope :: binary(),
+    CanonicalRequest :: binary()
+) -> binary().
+create_string_to_sign(DateTime, CredentialScope, CanonicalRequest) ->
+    Algorithm = <<"AWS4-HMAC-SHA256">>,
+    HashedCanonicalRequest = hash_sha256(CanonicalRequest),
+    
+    <<
+        Algorithm/binary, "\n",
+        DateTime/binary, "\n",
+        CredentialScope/binary, "\n",
+        HashedCanonicalRequest/binary
+    >>.
+
+%% @doc Create credential scope string
+%%
+%% Format: YYYYMMDD/region/service/aws4_request
+%%
+%% The credential scope defines the validity of the signature:
+%% - Date: Extracted from DateTime (first 8 characters)
+%% - Region: AWS region (e.g., us-east-1)
+%% - Service: AWS service name (e.g., s3)
+%% - Terminator: Always "aws4_request"
+%%
+%% @param DateTime ISO8601 timestamp (e.g., <<"20230101T120000Z">>)
+%% @param Region AWS region as binary
+%% @param Service AWS service name as binary
+%% @returns Credential scope string
+-spec credential_scope(
+    DateTime :: binary(),
+    Region :: binary(),
+    Service :: binary()
+) -> binary().
+credential_scope(DateTime, Region, Service) ->
+    %% Extract date from DateTime (first 8 characters: YYYYMMDD)
+    Date = binary:part(DateTime, 0, 8),
+    <<Date/binary, "/", Region/binary, "/", Service/binary, "/aws4_request">>.
+
+%% @doc Generate current timestamp in ISO8601 format
+%%
+%% Format: YYYYMMDDTHHMMSSZ
+%% Example: <<"20230101T120000Z">>
+%%
+%% This is the timestamp format required by AWS SigV4.
+%% The timestamp must be:
+%% - In UTC (indicated by the Z suffix)
+%% - Without separators (no dashes or colons)
+%% - With T separator between date and time
+%%
+%% @returns Current UTC timestamp in ISO8601 format
+-spec iso8601_datetime() -> binary().
+iso8601_datetime() ->
+    %% Get current UTC time
+    {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
+    
+    %% Format as YYYYMMDDTHHMMSSZ
+    iolist_to_binary(
+        io_lib:format(
+            "~4..0B~2..0B~2..0BT~2..0B~2..0B~2..0BZ",
+            [Year, Month, Day, Hour, Minute, Second]
+        )
+    ).
 
 %%====================================================================
 %% Helper Functions
