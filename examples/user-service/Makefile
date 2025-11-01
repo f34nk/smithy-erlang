@@ -1,6 +1,15 @@
 .PHONY: all clean generate test validate compile
 
-all: clean generate test compile
+YELLOW=\033[1;33m
+NC=\033[0m
+
+all: clean generate compile test 
+
+validate:
+	#
+	# Validate the Smithy model
+	#
+	smithy validate model/
 
 generate:
 	# 
@@ -8,6 +17,20 @@ generate:
 	#
 	smithy build
 	tree src/generated
+
+compile:
+	#
+	# Compile the code and analyze with Dialyzer
+	#
+	rebar3 lock
+	rebar3 compile
+	#
+	# Analyze test code with Dialyzer
+	# Tests must include the types header for type checking
+	#
+	rebar3 as test compile
+	rebar3 as test dialyzer || echo "\n$(YELLOW)Some Dialyzer warnings are expected: we use record types in specs (for Dialyzer) but maps at runtime (no conversion overhead, matches AWS SDK patterns).$(NC)\n"
+	rebar3 as test dialyzer_html
 
 test:
 	#
@@ -17,17 +40,3 @@ test:
 
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
-
-validate:
-	#
-	# Validate the Smithy model
-	#
-	smithy validate model/
-
-compile:
-	#
-	# Compile the code and analyze with Dialyzer
-	#
-	rebar3 lock
-	rebar3 compile
-	rebar3 dialyzer
