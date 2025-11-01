@@ -3,7 +3,7 @@ $version: "2.0"
 namespace com.example.s3.test
 
 /// Minimal S3 subset for testing AWS features
-service S3Test {
+service S3Client {
     version: "2024-10-31"
     operations: [
         GetObject

@@ -15,7 +15,7 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
     
     @Override
     protected String getModelPath() {
-        return "/models/aws-test-s3.smithy";
+        return "/models/aws-s3-client.smithy";
     }
     
     @Test

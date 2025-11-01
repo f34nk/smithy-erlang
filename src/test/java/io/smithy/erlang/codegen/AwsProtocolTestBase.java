@@ -33,7 +33,7 @@ public abstract class AwsProtocolTestBase {
      * Default implementation can be overridden by subclasses.
      */
     protected String getServiceShapeId() {
-        return "com.example.s3.test#S3Test";
+        return "com.example.s3.test#S3Client";
     }
     
     /**
