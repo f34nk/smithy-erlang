@@ -17,7 +17,8 @@
     iso8601_datetime/0,
     derive_signing_key/4,
     calculate_signature/2,
-    hmac_sha256/2
+    hmac_sha256/2,
+    format_auth_header/4
 ]).
 
 %% @doc Sign an HTTP request using AWS Signature Version 4
@@ -44,18 +45,47 @@
     Body :: binary(),
     Credentials :: map()
 ) -> [{binary(), binary()}].
-sign_request(_Method, _Url, Headers, _Body, _Credentials) ->
-    %% TODO: Implement full AWS SigV4 signing algorithm
-    %% 
-    %% Steps remaining (Phase 3.3-3.5):
-    %% 2. Create string to sign (Algorithm, DateTime, Scope, HashedRequest)
-    %% 3. Calculate signature (HMAC-SHA256 with derived key)
-    %% 4. Format Authorization header
-    %% 5. Add required headers (X-Amz-Date, X-Amz-Security-Token if present)
-    %%
-    %% For now, return headers unchanged (pass-through)
-    %% Step 3.2 (Canonical Request Generation) is implemented below
-    Headers.
+sign_request(Method, Url, Headers, Body, Credentials) ->
+    %% Extract credentials
+    #{
+        access_key_id := AccessKeyId,
+        secret_access_key := SecretAccessKey,
+        region := Region,
+        service := Service
+    } = Credentials,
+    
+    %% Generate timestamp
+    DateTime = iso8601_datetime(),
+    Date = binary:part(DateTime, 0, 8),
+    
+    %% Add X-Amz-Date header (required by AWS)
+    HeadersWithDate = [{<<"X-Amz-Date">>, DateTime} | Headers],
+    
+    %% Add X-Amz-Security-Token if using temporary credentials
+    HeadersWithToken = case maps:get(session_token, Credentials, undefined) of
+        undefined -> 
+            HeadersWithDate;
+        Token -> 
+            [{<<"X-Amz-Security-Token">>, Token} | HeadersWithDate]
+    end,
+    
+    %% Step 1: Create canonical request
+    CanonicalRequest = create_canonical_request(Method, Url, HeadersWithToken, Body),
+    
+    %% Step 2: Create string to sign
+    CredentialScope = credential_scope(DateTime, Region, Service),
+    StringToSign = create_string_to_sign(DateTime, CredentialScope, CanonicalRequest),
+    
+    %% Step 3: Calculate signature
+    SigningKey = derive_signing_key(SecretAccessKey, Date, Region, Service),
+    Signature = calculate_signature(SigningKey, StringToSign),
+    
+    %% Step 4: Format Authorization header
+    SignedHeaders = signed_header_list(HeadersWithToken),
+    AuthHeader = format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature),
+    
+    %% Step 5: Add Authorization header and return
+    [{<<"Authorization">>, AuthHeader} | HeadersWithToken].
 
 %%====================================================================
 %% Canonical Request Generation (Step 3.2)
@@ -387,6 +417,39 @@ calculate_signature(SigningKey, StringToSign) ->
 -spec hmac_sha256(binary(), binary()) -> binary().
 hmac_sha256(Key, Data) ->
     crypto:mac(hmac, sha256, Key, Data).
+
+%%====================================================================
+%% Authorization Header Generation (Step 3.5)
+%%====================================================================
+
+%% @doc Format Authorization header value
+%%
+%% Creates the Authorization header value according to AWS SigV4 format:
+%% AWS4-HMAC-SHA256 Credential=<AccessKeyId>/<CredentialScope>,
+%% SignedHeaders=<SignedHeaders>, Signature=<Signature>
+%%
+%% Example:
+%% AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20230101/us-east-1/s3/aws4_request,
+%% SignedHeaders=host;x-amz-date, Signature=abc123...
+%%
+%% @param AccessKeyId AWS access key ID
+%% @param CredentialScope Credential scope from credential_scope/3
+%% @param SignedHeaders Signed headers list from signed_header_list/1
+%% @param Signature Signature from calculate_signature/2
+%% @returns Authorization header value as binary
+-spec format_auth_header(
+    AccessKeyId :: binary(),
+    CredentialScope :: binary(),
+    SignedHeaders :: binary(),
+    Signature :: binary()
+) -> binary().
+format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature) ->
+    <<
+        "AWS4-HMAC-SHA256 ",
+        "Credential=", AccessKeyId/binary, "/", CredentialScope/binary, ", ",
+        "SignedHeaders=", SignedHeaders/binary, ", ",
+        "Signature=", Signature/binary
+    >>.
 
 %%====================================================================
 %% Helper Functions

@@ -3,11 +3,12 @@
 -include_lib("eunit/include/eunit.hrl").
 
 %%% Tests for AWS SigV4 module
-%%% Step 3.1: Basic skeleton tests (5 tests)
+%%% Step 3.1: Basic skeleton tests (1 test)
 %%% Step 3.2: Canonical request generation tests (25 tests)
 %%% Step 3.3: String to sign generation tests (14 tests)
 %%% Step 3.4: Signature calculation tests (17 tests)
-%%% Total: 61 tests
+%%% Step 3.5: Authorization header and sign_request tests (10 tests)
+%%% Total: 67 tests
 
 %% Test that the module compiles and exports are correct
 module_info_test() ->
@@ -17,78 +18,6 @@ module_info_test() ->
     %% Verify sign_request/5 is exported
     Exports = aws_sigv4:module_info(exports),
     ?assert(lists:member({sign_request, 5}, Exports)).
-
-%% Test sign_request/5 with minimal inputs (returns headers unchanged for now)
-sign_request_passthrough_test() ->
-    Method = <<"GET">>,
-    Url = <<"https://s3.amazonaws.com/mybucket/mykey">>,
-    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
-    Body = <<>>,
-    Credentials = #{
-        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
-        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
-        region => <<"us-east-1">>,
-        service => <<"s3">>
-    },
-    
-    %% For now, should return headers unchanged
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
-    
-    ?assertEqual(Headers, Result).
-
-%% Test with all credential fields including session token
-sign_request_with_session_token_test() ->
-    Method = <<"POST">>,
-    Url = <<"https://dynamodb.us-west-2.amazonaws.com/">>,
-    Headers = [{<<"Content-Type">>, <<"application/x-amz-json-1.0">>}],
-    Body = <<"{\"TableName\":\"Test\"}">>,
-    Credentials = #{
-        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
-        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
-        session_token => <<"AQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4IgRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE">>,
-        region => <<"us-west-2">>,
-        service => <<"dynamodb">>
-    },
-    
-    %% For now, should return headers unchanged
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
-    
-    ?assertEqual(Headers, Result).
-
-%% Test with empty body
-sign_request_empty_body_test() ->
-    Method = <<"DELETE">>,
-    Url = <<"https://s3.amazonaws.com/mybucket/mykey">>,
-    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
-    Body = <<>>,
-    Credentials = #{
-        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
-        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
-        region => <<"us-east-1">>,
-        service => <<"s3">>
-    },
-    
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
-    
-    ?assertEqual(Headers, Result).
-
-%% Test function signature accepts all parameter types correctly
-sign_request_type_test() ->
-    %% Test that function can be called with various input types
-    Headers = [{<<"X-Custom-Header">>, <<"value">>}],
-    Result = aws_sigv4:sign_request(
-        <<"PUT">>,
-        <<"https://example.com/path">>,
-        Headers,
-        <<"body">>,
-        #{access_key_id => <<"key">>, 
-          secret_access_key => <<"secret">>,
-          region => <<"us-east-1">>,
-          service => <<"s3">>}
-    ),
-    %% Should return a list (for now, unchanged headers)
-    ?assert(is_list(Result)),
-    ?assertEqual(Headers, Result).
 
 %%====================================================================
 %% Step 3.2: Canonical Request Generation Tests
@@ -768,6 +697,253 @@ integration_full_sigv4_flow_test() ->
     SigningKey2 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
     Signature2 = aws_sigv4:calculate_signature(SigningKey2, StringToSign),
     ?assertEqual(Signature, Signature2).
+
+%%====================================================================
+%% Step 3.5: Authorization Header and Complete Signing Tests
+%%====================================================================
+
+%% Test format_auth_header/4 basic format
+format_auth_header_basic_test() ->
+    AccessKeyId = <<"AKIAIOSFODNN7EXAMPLE">>,
+    CredentialScope = <<"20230101/us-east-1/s3/aws4_request">>,
+    SignedHeaders = <<"host;x-amz-date">>,
+    Signature = <<"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7">>,
+    
+    Result = aws_sigv4:format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature),
+    
+    %% Should start with algorithm
+    ?assert(binary:match(Result, <<"AWS4-HMAC-SHA256">>) =/= nomatch),
+    
+    %% Should contain Credential
+    ?assert(binary:match(Result, <<"Credential=">>) =/= nomatch),
+    ?assert(binary:match(Result, AccessKeyId) =/= nomatch),
+    ?assert(binary:match(Result, CredentialScope) =/= nomatch),
+    
+    %% Should contain SignedHeaders
+    ?assert(binary:match(Result, <<"SignedHeaders=">>) =/= nomatch),
+    ?assert(binary:match(Result, SignedHeaders) =/= nomatch),
+    
+    %% Should contain Signature
+    ?assert(binary:match(Result, <<"Signature=">>) =/= nomatch),
+    ?assert(binary:match(Result, Signature) =/= nomatch).
+
+%% Test format_auth_header/4 exact format
+format_auth_header_format_test() ->
+    AccessKeyId = <<"AKIAIOSFODNN7EXAMPLE">>,
+    CredentialScope = <<"20230101/us-east-1/s3/aws4_request">>,
+    SignedHeaders = <<"host;x-amz-date">>,
+    Signature = <<"abc123">>,
+    
+    Result = aws_sigv4:format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature),
+    
+    Expected = <<"AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20230101/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=abc123">>,
+    
+    ?assertEqual(Expected, Result).
+
+%% Test sign_request/5 returns headers with Authorization
+sign_request_basic_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/mybucket/mykey">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Should return a list of headers
+    ?assert(is_list(Result)),
+    
+    %% Should have Authorization header
+    ?assert(lists:keyfind(<<"Authorization">>, 1, Result) =/= false),
+    
+    %% Should have X-Amz-Date header
+    ?assert(lists:keyfind(<<"X-Amz-Date">>, 1, Result) =/= false),
+    
+    %% Should have original Host header
+    ?assert(lists:keyfind(<<"Host">>, 1, Result) =/= false).
+
+%% Test sign_request/5 with session token
+sign_request_with_session_token_test() ->
+    Method = <<"POST">>,
+    Url = <<"https://dynamodb.us-west-2.amazonaws.com/">>,
+    Headers = [{<<"Host">>, <<"dynamodb.us-west-2.amazonaws.com">>}],
+    Body = <<"{\"TableName\":\"Test\"}">>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        session_token => <<"AQoEXAMPLEsessiontoken">>,
+        region => <<"us-west-2">>,
+        service => <<"dynamodb">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Should have Authorization header
+    ?assert(lists:keyfind(<<"Authorization">>, 1, Result) =/= false),
+    
+    %% Should have X-Amz-Security-Token header
+    {_, Token} = lists:keyfind(<<"X-Amz-Security-Token">>, 1, Result),
+    ?assertEqual(<<"AQoEXAMPLEsessiontoken">>, Token).
+
+%% Test sign_request/5 without session token
+sign_request_without_session_token_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/bucket">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Should NOT have X-Amz-Security-Token header
+    ?assertEqual(false, lists:keyfind(<<"X-Amz-Security-Token">>, 1, Result)).
+
+%% Test sign_request/5 Authorization header format
+sign_request_authorization_format_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/mybucket">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    {_, AuthHeader} = lists:keyfind(<<"Authorization">>, 1, Result),
+    
+    %% Should start with AWS4-HMAC-SHA256
+    ?assert(binary:match(AuthHeader, <<"AWS4-HMAC-SHA256">>) =/= nomatch),
+    
+    %% Should contain Credential, SignedHeaders, and Signature
+    ?assert(binary:match(AuthHeader, <<"Credential=">>) =/= nomatch),
+    ?assert(binary:match(AuthHeader, <<"SignedHeaders=">>) =/= nomatch),
+    ?assert(binary:match(AuthHeader, <<"Signature=">>) =/= nomatch).
+
+%% Test sign_request/5 X-Amz-Date format
+sign_request_date_format_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/mybucket">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    {_, DateTime} = lists:keyfind(<<"X-Amz-Date">>, 1, Result),
+    
+    %% Should be 16 characters
+    ?assertEqual(16, byte_size(DateTime)),
+    
+    %% Should have T separator at position 8
+    ?assertEqual($T, binary:at(DateTime, 8)),
+    
+    %% Should end with Z
+    ?assertEqual($Z, binary:at(DateTime, 15)).
+
+%% Test sign_request/5 with POST and body
+sign_request_post_with_body_test() ->
+    Method = <<"POST">>,
+    Url = <<"https://dynamodb.us-east-1.amazonaws.com/">>,
+    Headers = [
+        {<<"Host">>, <<"dynamodb.us-east-1.amazonaws.com">>},
+        {<<"Content-Type">>, <<"application/x-amz-json-1.0">>}
+    ],
+    Body = <<"{\"TableName\":\"Users\",\"Key\":{\"UserId\":{\"S\":\"123\"}}}">>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"dynamodb">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Should have all required headers
+    ?assert(lists:keyfind(<<"Authorization">>, 1, Result) =/= false),
+    ?assert(lists:keyfind(<<"X-Amz-Date">>, 1, Result) =/= false),
+    ?assert(lists:keyfind(<<"Host">>, 1, Result) =/= false),
+    ?assert(lists:keyfind(<<"Content-Type">>, 1, Result) =/= false).
+
+%% Test sign_request/5 deterministic
+sign_request_deterministic_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/mybucket">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    %% Call twice
+    Result1 = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    Result2 = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Both should have Authorization header
+    {_, Auth1} = lists:keyfind(<<"Authorization">>, 1, Result1),
+    {_, Auth2} = lists:keyfind(<<"Authorization">>, 1, Result2),
+    
+    %% Signatures may differ due to different timestamps, but format should be same
+    ?assert(binary:match(Auth1, <<"AWS4-HMAC-SHA256">>) =/= nomatch),
+    ?assert(binary:match(Auth2, <<"AWS4-HMAC-SHA256">>) =/= nomatch).
+
+%% Test complete integration: sign_request produces valid AWS format
+integration_sign_request_complete_test() ->
+    Method = <<"GET">>,
+    Url = <<"https://s3.amazonaws.com/mybucket/myobject">>,
+    Headers = [{<<"Host">>, <<"s3.amazonaws.com">>}],
+    Body = <<>>,
+    Credentials = #{
+        access_key_id => <<"AKIAIOSFODNN7EXAMPLE">>,
+        secret_access_key => <<"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY">>,
+        region => <<"us-east-1">>,
+        service => <<"s3">>
+    },
+    
+    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    
+    %% Extract headers
+    {_, AuthHeader} = lists:keyfind(<<"Authorization">>, 1, Result),
+    {_, DateTime} = lists:keyfind(<<"X-Amz-Date">>, 1, Result),
+    {_, Host} = lists:keyfind(<<"Host">>, 1, Result),
+    
+    %% Verify Authorization header format
+    ?assert(binary:match(AuthHeader, <<"AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/">>) =/= nomatch),
+    ?assert(binary:match(AuthHeader, <<"/us-east-1/s3/aws4_request">>) =/= nomatch),
+    ?assert(binary:match(AuthHeader, <<"SignedHeaders=">>) =/= nomatch),
+    ?assert(binary:match(AuthHeader, <<"Signature=">>) =/= nomatch),
+    
+    %% Verify DateTime format
+    ?assertEqual(16, byte_size(DateTime)),
+    ?assertEqual($T, binary:at(DateTime, 8)),
+    ?assertEqual($Z, binary:at(DateTime, 15)),
+    
+    %% Verify Host is preserved
+    ?assertEqual(<<"s3.amazonaws.com">>, Host),
+    
+    %% Count headers (should be 3: Authorization, X-Amz-Date, Host)
+    ?assertEqual(3, length(Result)).
 
 %%====================================================================
 %% Helper Functions for Tests
