@@ -5,12 +5,6 @@ NC=\033[0m
 
 all: clean generate compile test 
 
-validate:
-	#
-	# Validate the Smithy model
-	#
-	smithy validate model/
-
 generate:
 	# 
 	# Generate Erlang client from Smithy model
