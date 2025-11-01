@@ -34,13 +34,23 @@ public class AwsSigV4ModuleTest {
         assertTrue(content.contains("-export([sign_request/5])"), 
             "Module should export sign_request/5");
         
-        // Check for function definition
-        assertTrue(content.contains("sign_request(_Method, _Url, Headers, _Body, _Credentials)"), 
-            "Module should define sign_request/5 function");
+        // Check for function definition (full implementation)
+        assertTrue(content.contains("sign_request(Method, Url, Headers, Body, Credentials)"), 
+            "Module should define sign_request/5 function with full implementation");
         
         // Check for proper documentation
         assertTrue(content.contains("AWS Signature Version 4"), 
             "Module should have AWS SigV4 documentation");
+        
+        // Check for key implementation functions
+        assertTrue(content.contains("create_canonical_request"), 
+            "Module should have create_canonical_request function");
+        assertTrue(content.contains("create_string_to_sign"), 
+            "Module should have create_string_to_sign function");
+        assertTrue(content.contains("calculate_signature"), 
+            "Module should have calculate_signature function");
+        assertTrue(content.contains("format_auth_header"), 
+            "Module should have format_auth_header function");
     }
 
     @Test
@@ -61,19 +71,36 @@ public class AwsSigV4ModuleTest {
     }
 
     @Test
-    public void testAwsSigV4ModuleTodoComment() throws Exception {
-        // Verify the module has TODO comment for future implementation
+    public void testAwsSigV4ModuleImplementation() throws Exception {
+        // Verify the module has complete implementation
         InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_sigv4.erl");
         assertNotNull(stream);
         
         String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         
-        // Check for TODO comment indicating skeleton status
-        assertTrue(content.contains("TODO:") || content.contains("TODO "), 
-            "Module should have TODO comment indicating future implementation");
+        // Check for HMAC implementation
+        assertTrue(content.contains("crypto:mac(hmac, sha256"), 
+            "Module should use crypto:mac for HMAC-SHA256");
         
-        // Check that it currently returns headers unchanged
-        assertTrue(content.contains("Headers"), 
-            "Module should currently return headers unchanged");
+        // Check for Authorization header formatting
+        assertTrue(content.contains("AWS4-HMAC-SHA256"), 
+            "Module should format AWS4-HMAC-SHA256 authorization header");
+        
+        // Check for credential scope
+        assertTrue(content.contains("credential_scope"), 
+            "Module should have credential_scope function");
+        
+        // Check for signing key derivation
+        assertTrue(content.contains("derive_signing_key"), 
+            "Module should have derive_signing_key function");
+        
+        // Check for canonical request components
+        assertTrue(content.contains("canonicalize_headers") && 
+                   content.contains("canonicalize_query_string"), 
+            "Module should have canonicalization functions");
+        
+        // Verify no TODO comments remain (implementation is complete)
+        assertFalse(content.contains("TODO: Implement"), 
+            "Module should not have TODO comments - implementation is complete");
     }
 }

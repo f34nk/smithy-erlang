@@ -61,6 +61,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Generate types header file
             generateTypesHeader(service, model, symbolProvider, settings, fileManifest);
             
+            // Copy AWS SigV4 module
+            copyAwsSigV4Module(settings, fileManifest);
+            
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Erlang client code", e);
@@ -143,7 +146,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         // Generate operation functions
         for (OperationShape operation : operations) {
-            generateOperation(operation, model, symbolProvider, writer);
+            generateOperation(operation, service, model, symbolProvider, writer);
         }
         
         // Write to file
@@ -218,6 +221,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
     
     private void generateOperation(
             OperationShape operation,
+            ServiceShape service,
             Model model,
             ErlangSymbolProvider symbolProvider,
             ErlangWriter writer) {
@@ -472,12 +476,33 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
             
             writer.write("");
+            writer.write("%% Sign request with AWS SigV4 if credentials provided");
+            writer.write("SignedHeaders = case maps:get(credentials, Client, undefined) of");
+            writer.indent();
+            writer.write("undefined ->");
+            writer.indent();
+            writer.write("%% No credentials - use headers as-is");
+            writer.write("Headers;");
+            writer.dedent();
+            writer.write("Credentials ->");
+            writer.indent();
+            writer.write("%% AWS credentials present - sign the request");
+            writer.write("Region = maps:get(region, Client, <<\"us-east-1\">>),");
+            // Extract service name from service shape
+            String serviceName = service.getId().getName().toLowerCase();
+            writer.write("Service = <<\"$L\">>,", serviceName);
+            writer.write("CredentialsWithRegion = Credentials#{region => Region, service => Service},");
+            writer.write("aws_sigv4:sign_request(Method, Url, Headers, Body, CredentialsWithRegion)");
+            writer.dedent();
+            writer.dedent();
+            writer.write("end,");
+            writer.write("");
             writer.write("%% Make HTTP request");
             writer.write("Request = case Method of");
             writer.indent();
-            writer.write("<<\"GET\">> -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- Headers]};");
-            writer.write("<<\"DELETE\">> -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- Headers]};");
-            writer.write("_ -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- Headers], \"application/json\", binary_to_list(Body)}");
+            writer.write("<<\"GET\">> -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders]};");
+            writer.write("<<\"DELETE\">> -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders]};");
+            writer.write("_ -> {binary_to_list(Url), [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders], \"application/json\", binary_to_list(Body)}");
             writer.dedent();
             writer.write("end,");
             writer.write("");
@@ -870,5 +895,66 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 }
             }
         });
+    }
+    
+    private void copyAwsSigV4Module(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS SigV4 module to generated output");
+        
+        // Read aws_sigv4.erl from resources
+        java.io.InputStream sigv4Stream = getClass().getClassLoader().getResourceAsStream("aws_sigv4.erl");
+        if (sigv4Stream == null) {
+            LOGGER.warning("aws_sigv4.erl not found in resources, skipping");
+            return;
+        }
+        
+        String sigv4Content = new String(sigv4Stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        sigv4Stream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_sigv4.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_sigv4.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, sigv4Content);
+                LOGGER.info("Copied AWS SigV4 module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_sigv4.erl");
+                fileManifest.writeFile(manifestPath, sigv4Content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, sigv4Content);
+        }
     }
 }
