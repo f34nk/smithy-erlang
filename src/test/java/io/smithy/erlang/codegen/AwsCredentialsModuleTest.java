@@ -37,6 +37,10 @@ public class AwsCredentialsModuleTest {
             "Module should export get_credentials/0");
         assertTrue(content.contains("from_environment/0"), 
             "Module should export from_environment/0");
+        assertTrue(content.contains("from_credentials_file/0"), 
+            "Module should export from_credentials_file/0");
+        assertTrue(content.contains("from_credentials_file/1"), 
+            "Module should export from_credentials_file/1");
     }
 
     @Test
@@ -151,10 +155,63 @@ public class AwsCredentialsModuleTest {
         // Check for multiple provider support
         assertTrue(content.contains("from_environment"), 
             "Chain should include environment provider");
+        assertTrue(content.contains("from_credentials_file"), 
+            "Chain should include credentials file provider");
         
-        // Check for future provider placeholders
-        assertTrue(content.contains("TODO") || content.contains("from_credentials_file") 
-                   || content.contains("Provider"), 
+        // Check for provider chain structure
+        assertTrue(content.contains("Providers") || content.contains("try_providers"), 
             "Module should have structure for multiple providers");
+    }
+
+    @Test
+    public void testFromCredentialsFileFunction() throws Exception {
+        // Verify from_credentials_file functions exist
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        assertNotNull(stream);
+        
+        String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        
+        // Check for function definitions
+        assertTrue(content.contains("from_credentials_file()"), 
+            "Module should define from_credentials_file/0 function");
+        assertTrue(content.contains("from_credentials_file(Profile)"), 
+            "Module should define from_credentials_file/1 function");
+        
+        // Check for file operations
+        assertTrue(content.contains("file:read_file"), 
+            "Function should read credentials file");
+        assertTrue(content.contains(".aws/credentials") || content.contains("\".aws\""), 
+            "Function should read from ~/.aws/credentials");
+        
+        // Check for profile parsing
+        assertTrue(content.contains("[default]") || content.contains("ProfileSection"), 
+            "Function should parse profile sections");
+        
+        // Check for error handling
+        assertTrue(content.contains("credentials_file_not_found"), 
+            "Function should handle missing file");
+        assertTrue(content.contains("profile_not_found"), 
+            "Function should handle missing profile");
+    }
+
+    @Test
+    public void testINIFileParsing() throws Exception {
+        // Verify INI-style parsing for credentials file
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        assertNotNull(stream);
+        
+        String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        
+        // Check for parsing logic
+        assertTrue(content.contains("parse_credentials_file") || content.contains("extract_credentials"), 
+            "Module should have parsing functions");
+        
+        // Check for key-value parsing
+        assertTrue(content.contains("binary:split") && content.contains("="), 
+            "Module should parse key=value pairs");
+        
+        // Check for whitespace handling
+        assertTrue(content.contains("string:trim") || content.contains("trim"), 
+            "Module should handle whitespace");
     }
 }

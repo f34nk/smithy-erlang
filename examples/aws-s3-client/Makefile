@@ -14,6 +14,7 @@ copy:
 	# Copy the AWS SigV4 module from the main resources
 	#
 	cp ../../src/test/resources/aws_sigv4_test.erl test/
+	cp ../../src/test/resources/aws_credentials_test.erl test/
 
 generate:
 	# 
@@ -45,4 +46,4 @@ test:
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
 	# remove copied files
-	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl
+	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl

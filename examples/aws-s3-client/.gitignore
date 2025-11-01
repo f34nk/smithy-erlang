@@ -12,5 +12,5 @@ erl_crash.dump
 
 # ignore copied files
 model/aws-s3-client.smithy
-src/aws_sigv4.erl
 test/aws_sigv4_test.erl
+test/aws_credentials_test.erl

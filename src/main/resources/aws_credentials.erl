@@ -7,14 +7,16 @@
 %% Public API
 -export([
     get_credentials/0,
-    from_environment/0
+    from_environment/0,
+    from_credentials_file/0,
+    from_credentials_file/1
 ]).
 
 %% @doc Get AWS credentials from the default credential chain
 %%
 %% Tries credential providers in the following order:
 %% 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-%% 2. Shared credentials file (~/.aws/credentials) - TODO: Not yet implemented
+%% 2. Shared credentials file (~/.aws/credentials)
 %% 3. IAM role (EC2 instance metadata) - TODO: Not yet implemented
 %%
 %% Returns the first successfully loaded credentials, or an error if none are found.
@@ -38,8 +40,8 @@
 get_credentials() ->
     %% Try providers in order
     Providers = [
-        fun from_environment/0
-        %% TODO: Add from_credentials_file/0
+        fun from_environment/0,
+        fun from_credentials_file/0
         %% TODO: Add from_iam_role/0
     ],
     try_providers(Providers).
@@ -108,9 +110,185 @@ from_environment() ->
             end
     end.
 
+%% @doc Load AWS credentials from shared credentials file
+%%
+%% Reads credentials from ~/.aws/credentials using the "default" profile.
+%% This is equivalent to calling from_credentials_file("default").
+%%
+%% The credentials file format is INI-style:
+%% ```
+%% [default]
+%% aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+%% aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+%% ```
+%%
+%% @returns {ok, Credentials :: map()} | {error, Reason :: atom()}
+%%
+%% Example:
+%% ```
+%% case aws_credentials:from_credentials_file() of
+%%     {ok, Credentials} ->
+%%         %% Use credentials
+%%         {ok, Credentials};
+%%     {error, credentials_file_not_found} ->
+%%         io:format("~/.aws/credentials file not found~n");
+%%     {error, {profile_not_found, Profile}} ->
+%%         io:format("Profile ~s not found in credentials file~n", [Profile])
+%% end.
+%% ```
+-spec from_credentials_file() -> {ok, map()} | {error, atom() | tuple()}.
+from_credentials_file() ->
+    from_credentials_file(<<"default">>).
+
+%% @doc Load AWS credentials from shared credentials file using specified profile
+%%
+%% Reads credentials from ~/.aws/credentials for the given profile name.
+%% Supports multiple profiles in the credentials file.
+%%
+%% File format:
+%% ```
+%% [default]
+%% aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+%% aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+%%
+%% [production]
+%% aws_access_key_id = AKIAPRODEXAMPLE
+%% aws_secret_access_key = prodSecret
+%% aws_session_token = prodSessionToken
+%% ```
+%%
+%% @param Profile Profile name as binary (e.g., <<"default">>, <<"production">>)
+%% @returns {ok, Credentials :: map()} | {error, Reason :: atom() | tuple()}
+%%
+%% Example:
+%% ```
+%% case aws_credentials:from_credentials_file(<<"production">>) of
+%%     {ok, Credentials} ->
+%%         %% Use production credentials
+%%         {ok, Credentials};
+%%     {error, {profile_not_found, Profile}} ->
+%%         io:format("Profile ~s not found~n", [Profile])
+%% end.
+%% ```
+-spec from_credentials_file(binary()) -> {ok, map()} | {error, atom() | tuple()}.
+from_credentials_file(Profile) when is_binary(Profile) ->
+    %% Get home directory
+    case os:getenv("HOME") of
+        false ->
+            {error, home_not_set};
+        Home ->
+            %% Build path to credentials file
+            CredFile = filename:join([Home, ".aws", "credentials"]),
+            
+            %% Read file
+            case file:read_file(CredFile) of
+                {ok, Content} ->
+                    parse_credentials_file(Content, Profile);
+                {error, enoent} ->
+                    {error, credentials_file_not_found};
+                {error, Reason} ->
+                    {error, {credentials_file_error, Reason}}
+            end
+    end.
+
 %%====================================================================
 %% Internal Functions
 %%====================================================================
+
+%% @private
+%% Parse credentials file content and extract profile credentials
+-spec parse_credentials_file(binary(), binary()) -> {ok, map()} | {error, tuple()}.
+parse_credentials_file(Content, Profile) ->
+    %% Split into lines
+    Lines = binary:split(Content, <<"\n">>, [global, trim]),
+    
+    %% Build profile section header
+    ProfileSection = <<"[", Profile/binary, "]">>,
+    
+    %% Find profile and extract credentials
+    case find_profile_credentials(Lines, ProfileSection) of
+        {ok, Credentials} ->
+            {ok, Credentials};
+        error ->
+            {error, {profile_not_found, Profile}}
+    end.
+
+%% @private
+%% Find profile section in lines and extract credentials
+-spec find_profile_credentials([binary()], binary()) -> {ok, map()} | error.
+find_profile_credentials([Line | Rest], ProfileSection) ->
+    %% Trim whitespace from line
+    TrimmedLine = string:trim(Line, both),
+    
+    case TrimmedLine of
+        ProfileSection ->
+            %% Found profile section, extract credentials
+            extract_credentials(Rest, #{});
+        _ ->
+            %% Not the profile we're looking for, continue searching
+            find_profile_credentials(Rest, ProfileSection)
+    end;
+find_profile_credentials([], _ProfileSection) ->
+    %% Profile not found
+    error.
+
+%% @private
+%% Extract credentials from lines until end of section
+-spec extract_credentials([binary()], map()) -> {ok, map()} | error.
+extract_credentials([Line | Rest], Acc) ->
+    %% Trim whitespace
+    TrimmedLine = string:trim(Line, both),
+    
+    case TrimmedLine of
+        <<>> ->
+            %% Empty line, end of section
+            validate_credentials(Acc);
+        
+        <<"[", _/binary>> ->
+            %% Next section started, end of current profile
+            validate_credentials(Acc);
+        
+        _ ->
+            %% Parse key=value line
+            case binary:split(TrimmedLine, <<"=">>, [trim]) of
+                [Key, Value] ->
+                    %% Trim whitespace from key and value
+                    TrimmedKey = string:trim(Key, both),
+                    TrimmedValue = string:trim(Value, both),
+                    
+                    %% Add to accumulator based on key
+                    NewAcc = case TrimmedKey of
+                        <<"aws_access_key_id">> ->
+                            Acc#{access_key_id => TrimmedValue};
+                        <<"aws_secret_access_key">> ->
+                            Acc#{secret_access_key => TrimmedValue};
+                        <<"aws_session_token">> ->
+                            Acc#{session_token => TrimmedValue};
+                        _ ->
+                            %% Unknown key, ignore
+                            Acc
+                    end,
+                    
+                    extract_credentials(Rest, NewAcc);
+                
+                _ ->
+                    %% Not a key=value line, skip
+                    extract_credentials(Rest, Acc)
+            end
+    end;
+extract_credentials([], Acc) ->
+    %% End of file, validate what we have
+    validate_credentials(Acc).
+
+%% @private
+%% Validate that we have required credentials
+-spec validate_credentials(map()) -> {ok, map()} | error.
+validate_credentials(#{access_key_id := _, secret_access_key := _} = Credentials) ->
+    %% Have both required fields
+    {ok, Credentials};
+validate_credentials(_) ->
+    %% Missing required fields
+    error.
 
 %% @private
 %% Try each credential provider in order until one succeeds
