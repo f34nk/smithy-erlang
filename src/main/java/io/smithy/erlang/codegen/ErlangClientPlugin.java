@@ -67,6 +67,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Copy AWS credentials module
             copyAwsCredentialsModule(settings, fileManifest);
             
+            // Copy AWS config module
+            copyAwsConfigModule(settings, fileManifest);
+            
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Erlang client code", e);
@@ -1019,6 +1022,67 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, credContent);
+        }
+    }
+    
+    private void copyAwsConfigModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS config module to generated output");
+        
+        // Read aws_config.erl from resources
+        java.io.InputStream configStream = getClass().getClassLoader().getResourceAsStream("aws_config.erl");
+        if (configStream == null) {
+            LOGGER.warning("aws_config.erl not found in resources, skipping");
+            return;
+        }
+        
+        String configContent = new String(configStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        configStream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_config.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_config.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, configContent);
+                LOGGER.info("Copied AWS config module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_config.erl");
+                fileManifest.writeFile(manifestPath, configContent);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, configContent);
         }
     }
 }

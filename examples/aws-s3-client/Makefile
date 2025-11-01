@@ -1,4 +1,4 @@
-.PHONY: all clean generate test validate compile
+.PHONY: all copy generate compile test clean
 
 YELLOW=\033[1;33m
 NC=\033[0m
@@ -11,10 +11,11 @@ copy:
 	#
 	cp ../../src/test/resources/models/aws-s3-client.smithy model/
 	#
-	# Copy the AWS SigV4 module from the main resources
+	# Copy the tests from the JAVA test resources
 	#
 	cp ../../src/test/resources/aws_sigv4_test.erl test/
 	cp ../../src/test/resources/aws_credentials_test.erl test/
+	cp ../../src/test/resources/aws_config_test.erl test/
 
 generate:
 	# 
@@ -46,4 +47,4 @@ test:
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
 	# remove copied files
-	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl
+	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl
