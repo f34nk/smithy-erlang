@@ -35,6 +35,8 @@ public class AwsCredentialsModuleTest {
             "Module should have exports");
         assertTrue(content.contains("get_credentials/0"), 
             "Module should export get_credentials/0");
+        assertTrue(content.contains("get_credentials/1"), 
+            "Module should export get_credentials/1");
         assertTrue(content.contains("from_environment/0"), 
             "Module should export from_environment/0");
         assertTrue(content.contains("from_credentials_file/0"), 
@@ -213,5 +215,62 @@ public class AwsCredentialsModuleTest {
         // Check for whitespace handling
         assertTrue(content.contains("string:trim") || content.contains("trim"), 
             "Module should handle whitespace");
+    }
+
+    @Test
+    public void testGetCredentialsWithOptions() throws Exception {
+        // Verify get_credentials/1 accepts options map
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        assertNotNull(stream);
+        
+        String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        
+        // Check for function definition with Options parameter
+        assertTrue(content.contains("get_credentials(Options)"), 
+            "Module should define get_credentials/1 with Options parameter");
+        
+        // Check for profile option handling
+        assertTrue(content.contains("profile") || content.contains("Profile"), 
+            "Function should handle profile option");
+        
+        // Check for maps:get usage for options
+        assertTrue(content.contains("maps:get"), 
+            "Function should extract options from map");
+    }
+
+    @Test
+    public void testProviderChainWithProfile() throws Exception {
+        // Verify provider chain supports profile selection
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        assertNotNull(stream);
+        
+        String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        
+        // Check that provider chain includes environment and file providers
+        assertTrue(content.contains("from_environment") && content.contains("from_credentials_file"), 
+            "Provider chain should include environment and file providers");
+        
+        // Check for provider chain structure
+        assertTrue(content.contains("Providers") && content.contains("try_providers"), 
+            "Module should have provider chain structure");
+        
+        // Check for profile-aware file provider
+        assertTrue(content.contains("fun() ->") || content.contains("from_credentials_file(Profile)"), 
+            "Provider chain should support profile selection");
+    }
+
+    @Test
+    public void testProviderChainPlaceholders() throws Exception {
+        // Verify provider chain has placeholders for future providers
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("aws_credentials.erl");
+        assertNotNull(stream);
+        
+        String content = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        
+        // Check for EC2/ECS metadata placeholders in comments
+        assertTrue(content.contains("ec2") || content.contains("EC2") || content.contains("metadata"), 
+            "Module should have placeholders for EC2 metadata provider");
+        assertTrue(content.contains("ecs") || content.contains("ECS") || content.contains("container"), 
+            "Module should have placeholders for ECS metadata provider");
     }
 }

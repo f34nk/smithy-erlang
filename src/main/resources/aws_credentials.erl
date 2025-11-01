@@ -7,6 +7,8 @@
 %% Public API
 -export([
     get_credentials/0,
+    get_credentials/1,
+    get_credentials_filepath/0,
     from_environment/0,
     from_credentials_file/0,
     from_credentials_file/1
@@ -14,10 +16,14 @@
 
 %% @doc Get AWS credentials from the default credential chain
 %%
+%% This is a convenience function that calls get_credentials(#{}) with no options.
+%% Uses the default profile ("default") for the credentials file.
+%%
 %% Tries credential providers in the following order:
 %% 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-%% 2. Shared credentials file (~/.aws/credentials)
-%% 3. IAM role (EC2 instance metadata) - TODO: Not yet implemented
+%% 2. Shared credentials file (~/.aws/credentials) with "default" profile
+%% 3. EC2 instance metadata (IAM role) - TODO: Not yet implemented
+%% 4. ECS container metadata - TODO: Not yet implemented
 %%
 %% Returns the first successfully loaded credentials, or an error if none are found.
 %%
@@ -38,13 +44,74 @@
 %% ```
 -spec get_credentials() -> {ok, map()} | {error, atom()}.
 get_credentials() ->
-    %% Try providers in order
+    get_credentials(#{}).
+
+%% @doc Get AWS credentials from the credential chain with options
+%%
+%% Tries credential providers in the following order:
+%% 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+%% 2. Shared credentials file (~/.aws/credentials) with specified profile
+%% 3. EC2 instance metadata (IAM role) - TODO: Not yet implemented
+%% 4. ECS container metadata - TODO: Not yet implemented
+%%
+%% Returns the first successfully loaded credentials, or an error if none are found.
+%%
+%% Options:
+%% - profile: Profile name to use for credentials file (default: <<"default">>)
+%%
+%% @param Options Options map with optional 'profile' key
+%% @returns {ok, Credentials :: map()} | {error, Reason :: atom()}
+%%
+%% Example:
+%% ```
+%% %% Use production profile from credentials file
+%% case aws_credentials:get_credentials(#{profile => <<"production">>}) of
+%%     {ok, Credentials} ->
+%%         %% Use production credentials
+%%         Client = #{credentials => Credentials, ...};
+%%     {error, no_credentials} ->
+%%         io:format("No credentials found in any provider~n")
+%% end.
+%% ```
+-spec get_credentials(map()) -> {ok, map()} | {error, atom()}.
+get_credentials(Options) when is_map(Options) ->
+    %% Extract profile option (default to "default")
+    Profile = maps:get(profile, Options, <<"default">>),
+    
+    %% Build provider chain with profile-aware credentials file provider
     Providers = [
         fun from_environment/0,
-        fun from_credentials_file/0
-        %% TODO: Add from_iam_role/0
+        fun() -> from_credentials_file(Profile) end
+        %% TODO: Add fun from_ec2_metadata/0 (IAM role)
+        %% TODO: Add fun from_ecs_metadata/0 (ECS container credentials)
     ],
+    
     try_providers(Providers).
+
+%% @doc Get the filepath to the credentials file
+%%
+%% Returns the filepath to the credentials file in the user's home directory.
+%%
+%% @returns {ok, CredentialsFilePath :: string()} | {error, Reason :: atom()}
+%%
+%% Example:
+%% ```
+%% case aws_credentials:get_credentials_filepath() of
+%%     {ok, CredentialsFilePath} ->
+%%         %% Use credentials file
+%%         {ok, CredentialsFilePath};
+%%     {error, home_not_set} ->
+%%         io:format("HOME environment variable not set~n")
+%% end.
+%% ```
+-spec get_credentials_filepath() -> string().
+get_credentials_filepath() ->
+    case os:getenv("HOME") of
+        false ->
+            {error, home_not_set};
+        Home ->
+            filename:join([Home, ".aws", "credentials"])
+    end.
 
 %% @doc Load AWS credentials from environment variables
 %%

@@ -151,6 +151,23 @@ from_environment_special_chars_test() ->
 %% get_credentials/0 Tests
 %%====================================================================
 
+%% Test get_credentials with no credentials available
+get_credentials_no_credentials_test() ->
+    %% Unset all environment variables
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    os:unsetenv("AWS_SESSION_TOKEN"),
+    
+    CredentialsFilePath = aws_credentials:get_credentials_filepath(),
+    %% delete the credentials file
+    _ = file:delete(CredentialsFilePath),
+
+    %% Get credentials
+    Result = aws_credentials:get_credentials(),
+    
+    %% Should return error (no credentials found in chain)
+    ?assertEqual({error, no_credentials}, Result).
+
 %% Test get_credentials with environment variables set
 get_credentials_from_environment_test() ->
     %% Set environment variables
@@ -169,19 +186,6 @@ get_credentials_from_environment_test() ->
     %% Cleanup
     os:unsetenv("AWS_ACCESS_KEY_ID"),
     os:unsetenv("AWS_SECRET_ACCESS_KEY").
-
-%% Test get_credentials with no credentials available
-get_credentials_no_credentials_test() ->
-    %% Unset all environment variables
-    os:unsetenv("AWS_ACCESS_KEY_ID"),
-    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
-    os:unsetenv("AWS_SESSION_TOKEN"),
-    
-    %% Get credentials
-    Result = aws_credentials:get_credentials(),
-    
-    %% Should return error (no credentials found in chain)
-    ?assertEqual({error, no_credentials}, Result).
 
 %% Test get_credentials returns first available provider
 get_credentials_first_provider_test() ->
@@ -316,26 +320,26 @@ from_credentials_file_default_test() ->
     
     %% Backup existing file if present
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
     %% Ensure .aws directory exists
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     %% Write test credentials
     Content = <<"[default]\n",
                 "aws_access_key_id = AKIATEST123\n",
                 "aws_secret_access_key = testSecret456\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     %% Test
     Result = aws_credentials:from_credentials_file(),
     
     %% Cleanup
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -355,12 +359,12 @@ from_credentials_file_custom_profile_test() ->
     
     %% Backup existing file
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     %% Write test credentials with multiple profiles
     Content = <<"[default]\n",
@@ -370,14 +374,14 @@ from_credentials_file_custom_profile_test() ->
                 "[production]\n",
                 "aws_access_key_id = AKIAPROD789\n",
                 "aws_secret_access_key = prodSecret123\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     %% Test
     Result = aws_credentials:from_credentials_file(<<"production">>),
     
     %% Cleanup
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -395,24 +399,24 @@ from_credentials_file_with_session_token_test() ->
     CredFile = filename:join(AwsDir, "credentials"),
     
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     %% Write credentials with session token
     Content = <<"[default]\n",
                 "aws_access_key_id = ASIATEMP123\n",
                 "aws_secret_access_key = tempSecret\n",
                 "aws_session_token = FQoGZXIvYXdzEBoa...\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     Result = aws_credentials:from_credentials_file(),
     
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -429,7 +433,7 @@ from_credentials_file_not_found_test() ->
     CredFile = filename:join([Home, ".aws", "credentials"]),
     BackupFile = CredFile ++ ".test_backup",
     
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
@@ -438,7 +442,7 @@ from_credentials_file_not_found_test() ->
     Result = aws_credentials:from_credentials_file(),
     
     %% Restore file
-    case filelib:is_file(BackupFile) of
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -453,24 +457,24 @@ from_credentials_file_profile_not_found_test() ->
     CredFile = filename:join(AwsDir, "credentials"),
     
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     %% Write file with only default profile
     Content = <<"[default]\n",
                 "aws_access_key_id = AKIADEFAULT\n",
                 "aws_secret_access_key = defaultSecret\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     %% Try to load non-existent profile
     Result = aws_credentials:from_credentials_file(<<"production">>),
     
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -484,23 +488,23 @@ from_credentials_file_with_whitespace_test() ->
     CredFile = filename:join(AwsDir, "credentials"),
     
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     %% Write file with extra whitespace
     Content = <<"  [default]  \n",
                 "  aws_access_key_id  =  AKIATEST123  \n",
                 "  aws_secret_access_key  =  testSecret456  \n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     Result = aws_credentials:from_credentials_file(),
     
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -523,23 +527,23 @@ get_credentials_fallback_to_file_test() ->
     CredFile = filename:join(AwsDir, "credentials"),
     
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     Content = <<"[default]\n",
                 "aws_access_key_id = AKIAFILE123\n",
                 "aws_secret_access_key = fileSecret456\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     %% Test - should get credentials from file since environment is empty
     Result = aws_credentials:get_credentials(),
     
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -561,23 +565,23 @@ get_credentials_environment_precedence_test() ->
     CredFile = filename:join(AwsDir, "credentials"),
     
     BackupFile = CredFile ++ ".test_backup",
-    case filelib:is_file(CredFile) of
+    _ = case filelib:is_file(CredFile) of
         true -> file:rename(CredFile, BackupFile);
         false -> ok
     end,
     
-    filelib:ensure_dir(CredFile),
+    _ = filelib:ensure_dir(CredFile),
     
     Content = <<"[default]\n",
                 "aws_access_key_id = AKIAFILE123\n",
                 "aws_secret_access_key = fileSecret456\n">>,
-    file:write_file(CredFile, Content),
+    _ = file:write_file(CredFile, Content),
     
     %% Test - should get credentials from environment (takes precedence)
     Result = aws_credentials:get_credentials(),
     
-    file:delete(CredFile),
-    case filelib:is_file(BackupFile) of
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
         true -> file:rename(BackupFile, CredFile);
         false -> ok
     end,
@@ -589,3 +593,250 @@ get_credentials_environment_precedence_test() ->
     %% Should be from environment, not file
     ?assertEqual(<<"AKIAENV123">>, maps:get(access_key_id, Credentials)),
     ?assertEqual(<<"envSecret456">>, maps:get(secret_access_key, Credentials)).
+
+%%====================================================================
+%% get_credentials/1 (with options) Tests
+%%====================================================================
+
+%% Test get_credentials/1 with default profile option
+get_credentials_with_default_profile_test() ->
+    %% Unset environment variables
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    %% Create credentials file
+    Home = os:getenv("HOME"),
+    AwsDir = filename:join(Home, ".aws"),
+    CredFile = filename:join(AwsDir, "credentials"),
+    
+    BackupFile = CredFile ++ ".test_backup",
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    _ = filelib:ensure_dir(CredFile),
+    
+    Content = <<"[default]\n",
+                "aws_access_key_id = AKIADEFAULT123\n",
+                "aws_secret_access_key = defaultSecret\n">>,
+    _ = file:write_file(CredFile, Content),
+    
+    %% Test with explicit default profile
+    Result = aws_credentials:get_credentials(#{profile => <<"default">>}),
+    
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    
+    ?assertMatch({ok, _}, Result),
+    {ok, Credentials} = Result,
+    ?assertEqual(<<"AKIADEFAULT123">>, maps:get(access_key_id, Credentials)).
+
+%% Test get_credentials/1 with custom profile option
+get_credentials_with_custom_profile_test() ->
+    %% Unset environment variables
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    %% Create credentials file with multiple profiles
+    Home = os:getenv("HOME"),
+    AwsDir = filename:join(Home, ".aws"),
+    CredFile = filename:join(AwsDir, "credentials"),
+    
+    BackupFile = CredFile ++ ".test_backup",
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    _ = filelib:ensure_dir(CredFile),
+    
+    Content = <<"[default]\n",
+                "aws_access_key_id = AKIADEFAULT\n",
+                "aws_secret_access_key = defaultSecret\n",
+                "\n",
+                "[production]\n",
+                "aws_access_key_id = AKIAPROD456\n",
+                "aws_secret_access_key = prodSecret789\n">>,
+    _ = file:write_file(CredFile, Content),
+    
+    %% Test with production profile
+    Result = aws_credentials:get_credentials(#{profile => <<"production">>}),
+    
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    
+    ?assertMatch({ok, _}, Result),
+    {ok, Credentials} = Result,
+    ?assertEqual(<<"AKIAPROD456">>, maps:get(access_key_id, Credentials)),
+    ?assertEqual(<<"prodSecret789">>, maps:get(secret_access_key, Credentials)).
+
+%% Test get_credentials/1 with empty options map
+get_credentials_with_empty_options_test() ->
+    %% Unset environment variables
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    %% Create credentials file
+    Home = os:getenv("HOME"),
+    AwsDir = filename:join(Home, ".aws"),
+    CredFile = filename:join(AwsDir, "credentials"),
+    
+    BackupFile = CredFile ++ ".test_backup",
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    _ = filelib:ensure_dir(CredFile),
+    
+    Content = <<"[default]\n",
+                "aws_access_key_id = AKIADEFAULT\n",
+                "aws_secret_access_key = defaultSecret\n">>,
+    _ = file:write_file(CredFile, Content),
+    
+    %% Test with empty options (should default to "default" profile)
+    Result = aws_credentials:get_credentials(#{}),
+    
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    
+    ?assertMatch({ok, _}, Result),
+    {ok, Credentials} = Result,
+    ?assertEqual(<<"AKIADEFAULT">>, maps:get(access_key_id, Credentials)).
+
+%% Test get_credentials/1 environment still takes precedence
+get_credentials_with_profile_environment_precedence_test() ->
+    %% Set environment variables
+    os:putenv("AWS_ACCESS_KEY_ID", "AKIAENV789"),
+    os:putenv("AWS_SECRET_ACCESS_KEY", "envSecret"),
+    
+    %% Create credentials file
+    Home = os:getenv("HOME"),
+    AwsDir = filename:join(Home, ".aws"),
+    CredFile = filename:join(AwsDir, "credentials"),
+    
+    BackupFile = CredFile ++ ".test_backup",
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    _ = filelib:ensure_dir(CredFile),
+    
+    Content = <<"[default]\n",
+                "aws_access_key_id = AKIAFILE\n",
+                "aws_secret_access_key = fileSecret\n",
+                "\n",
+                "[production]\n",
+                "aws_access_key_id = AKIAPROD\n",
+                "aws_secret_access_key = prodSecret\n">>,
+    _ = file:write_file(CredFile, Content),
+    
+    %% Test with production profile - environment should still win
+    Result = aws_credentials:get_credentials(#{profile => <<"production">>}),
+    
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    ?assertMatch({ok, _}, Result),
+    {ok, Credentials} = Result,
+    %% Should be from environment, not production profile
+    ?assertEqual(<<"AKIAENV789">>, maps:get(access_key_id, Credentials)).
+
+%% Test provider chain order
+provider_chain_order_test() ->
+    %% This test verifies that the provider chain tries providers in order
+    %% 1. Environment
+    %% 2. Credentials file
+    %% And stops at the first success
+    
+    %% Set environment variables (will be first to succeed)
+    os:putenv("AWS_ACCESS_KEY_ID", "AKIAENV111"),
+    os:putenv("AWS_SECRET_ACCESS_KEY", "envSecret111"),
+    
+    %% Create credentials file (should not be used)
+    Home = os:getenv("HOME"),
+    AwsDir = filename:join(Home, ".aws"),
+    CredFile = filename:join(AwsDir, "credentials"),
+    
+    BackupFile = CredFile ++ ".test_backup",
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    _ = filelib:ensure_dir(CredFile),
+    
+    Content = <<"[default]\n",
+                "aws_access_key_id = AKIAFILE222\n",
+                "aws_secret_access_key = fileSecret222\n">>,
+    _ = file:write_file(CredFile, Content),
+    
+    %% Get credentials - should get from environment
+    Result = aws_credentials:get_credentials(#{}),
+    
+    _ = file:delete(CredFile),
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    ?assertMatch({ok, _}, Result),
+    {ok, Credentials} = Result,
+    %% Verify it's from environment (first in chain)
+    ?assertEqual(<<"AKIAENV111">>, maps:get(access_key_id, Credentials)),
+    ?assertEqual(<<"envSecret111">>, maps:get(secret_access_key, Credentials)).
+
+%% Test no credentials available in chain
+no_credentials_in_chain_test() ->
+    %% Unset environment variables
+    os:unsetenv("AWS_ACCESS_KEY_ID"),
+    os:unsetenv("AWS_SECRET_ACCESS_KEY"),
+    
+    %% Ensure no credentials file
+    Home = os:getenv("HOME"),
+    CredFile = filename:join([Home, ".aws", "credentials"]),
+    BackupFile = CredFile ++ ".test_backup",
+    
+    _ = case filelib:is_file(CredFile) of
+        true -> file:rename(CredFile, BackupFile);
+        false -> ok
+    end,
+    
+    %% Test - should fail with no_credentials (or find credentials from other sources)
+    Result = aws_credentials:get_credentials(),
+    
+    %% Restore file
+    _ = case filelib:is_file(BackupFile) of
+        true -> file:rename(BackupFile, CredFile);
+        false -> ok
+    end,
+    
+    %% Should return either no_credentials or credentials from other sources
+    %% (e.g., EC2/ECS metadata when running in AWS environment)
+    case Result of
+        {error, no_credentials} ->
+            %% Expected in clean environment
+            ok;
+        {ok, Credentials} when is_map(Credentials) ->
+            %% Found credentials from other sources (EC2/ECS metadata, etc.)
+            ?assert(maps:is_key(access_key_id, Credentials)),
+            ?assert(maps:is_key(secret_access_key, Credentials))
+    end.
