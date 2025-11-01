@@ -60,8 +60,9 @@ tasks.register("generatePluginDescriptor") {
     }
 }
 
-tasks.named("processResources") {
+tasks.named<ProcessResources>("processResources") {
     dependsOn("generatePluginDescriptor")
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 // Configure shadow JAR for CLI
