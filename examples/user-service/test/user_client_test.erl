@@ -7,7 +7,7 @@
 %% Setup and teardown for each test
 setup() ->
     %% Start inets application for httpc
-    application:ensure_all_started(inets),
+    _ = application:ensure_all_started(inets),
     meck:new(httpc, [unstick, passthrough]),
     ok.
 
