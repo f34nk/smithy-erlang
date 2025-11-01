@@ -6,7 +6,8 @@
 %%% Step 3.1: Basic skeleton tests (5 tests)
 %%% Step 3.2: Canonical request generation tests (25 tests)
 %%% Step 3.3: String to sign generation tests (14 tests)
-%%% Total: 44 tests
+%%% Step 3.4: Signature calculation tests (17 tests)
+%%% Total: 61 tests
 
 %% Test that the module compiles and exports are correct
 module_info_test() ->
@@ -523,6 +524,250 @@ integration_full_flow_test() ->
     HashedCanonicalRequest = lists:nth(4, Lines),
     ?assertEqual(64, byte_size(HashedCanonicalRequest)),
     ?assert(is_hex_string(HashedCanonicalRequest)).
+
+%%====================================================================
+%% Step 3.4: Signature Calculation Tests
+%%====================================================================
+
+%% Test hmac_sha256/2 with known input
+hmac_sha256_known_test() ->
+    %% Test with known HMAC-SHA256 value
+    Key = <<"key">>,
+    Data = <<"The quick brown fox jumps over the lazy dog">>,
+    
+    Result = aws_sigv4:hmac_sha256(Key, Data),
+    
+    %% Should be 32 bytes
+    ?assertEqual(32, byte_size(Result)),
+    
+    %% Should be binary (not hex)
+    ?assert(is_binary(Result)).
+
+%% Test hmac_sha256/2 with empty data
+hmac_sha256_empty_data_test() ->
+    Key = <<"secret">>,
+    Data = <<>>,
+    
+    Result = aws_sigv4:hmac_sha256(Key, Data),
+    
+    ?assertEqual(32, byte_size(Result)).
+
+%% Test hmac_sha256/2 with empty key
+hmac_sha256_empty_key_test() ->
+    Key = <<>>,
+    Data = <<"data">>,
+    
+    Result = aws_sigv4:hmac_sha256(Key, Data),
+    
+    ?assertEqual(32, byte_size(Result)).
+
+%% Test hmac_sha256/2 deterministic output
+hmac_sha256_deterministic_test() ->
+    Key = <<"testkey">>,
+    Data = <<"testdata">>,
+    
+    Result1 = aws_sigv4:hmac_sha256(Key, Data),
+    Result2 = aws_sigv4:hmac_sha256(Key, Data),
+    
+    %% Should produce same result
+    ?assertEqual(Result1, Result2).
+
+%% Test derive_signing_key/4 basic
+derive_signing_key_basic_test() ->
+    SecretAccessKey = <<"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY">>,
+    Date = <<"20150830">>,
+    Region = <<"us-east-1">>,
+    Service = <<"iam">>,
+    
+    SigningKey = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    
+    %% Should be 32 bytes (HMAC-SHA256 output)
+    ?assertEqual(32, byte_size(SigningKey)),
+    
+    %% Should be binary (not hex)
+    ?assert(is_binary(SigningKey)).
+
+%% Test derive_signing_key/4 with AWS test vector
+derive_signing_key_aws_example_test() ->
+    %% From AWS SigV4 test suite
+    SecretAccessKey = <<"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY">>,
+    Date = <<"20150830">>,
+    Region = <<"us-east-1">>,
+    Service = <<"iam">>,
+    
+    SigningKey = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    
+    %% Expected value from AWS test suite
+    %% c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9
+    Expected = binary:decode_hex(<<"c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9">>),
+    
+    ?assertEqual(Expected, SigningKey).
+
+%% Test derive_signing_key/4 deterministic
+derive_signing_key_deterministic_test() ->
+    SecretAccessKey = <<"testSecret">>,
+    Date = <<"20230101">>,
+    Region = <<"us-west-2">>,
+    Service = <<"s3">>,
+    
+    Key1 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    Key2 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    
+    %% Should produce same key
+    ?assertEqual(Key1, Key2).
+
+%% Test derive_signing_key/4 different dates produce different keys
+derive_signing_key_different_dates_test() ->
+    SecretAccessKey = <<"testSecret">>,
+    Region = <<"us-east-1">>,
+    Service = <<"s3">>,
+    
+    Key1 = aws_sigv4:derive_signing_key(SecretAccessKey, <<"20230101">>, Region, Service),
+    Key2 = aws_sigv4:derive_signing_key(SecretAccessKey, <<"20230102">>, Region, Service),
+    
+    %% Different dates should produce different keys
+    ?assertNotEqual(Key1, Key2).
+
+%% Test derive_signing_key/4 different regions produce different keys
+derive_signing_key_different_regions_test() ->
+    SecretAccessKey = <<"testSecret">>,
+    Date = <<"20230101">>,
+    Service = <<"s3">>,
+    
+    Key1 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, <<"us-east-1">>, Service),
+    Key2 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, <<"eu-west-1">>, Service),
+    
+    %% Different regions should produce different keys
+    ?assertNotEqual(Key1, Key2).
+
+%% Test derive_signing_key/4 different services produce different keys
+derive_signing_key_different_services_test() ->
+    SecretAccessKey = <<"testSecret">>,
+    Date = <<"20230101">>,
+    Region = <<"us-east-1">>,
+    
+    Key1 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, <<"s3">>),
+    Key2 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, <<"dynamodb">>),
+    
+    %% Different services should produce different keys
+    ?assertNotEqual(Key1, Key2).
+
+%% Test calculate_signature/2 basic
+calculate_signature_basic_test() ->
+    %% Create a signing key
+    SigningKey = aws_sigv4:derive_signing_key(
+        <<"secret">>, 
+        <<"20230101">>, 
+        <<"us-east-1">>, 
+        <<"s3">>
+    ),
+    
+    StringToSign = <<"AWS4-HMAC-SHA256\n20230101T120000Z\n20230101/us-east-1/s3/aws4_request\nabc123">>,
+    
+    Signature = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    
+    %% Should be 64 character hex string (32 bytes * 2)
+    ?assertEqual(64, byte_size(Signature)),
+    
+    %% Should be lowercase hex
+    ?assert(is_hex_string(Signature)).
+
+%% Test calculate_signature/2 with AWS test vector
+calculate_signature_aws_example_test() ->
+    %% From AWS SigV4 test suite
+    SecretAccessKey = <<"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY">>,
+    Date = <<"20150830">>,
+    Region = <<"us-east-1">>,
+    Service = <<"iam">>,
+    
+    %% Derive signing key
+    SigningKey = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    
+    %% String to sign from AWS test suite
+    StringToSign = <<"AWS4-HMAC-SHA256\n20150830T123600Z\n20150830/us-east-1/iam/aws4_request\nf536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59">>,
+    
+    Signature = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    
+    %% Expected signature from AWS test suite
+    Expected = <<"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7">>,
+    
+    ?assertEqual(Expected, Signature).
+
+%% Test calculate_signature/2 deterministic
+calculate_signature_deterministic_test() ->
+    SigningKey = <<"testkey12345678901234567890123456789012">>,  % 32 bytes
+    StringToSign = <<"test string to sign">>,
+    
+    Sig1 = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    Sig2 = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    
+    ?assertEqual(Sig1, Sig2).
+
+%% Test calculate_signature/2 different inputs produce different signatures
+calculate_signature_different_inputs_test() ->
+    SigningKey = <<"testkey12345678901234567890123456789012">>,
+    
+    Sig1 = aws_sigv4:calculate_signature(SigningKey, <<"string1">>),
+    Sig2 = aws_sigv4:calculate_signature(SigningKey, <<"string2">>),
+    
+    ?assertNotEqual(Sig1, Sig2).
+
+%% Test complete flow: derive key and sign
+integration_derive_and_sign_test() ->
+    %% AWS credentials
+    SecretAccessKey = <<"testSecretKey">>,
+    Date = <<"20230101">>,
+    Region = <<"us-east-1">>,
+    Service = <<"s3">>,
+    
+    %% String to sign (from previous steps)
+    StringToSign = <<"AWS4-HMAC-SHA256\n20230101T120000Z\n20230101/us-east-1/s3/aws4_request\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855">>,
+    
+    %% Derive signing key
+    SigningKey = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    
+    %% Calculate signature
+    Signature = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    
+    %% Verify signature properties
+    ?assertEqual(64, byte_size(Signature)),
+    ?assert(is_hex_string(Signature)).
+
+%% Test complete SigV4 flow from canonical request to signature
+integration_full_sigv4_flow_test() ->
+    %% Step 1: Request components
+    Method = <<"GET">>,
+    Uri = <<"https://s3.amazonaws.com/mybucket/mykey">>,
+    Headers = [
+        {<<"Host">>, <<"s3.amazonaws.com">>},
+        {<<"X-Amz-Date">>, <<"20230101T120000Z">>}
+    ],
+    Body = <<>>,
+    
+    %% Step 2: Create canonical request
+    CanonicalRequest = aws_sigv4:create_canonical_request(Method, Uri, Headers, Body),
+    
+    %% Step 3: Create string to sign
+    DateTime = <<"20230101T120000Z">>,
+    Region = <<"us-east-1">>,
+    Service = <<"s3">>,
+    CredentialScope = aws_sigv4:credential_scope(DateTime, Region, Service),
+    StringToSign = aws_sigv4:create_string_to_sign(DateTime, CredentialScope, CanonicalRequest),
+    
+    %% Step 4: Calculate signature
+    SecretAccessKey = <<"wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY">>,
+    Date = binary:part(DateTime, 0, 8),  % Extract date: 20230101
+    SigningKey = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    Signature = aws_sigv4:calculate_signature(SigningKey, StringToSign),
+    
+    %% Verify final signature
+    ?assertEqual(64, byte_size(Signature)),
+    ?assert(is_hex_string(Signature)),
+    
+    %% Signature should be deterministic
+    SigningKey2 = aws_sigv4:derive_signing_key(SecretAccessKey, Date, Region, Service),
+    Signature2 = aws_sigv4:calculate_signature(SigningKey2, StringToSign),
+    ?assertEqual(Signature, Signature2).
 
 %%====================================================================
 %% Helper Functions for Tests

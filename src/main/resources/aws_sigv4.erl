@@ -14,7 +14,10 @@
     hash_sha256/1,
     create_string_to_sign/3,
     credential_scope/3,
-    iso8601_datetime/0
+    iso8601_datetime/0,
+    derive_signing_key/4,
+    calculate_signature/2,
+    hmac_sha256/2
 ]).
 
 %% @doc Sign an HTTP request using AWS Signature Version 4
@@ -306,6 +309,84 @@ iso8601_datetime() ->
             [Year, Month, Day, Hour, Minute, Second]
         )
     ).
+
+%%====================================================================
+%% Signature Calculation (Step 3.4)
+%%====================================================================
+
+%% @doc Derive signing key using HMAC-SHA256 key derivation
+%%
+%% AWS SigV4 uses a multi-step HMAC key derivation process:
+%% 1. DateKey = HMAC("AWS4" + SecretAccessKey, Date)
+%% 2. RegionKey = HMAC(DateKey, Region)
+%% 3. ServiceKey = HMAC(RegionKey, Service)
+%% 4. SigningKey = HMAC(ServiceKey, "aws4_request")
+%%
+%% This creates a key that is specific to:
+%% - The secret access key
+%% - A specific date (YYYYMMDD)
+%% - A specific region
+%% - A specific service
+%%
+%% The signing key is valid for one day and should be cached.
+%%
+%% @param SecretAccessKey AWS secret access key as binary
+%% @param Date Date string in YYYYMMDD format (e.g., <<"20230101">>)
+%% @param Region AWS region (e.g., <<"us-east-1">>)
+%% @param Service AWS service name (e.g., <<"s3">>)
+%% @returns Signing key as binary (32 bytes)
+-spec derive_signing_key(
+    SecretAccessKey :: binary(),
+    Date :: binary(),
+    Region :: binary(),
+    Service :: binary()
+) -> binary().
+derive_signing_key(SecretAccessKey, Date, Region, Service) ->
+    %% Step 1: Prepend "AWS4" to secret key and hash with date
+    DateKey = hmac_sha256(<<"AWS4", SecretAccessKey/binary>>, Date),
+    
+    %% Step 2: Hash with region
+    RegionKey = hmac_sha256(DateKey, Region),
+    
+    %% Step 3: Hash with service
+    ServiceKey = hmac_sha256(RegionKey, Service),
+    
+    %% Step 4: Hash with "aws4_request" terminator
+    SigningKey = hmac_sha256(ServiceKey, <<"aws4_request">>),
+    
+    SigningKey.
+
+%% @doc Calculate signature from string to sign
+%%
+%% Process:
+%% 1. Sign the string to sign with the derived signing key using HMAC-SHA256
+%% 2. Convert the signature to lowercase hexadecimal
+%%
+%% @param SigningKey Derived signing key from derive_signing_key/4
+%% @param StringToSign String to sign from create_string_to_sign/3
+%% @returns Signature as lowercase hex string (64 characters)
+-spec calculate_signature(
+    SigningKey :: binary(),
+    StringToSign :: binary()
+) -> binary().
+calculate_signature(SigningKey, StringToSign) ->
+    %% Sign the string to sign
+    Signature = hmac_sha256(SigningKey, StringToSign),
+    
+    %% Convert to lowercase hex
+    binary:encode_hex(Signature, lowercase).
+
+%% @doc Calculate HMAC-SHA256
+%%
+%% Wrapper around crypto:mac/4 for HMAC-SHA256.
+%% This is used in both key derivation and signature calculation.
+%%
+%% @param Key HMAC key as binary
+%% @param Data Data to sign as binary
+%% @returns HMAC-SHA256 output as binary (32 bytes)
+-spec hmac_sha256(binary(), binary()) -> binary().
+hmac_sha256(Key, Data) ->
+    crypto:mac(hmac, sha256, Key, Data).
 
 %%====================================================================
 %% Helper Functions
