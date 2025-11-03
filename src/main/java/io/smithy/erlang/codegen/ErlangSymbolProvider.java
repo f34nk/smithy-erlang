@@ -61,6 +61,9 @@ public final class ErlangSymbolProvider {
             return "#{" + getErlangType(keyShape) + " => " + getErlangType(valueShape) + "}";
         } else if (shape instanceof StructureShape) {
             return "#" + toErlangName(shape.getId().getName()) + "{}";
+        } else if (shape instanceof UnionShape) {
+            // Union types are represented as tagged tuples
+            return toErlangName(shape.getId().getName()) + "()";
         }
         
         return "term()";

@@ -1113,8 +1113,8 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
     }
     
     /**
-     * Generate a union type definition (Step 4.1 - detection only).
-     * Full implementation will come in subsequent steps.
+     * Generate a union type definition as Erlang tagged tuples.
+     * Format: -type storage_type() :: {s3, #s3_storage{}} | {glacier, #glacier_storage{}} | ...
      */
     private void generateUnion(
             UnionShape union,
@@ -1125,9 +1125,47 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         String typeName = ErlangSymbolProvider.toErlangName(union.getId().getName());
         
         writer.write("");
-        writer.writeComment("Union: " + union.getId().getName());
-        writer.writeComment("TODO: Generate union type definition in Step 4.2");
-        writer.write("%% -type $L() :: ...", typeName);
+        writer.writeComment("Union type for " + union.getId().getName());
+        writer.writeComment("Represented as tagged tuples: {variant_name, variant_data}");
+        
+        // Start type definition
+        writer.write("-type $L() :: ", typeName);
+        
+        // Generate union variants
+        List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
+        for (int i = 0; i < members.size(); i++) {
+            MemberShape member = members.get(i);
+            String variantName = ErlangSymbolProvider.toErlangName(member.getMemberName());
+            Shape targetShape = model.expectShape(member.getTarget());
+            
+            // Get the type representation for the variant
+            String variantType;
+            if (targetShape.isStructureShape()) {
+                // Structure: use record syntax
+                String recordName = ErlangSymbolProvider.toErlangName(targetShape.getId().getName());
+                variantType = "#" + recordName + "{}";
+            } else {
+                // Primitive or other type: use type name
+                variantType = symbolProvider.getErlangType(targetShape);
+            }
+            
+            // Add pipe separator for all but first variant
+            if (i > 0) {
+                writer.writeInline("    | ");
+            } else {
+                writer.writeInline("    ");
+            }
+            
+            // Write variant: {variant_name, variant_type}
+            writer.writeInline("{$L, $L}", variantName, variantType);
+            
+            if (i < members.size() - 1) {
+                writer.write("");
+            }
+        }
+        
+        // Close type definition
+        writer.write(".");
     }
     
     /**
