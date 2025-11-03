@@ -685,11 +685,13 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeComment("Generated type definitions for Smithy model");
         writer.write("");
         
-        // Track all structures and collect them
+        // Track all structures and unions, and collect them
         java.util.Set<ShapeId> allStructures = new java.util.HashSet<>();
+        java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
         List<StructureShape> structuresToProcess = new ArrayList<>();
+        List<UnionShape> unionsToProcess = new ArrayList<>();
         
-        // Collect all structures from operations
+        // Collect all structures and unions from operations
         for (ShapeId operationId : service.getOperations()) {
             OperationShape operation = model.expectShape(operationId, OperationShape.class);
             
@@ -718,16 +720,28 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         }
         
-        // Collect all nested structures
+        // Collect all nested structures and unions
         int previousSize = -1;
-        while (structuresToProcess.size() != previousSize) {
+        int previousUnionSize = -1;
+        while (structuresToProcess.size() != previousSize || unionsToProcess.size() != previousUnionSize) {
             previousSize = structuresToProcess.size();
+            previousUnionSize = unionsToProcess.size();
             List<StructureShape> currentStructures = new ArrayList<>(structuresToProcess);
+            List<UnionShape> currentUnions = new ArrayList<>(unionsToProcess);
             
+            // Collect from structures
             for (StructureShape structure : currentStructures) {
                 for (MemberShape member : structure.getAllMembers().values()) {
                     Shape targetShape = model.expectShape(member.getTarget());
-                    collectNestedStructures(targetShape, model, allStructures, structuresToProcess);
+                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, allUnions, unionsToProcess);
+                }
+            }
+            
+            // Collect from unions
+            for (UnionShape union : currentUnions) {
+                for (MemberShape member : union.getAllMembers().values()) {
+                    Shape targetShape = model.expectShape(member.getTarget());
+                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, allUnions, unionsToProcess);
                 }
             }
         }
@@ -738,6 +752,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate structures in dependency order
         for (StructureShape structure : sortedStructures) {
             generateStructure(structure, model, symbolProvider, writer);
+        }
+        
+        // Generate union types
+        LOGGER.info("Generating " + unionsToProcess.size() + " union types");
+        for (UnionShape union : unionsToProcess) {
+            generateUnion(union, model, symbolProvider, writer);
         }
         
         // Close header guard
@@ -853,25 +873,31 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         }
     }
     
-    private void collectNestedStructures(
+    private void collectNestedShapes(
             Shape shape,
             Model model,
             java.util.Set<ShapeId> generatedStructures,
-            List<StructureShape> structuresToGenerate) {
+            List<StructureShape> structuresToGenerate,
+            java.util.Set<ShapeId> generatedUnions,
+            List<UnionShape> unionsToGenerate) {
         
         if (shape instanceof StructureShape) {
             if (generatedStructures.add(shape.getId())) {
                 structuresToGenerate.add((StructureShape) shape);
             }
+        } else if (shape instanceof UnionShape) {
+            if (generatedUnions.add(shape.getId())) {
+                unionsToGenerate.add((UnionShape) shape);
+            }
         } else if (shape instanceof ListShape) {
             Shape memberShape = model.expectShape(((ListShape) shape).getMember().getTarget());
-            collectNestedStructures(memberShape, model, generatedStructures, structuresToGenerate);
+            collectNestedShapes(memberShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
         } else if (shape instanceof MapShape) {
             MapShape mapShape = (MapShape) shape;
             Shape keyShape = model.expectShape(mapShape.getKey().getTarget());
             Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
-            collectNestedStructures(keyShape, model, generatedStructures, structuresToGenerate);
-            collectNestedStructures(valueShape, model, generatedStructures, structuresToGenerate);
+            collectNestedShapes(keyShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
+            collectNestedShapes(valueShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
         }
     }
     
@@ -1084,5 +1110,30 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         } else {
             fileManifest.writeFile(outputPath, configContent);
         }
+    }
+    
+    /**
+     * Generate a union type definition (Step 4.1 - detection only).
+     * Full implementation will come in subsequent steps.
+     */
+    private void generateUnion(
+            UnionShape union,
+            Model model,
+            ErlangSymbolProvider symbolProvider,
+            ErlangWriter writer) {
+        
+        String typeName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+        
+        writer.write("");
+        writer.writeComment("Union: " + union.getId().getName());
+        writer.writeComment("TODO: Generate union type definition in Step 4.2");
+        writer.write("%% -type $L() :: ...", typeName);
+    }
+    
+    /**
+     * Check if a shape is a union.
+     */
+    private boolean isUnion(Shape shape) {
+        return shape.isUnionShape();
     }
 }
