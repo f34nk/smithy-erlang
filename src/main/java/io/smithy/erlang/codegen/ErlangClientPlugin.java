@@ -61,6 +61,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Generate types header file
             generateTypesHeader(service, model, symbolProvider, settings, fileManifest);
             
+            // Generate types module (for union encoding/decoding functions)
+            generateTypesModule(service, model, symbolProvider, settings, fileManifest);
+            
             // Copy AWS SigV4 module
             copyAwsSigV4Module(settings, fileManifest);
             
@@ -754,7 +757,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             generateStructure(structure, model, symbolProvider, writer);
         }
         
-        // Generate union types
+        // Generate union types (type definitions only in header)
         LOGGER.info("Generating " + unionsToProcess.size() + " union types");
         for (UnionShape union : unionsToProcess) {
             generateUnion(union, model, symbolProvider, writer);
@@ -927,6 +930,212 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 }
             }
         });
+    }
+    
+    private void generateTypesModule(
+            ServiceShape service,
+            Model model,
+            ErlangSymbolProvider symbolProvider,
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        String moduleName = settings.getModule() + "_types";
+        
+        // Determine output path for .erl file
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve(moduleName + ".erl");
+        } else {
+            outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+        }
+        
+        // Collect all unions
+        java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
+        List<UnionShape> unionsToProcess = new ArrayList<>();
+        
+        // Collect unions from operations
+        for (ShapeId operationId : service.getOperations()) {
+            OperationShape operation = model.expectShape(operationId, OperationShape.class);
+            
+            operation.getInput().ifPresent(inputId -> {
+                StructureShape inputShape = model.expectShape(inputId, StructureShape.class);
+                collectUnionsFromStructure(inputShape, model, allUnions, unionsToProcess);
+            });
+            
+            operation.getOutput().ifPresent(outputId -> {
+                StructureShape outputShape = model.expectShape(outputId, StructureShape.class);
+                collectUnionsFromStructure(outputShape, model, allUnions, unionsToProcess);
+            });
+        }
+        
+        // If no unions, skip module generation
+        if (unionsToProcess.isEmpty()) {
+            LOGGER.info("No unions found, skipping types module generation");
+            return;
+        }
+        
+        LOGGER.info("Generating types module with " + unionsToProcess.size() + " union encoding functions");
+        
+        ErlangWriter writer = new ErlangWriter();
+        
+        // Module declaration
+        writer.writeModule(moduleName);
+        writer.write("");
+        writer.writeComment("Generated union type encoding/decoding functions");
+        writer.write("");
+        
+        // Include types header
+        writer.write("-include(\"$L.hrl\").", moduleName);
+        writer.write("");
+        
+        // Export encoding functions
+        writer.write("-export([");
+        List<UnionShape> unions = new ArrayList<>(unionsToProcess);
+        for (int i = 0; i < unions.size(); i++) {
+            UnionShape union = unions.get(i);
+            String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+            if (i > 0) {
+                writer.write("         ");
+            }
+            writer.writeInline("encode_" + unionName + "/1");
+            if (i < unions.size() - 1) {
+                writer.write(",");
+            }
+        }
+        writer.write("]).");
+        writer.write("");
+        
+        // Generate encoding functions for each union
+        for (UnionShape union : unionsToProcess) {
+            generateUnionEncodingFunction(union, model, symbolProvider, writer);
+        }
+        
+        // Write to file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, writer.toString());
+                LOGGER.info("Generated types module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
+                fileManifest.writeFile(manifestPath, writer.toString());
+            }
+        } else {
+            fileManifest.writeFile(outputPath, writer.toString());
+        }
+    }
+    
+    private void collectUnionsFromStructure(
+            StructureShape structure,
+            Model model,
+            java.util.Set<ShapeId> allUnions,
+            List<UnionShape> unionsToProcess) {
+        
+        for (MemberShape member : structure.getAllMembers().values()) {
+            Shape targetShape = model.expectShape(member.getTarget());
+            collectUnionsRecursive(targetShape, model, allUnions, unionsToProcess);
+        }
+    }
+    
+    private void collectUnionsRecursive(
+            Shape shape,
+            Model model,
+            java.util.Set<ShapeId> allUnions,
+            List<UnionShape> unionsToProcess) {
+        
+        if (shape instanceof UnionShape) {
+            if (allUnions.add(shape.getId())) {
+                unionsToProcess.add((UnionShape) shape);
+                // Also collect unions from union members
+                for (MemberShape member : ((UnionShape) shape).getAllMembers().values()) {
+                    Shape memberShape = model.expectShape(member.getTarget());
+                    collectUnionsRecursive(memberShape, model, allUnions, unionsToProcess);
+                }
+            }
+        } else if (shape instanceof StructureShape) {
+            for (MemberShape member : ((StructureShape) shape).getAllMembers().values()) {
+                Shape memberShape = model.expectShape(member.getTarget());
+                collectUnionsRecursive(memberShape, model, allUnions, unionsToProcess);
+            }
+        } else if (shape instanceof ListShape) {
+            Shape memberShape = model.expectShape(((ListShape) shape).getMember().getTarget());
+            collectUnionsRecursive(memberShape, model, allUnions, unionsToProcess);
+        } else if (shape instanceof MapShape) {
+            MapShape mapShape = (MapShape) shape;
+            Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
+            collectUnionsRecursive(valueShape, model, allUnions, unionsToProcess);
+        }
+    }
+    
+    private void generateUnionEncodingFunction(
+            UnionShape union,
+            Model model,
+            ErlangSymbolProvider symbolProvider,
+            ErlangWriter writer) {
+        
+        String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+        String functionName = "encode_" + unionName;
+        
+        writer.writeComment("Encode " + union.getId().getName() + " union to JSON");
+        writer.writeSpec(functionName, "(" + unionName + "() | {unknown, term()}) -> map()");
+        
+        // Generate function clauses for each variant
+        List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
+        for (int i = 0; i < members.size(); i++) {
+            MemberShape member = members.get(i);
+            String variantName = ErlangSymbolProvider.toErlangName(member.getMemberName());
+            String originalMemberName = member.getMemberName();
+            Shape targetShape = model.expectShape(member.getTarget());
+            
+            // Function clause: encode_storage_type({s3, S3Data}) ->
+            writer.write("$L({$L, Data}) ->", functionName, variantName);
+            writer.indent();
+            
+            // Generate encoding based on target shape type
+            if (targetShape.isStructureShape()) {
+                // Structure: encode as map (already in map format from API)
+                writer.write("#{<<\"$L\">> => Data};", originalMemberName);
+            } else if (targetShape.isStringShape() || targetShape.isIntegerShape() || 
+                       targetShape.isLongShape() || targetShape.isBooleanShape() ||
+                       targetShape.isFloatShape() || targetShape.isDoubleShape() ||
+                       targetShape.isBlobShape() || targetShape.isTimestampShape()) {
+                // Primitive: use directly
+                writer.write("#{<<\"$L\">> => Data};", originalMemberName);
+            } else if (targetShape.isListShape() || targetShape.isMapShape()) {
+                // List or map: use directly
+                writer.write("#{<<\"$L\">> => Data};", originalMemberName);
+            } else {
+                // Default: use data as-is
+                writer.write("#{<<\"$L\">> => Data};", originalMemberName);
+            }
+            
+            writer.dedent();
+        }
+        
+        // Add unknown variant handler for forward compatibility
+        writer.write("$L({unknown, Data}) ->", functionName);
+        writer.indent();
+        writer.write("#{<<\"unknown\">> => Data}.");
+        writer.dedent();
+        
+        writer.write("");
     }
     
     private void copyAwsSigV4Module(
