@@ -7,10 +7,10 @@
 
 %% Test encoding S3 storage variant
 encode_s3_variant_test() ->
-    S3Data = #{
-        <<"bucket">> => <<"my-bucket">>,
-        <<"region">> => <<"us-east-1">>,
-        <<"prefix">> => <<"data/">>
+    S3Data = #s3storage{
+        bucket = <<"my-bucket">>,
+        region = <<"us-east-1">>,
+        prefix = <<"data/">>
     },
     
     Variant = {s3, S3Data},
@@ -27,10 +27,10 @@ encode_s3_variant_test() ->
 
 %% Test encoding Glacier storage variant
 encode_glacier_variant_test() ->
-    GlacierData = #{
-        <<"vault">> => <<"my-vault">>,
-        <<"region">> => <<"eu-west-1">>,
-        <<"retrievalOption">> => <<"standard">>
+    GlacierData = #glacier_storage{
+        vault = <<"my-vault">>,
+        region = <<"eu-west-1">>,
+        retrieval_option = <<"standard">>
     },
     
     Variant = {glacier, GlacierData},
@@ -42,10 +42,10 @@ encode_glacier_variant_test() ->
 
 %% Test encoding EFS storage variant
 encode_efs_variant_test() ->
-    EfsData = #{
-        <<"fileSystemId">> => <<"fs-12345678">>,
-        <<"region">> => <<"ap-southeast-1">>,
-        <<"mountPath">> => <<"/mnt/efs">>
+    EfsData = #efs_storage{
+        file_system_id = <<"fs-12345678">>,
+        region = <<"ap-southeast-1">>,
+        mount_path = <<"/mnt/efs">>
     },
     
     Variant = {efs, EfsData},
@@ -81,7 +81,7 @@ encode_empty_data_test() ->
 
 %% Test that encoded map has exactly one key (the discriminator)
 encode_single_discriminator_test() ->
-    S3Data = #{<<"bucket">> => <<"test">>},
+    S3Data = #s3storage{bucket = <<"test">>},
     Encoded = storage_client_types:encode_storage_type({s3, S3Data}),
     
     %% Encoded map should have exactly one key

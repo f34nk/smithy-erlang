@@ -8,10 +8,10 @@
 %% Test creating S3 storage variant
 create_s3_storage_variant_test() ->
     %% Create an S3 storage variant as a tagged tuple
-    S3Data = #{
-        <<"bucket">> => <<"my-bucket">>,
-        <<"region">> => <<"us-east-1">>,
-        <<"prefix">> => <<"data/">>
+    S3Data = #s3storage{
+        bucket = <<"my-bucket">>,
+        region = <<"us-east-1">>,
+        prefix = <<"data/">>
     },
     
     Storage = {s3, S3Data},
@@ -28,10 +28,10 @@ create_s3_storage_variant_test() ->
 
 %% Test creating Glacier storage variant
 create_glacier_storage_variant_test() ->
-    GlacierData = #{
-        <<"vault">> => <<"my-vault">>,
-        <<"region">> => <<"eu-west-1">>,
-        <<"retrievalOption">> => <<"standard">>
+    GlacierData = #glacier_storage{
+        vault = <<"my-vault">>,
+        region = <<"eu-west-1">>,
+        retrieval_option = <<"standard">>
     },
     
     Storage = {glacier, GlacierData},
@@ -42,10 +42,10 @@ create_glacier_storage_variant_test() ->
 
 %% Test creating EFS storage variant
 create_efs_storage_variant_test() ->
-    EfsData = #{
-        <<"fileSystemId">> => <<"fs-12345678">>,
-        <<"region">> => <<"ap-southeast-1">>,
-        <<"mountPath">> => <<"/mnt/efs">>
+    EfsData = #efs_storage{
+        file_system_id = <<"fs-12345678">>,
+        region = <<"ap-southeast-1">>,
+        mount_path = <<"/mnt/efs">>
     },
     
     Storage = {efs, EfsData},
@@ -56,9 +56,9 @@ create_efs_storage_variant_test() ->
 
 %% Test pattern matching on union variants
 pattern_match_on_variants_test() ->
-    S3Storage = {s3, #{<<"bucket">> => <<"bucket1">>, <<"region">> => <<"us-east-1">>}},
-    GlacierStorage = {glacier, #{<<"vault">> => <<"vault1">>, <<"region">> => <<"us-west-2">>}},
-    EfsStorage = {efs, #{<<"fileSystemId">> => <<"fs-abc">>, <<"region">> => <<"eu-west-1">>}},
+    S3Storage = {s3, #s3storage{bucket = <<"bucket1">>, region = <<"us-east-1">>}},
+    GlacierStorage = {glacier, #glacier_storage{vault = <<"vault1">>, region = <<"us-west-2">>}},
+    EfsStorage = {efs, #efs_storage{file_system_id = <<"fs-abc">>, region = <<"eu-west-1">>}},
     
     %% Pattern match on S3
     Result1 = case S3Storage of
@@ -87,10 +87,10 @@ pattern_match_on_variants_test() ->
 %% Test that union type is used in input/output records
 union_type_in_records_test() ->
     %% Create an input record with union type
-    S3Data = #{
-        <<"bucket">> => <<"test-bucket">>,
-        <<"region">> => <<"us-east-1">>,
-        <<"prefix">> => <<"test/">>
+    S3Data = #s3storage{
+        bucket = <<"test-bucket">>,
+        region = <<"us-east-1">>,
+        prefix = <<"test/">>
     },
     
     Input = #{
