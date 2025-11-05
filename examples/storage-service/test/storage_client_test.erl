@@ -31,6 +31,3 @@ union_member_structures_generated_test() ->
     ?assert(binary:match(Content, <<"Record for S3Storage">>) =/= nomatch),
     ?assert(binary:match(Content, <<"Record for GlacierStorage">>) =/= nomatch),
     ?assert(binary:match(Content, <<"Record for EfsStorage">>) =/= nomatch).
-
-%% Note: Union encoding/decoding tests will be added in Steps 4.3-4.4
-%% when encode/decode functions are implemented.

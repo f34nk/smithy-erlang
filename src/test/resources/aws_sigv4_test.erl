@@ -3,12 +3,6 @@
 -include_lib("eunit/include/eunit.hrl").
 
 %%% Tests for AWS SigV4 module
-%%% Step 3.1: Basic skeleton tests (1 test)
-%%% Step 3.2: Canonical request generation tests (25 tests)
-%%% Step 3.3: String to sign generation tests (14 tests)
-%%% Step 3.4: Signature calculation tests (17 tests)
-%%% Step 3.5: Authorization header and sign_request tests (10 tests)
-%%% Total: 67 tests
 
 %% Test that the module compiles and exports are correct
 module_info_test() ->
@@ -20,7 +14,7 @@ module_info_test() ->
     ?assert(lists:member({sign_request, 5}, Exports)).
 
 %%====================================================================
-%% Step 3.2: Canonical Request Generation Tests
+%% Canonical Request Generation Tests
 %%====================================================================
 
 %% Test hash_sha256/1 with empty string
@@ -223,7 +217,7 @@ create_canonical_request_no_path_test() ->
     ?assertEqual(<<"/">>, Path).
 
 %%====================================================================
-%% Step 3.3: String to Sign Generation Tests
+%% String to Sign Generation Tests
 %%====================================================================
 
 %% Test credential_scope/3 basic format
@@ -455,7 +449,7 @@ integration_full_flow_test() ->
     ?assert(is_hex_string(HashedCanonicalRequest)).
 
 %%====================================================================
-%% Step 3.4: Signature Calculation Tests
+%% Signature Calculation Tests
 %%====================================================================
 
 %% Test hmac_sha256/2 with known input
@@ -699,7 +693,7 @@ integration_full_sigv4_flow_test() ->
     ?assertEqual(Signature, Signature2).
 
 %%====================================================================
-%% Step 3.5: Authorization Header and Complete Signing Tests
+%% Authorization Header and Complete Signing Tests
 %%====================================================================
 
 %% Test format_auth_header/4 basic format

@@ -88,7 +88,7 @@ sign_request(Method, Url, Headers, Body, Credentials) ->
     [{<<"Authorization">>, AuthHeader} | HeadersWithToken].
 
 %%====================================================================
-%% Canonical Request Generation (Step 3.2)
+%% Canonical Request Generation
 %%====================================================================
 
 %% @doc Create canonical request per AWS SigV4 specification
@@ -254,7 +254,7 @@ hash_sha256(Data) ->
     binary:encode_hex(Hash, lowercase).
 
 %%====================================================================
-%% String to Sign Generation (Step 3.3)
+%% String to Sign Generation
 %%====================================================================
 
 %% @doc Create string to sign from canonical request
@@ -341,7 +341,7 @@ iso8601_datetime() ->
     ).
 
 %%====================================================================
-%% Signature Calculation (Step 3.4)
+%% Signature Calculation
 %%====================================================================
 
 %% @doc Derive signing key using HMAC-SHA256 key derivation
@@ -419,7 +419,7 @@ hmac_sha256(Key, Data) ->
     crypto:mac(hmac, sha256, Key, Data).
 
 %%====================================================================
-%% Authorization Header Generation (Step 3.5)
+%% Authorization Header Generation
 %%====================================================================
 
 %% @doc Format Authorization header value
