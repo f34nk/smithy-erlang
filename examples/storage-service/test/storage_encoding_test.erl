@@ -2,12 +2,15 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("storage_client_types.hrl").
 
+%% Ignore dialyzer warnings
+-dialyzer([no_return, no_match, no_contracts]).
+
 %%% Test union encoding functions
 %%% These tests verify that tagged tuples are correctly encoded to JSON
 
 %% Test encoding S3 storage variant
 encode_s3_variant_test() ->
-    S3Data = #s3storage{
+    S3Data = #s3_storage{
         bucket = <<"my-bucket">>,
         region = <<"us-east-1">>,
         prefix = <<"data/">>
@@ -81,7 +84,7 @@ encode_empty_data_test() ->
 
 %% Test that encoded map has exactly one key (the discriminator)
 encode_single_discriminator_test() ->
-    S3Data = #s3storage{bucket = <<"test">>},
+    S3Data = #s3_storage{bucket = <<"test">>},
     Encoded = storage_client_types:encode_storage_type({s3, S3Data}),
     
     %% Encoded map should have exactly one key

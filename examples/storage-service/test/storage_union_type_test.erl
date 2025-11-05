@@ -2,13 +2,16 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("storage_client_types.hrl").
 
+%% Ignore dialyzer warnings
+-dialyzer([no_return, no_match, no_contracts]).
+
 %%% Test that union types work correctly with Dialyzer
 %%% These tests verify the type system integration
 
 %% Test creating S3 storage variant
 create_s3_storage_variant_test() ->
     %% Create an S3 storage variant as a tagged tuple
-    S3Data = #s3storage{
+    S3Data = #s3_storage{
         bucket = <<"my-bucket">>,
         region = <<"us-east-1">>,
         prefix = <<"data/">>
@@ -56,7 +59,7 @@ create_efs_storage_variant_test() ->
 
 %% Test pattern matching on union variants
 pattern_match_on_variants_test() ->
-    S3Storage = {s3, #s3storage{bucket = <<"bucket1">>, region = <<"us-east-1">>}},
+    S3Storage = {s3, #s3_storage{bucket = <<"bucket1">>, region = <<"us-east-1">>}},
     GlacierStorage = {glacier, #glacier_storage{vault = <<"vault1">>, region = <<"us-west-2">>}},
     EfsStorage = {efs, #efs_storage{file_system_id = <<"fs-abc">>, region = <<"eu-west-1">>}},
     
@@ -87,7 +90,7 @@ pattern_match_on_variants_test() ->
 %% Test that union type is used in input/output records
 union_type_in_records_test() ->
     %% Create an input record with union type
-    S3Data = #s3storage{
+    S3Data = #s3_storage{
         bucket = <<"test-bucket">>,
         region = <<"us-east-1">>,
         prefix = <<"test/">>

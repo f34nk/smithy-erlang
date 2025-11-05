@@ -20,7 +20,27 @@ public class ErlangSymbolProviderTest {
         assertEquals("test", ErlangSymbolProvider.toErlangName("test"));
         
         // Test with numbers
-        assertEquals("http2protocol", ErlangSymbolProvider.toErlangName("HTTP2Protocol"));
+        assertEquals("http2_protocol", ErlangSymbolProvider.toErlangName("HTTP2Protocol"));
+    }
+    
+    @Test
+    public void testDigitsInNames() {
+        // Test AWS service names with digits (digit-uppercase transition)
+        assertEquals("s3_storage", ErlangSymbolProvider.toErlangName("S3Storage"));
+        assertEquals("ec2_instance", ErlangSymbolProvider.toErlangName("EC2Instance"));
+        assertEquals("r2_storage", ErlangSymbolProvider.toErlangName("R2Storage"));
+        assertEquals("base64_encoder", ErlangSymbolProvider.toErlangName("Base64Encoder"));
+        
+        // Test lowercase names with digits (should NOT insert underscores)
+        assertEquals("s3", ErlangSymbolProvider.toErlangName("s3"));
+        assertEquals("ec2", ErlangSymbolProvider.toErlangName("ec2"));
+        assertEquals("base64", ErlangSymbolProvider.toErlangName("base64"));
+        
+        // Test mixed cases
+        // Note: Complex acronyms like AWSS3Client can't be perfectly separated
+        // The regex produces reasonable output: awss3_client
+        assertEquals("awss3_client", ErlangSymbolProvider.toErlangName("AWSS3Client"));
+        assertEquals("http2_connection", ErlangSymbolProvider.toErlangName("HTTP2Connection"));
     }
     
     @Test

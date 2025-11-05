@@ -18,7 +18,7 @@ types_header_has_union_type_test() ->
     ?assert(binary:match(Content, <<"-type storage_type() ::">>) =/= nomatch),
     
     %% Verify tagged tuple format
-    ?assert(binary:match(Content, <<"{s3, #s3storage{}}">>) =/= nomatch),
+    ?assert(binary:match(Content, <<"{s3, #s3_storage{}}">>) =/= nomatch),
     ?assert(binary:match(Content, <<"{glacier, #glacier_storage{}}">>) =/= nomatch),
     ?assert(binary:match(Content, <<"{efs, #efs_storage{}}">>) =/= nomatch).
 

@@ -19,12 +19,15 @@ public final class ErlangSymbolProvider {
     /**
      * Converts a Smithy name to an Erlang-friendly name.
      * Converts PascalCase to snake_case and ensures lowercase.
+     * Handles digits in acronyms (S3Storage -> s3_storage).
      */
     public static String toErlangName(String name) {
         // Convert from PascalCase or camelCase to snake_case
-        String snakeCase = name.replaceAll("([a-z])([A-Z])", "$1_$2")
-                               .replaceAll("([A-Z])([A-Z][a-z])", "$1_$2")
-                               .toLowerCase();
+        String snakeCase = name
+            .replaceAll("([a-z])([A-Z])", "$1_$2")           // lowercase -> uppercase (aB -> a_B)
+            .replaceAll("([A-Z])([A-Z][a-z])", "$1_$2")      // uppercase -> uppercase+lowercase (ABc -> A_Bc)
+            .replaceAll("([0-9])([A-Z])", "$1_$2")           // digit -> uppercase (3S -> 3_S)
+            .toLowerCase();
         
         // Escape Erlang reserved words
         if (isReservedWord(snakeCase)) {
