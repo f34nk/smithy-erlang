@@ -143,6 +143,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeExport(exports.toArray(new String[0]));
         writer.write("");
         
+        // ignore dialyzer warnings
+        // For example: "user_client.erl:81:9: The pattern <<68,69,76,69,84,69>> can never match the type <<_:24>>"
+        writer.writeComment("Ignore dialyzer warnings for \"The pattern ... can never match the type ...\".");
+        writer.write("-dialyzer({[no_match], [$L]}).", String.join(", ", exports));
+        writer.write("");
+        
         // Generate new/1 function
         writer.writeComment("Creates a new client with the given configuration");
         writer.writeSpec("new", "(Config :: map()) -> {ok, map()}");
