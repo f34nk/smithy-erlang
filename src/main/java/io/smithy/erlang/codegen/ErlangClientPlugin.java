@@ -1,16 +1,5 @@
 package io.smithy.erlang.codegen;
 
-import software.amazon.smithy.build.FileManifest;
-import software.amazon.smithy.build.PluginContext;
-import software.amazon.smithy.build.SmithyBuildPlugin;
-import software.amazon.smithy.model.Model;
-import software.amazon.smithy.model.shapes.*;
-import software.amazon.smithy.model.traits.HttpHeaderTrait;
-import software.amazon.smithy.model.traits.HttpLabelTrait;
-import software.amazon.smithy.model.traits.HttpPayloadTrait;
-import software.amazon.smithy.model.traits.HttpQueryTrait;
-import software.amazon.smithy.model.traits.HttpTrait;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +7,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import software.amazon.smithy.build.FileManifest;
+import software.amazon.smithy.build.PluginContext;
+import software.amazon.smithy.build.SmithyBuildPlugin;
+import software.amazon.smithy.model.Model;
+import software.amazon.smithy.model.shapes.ListShape;
+import software.amazon.smithy.model.shapes.MapShape;
+import software.amazon.smithy.model.shapes.MemberShape;
+import software.amazon.smithy.model.shapes.OperationShape;
+import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.shapes.Shape;
+import software.amazon.smithy.model.shapes.ShapeId;
+import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.shapes.UnionShape;
+import software.amazon.smithy.model.traits.HttpHeaderTrait;
+import software.amazon.smithy.model.traits.HttpLabelTrait;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
+import software.amazon.smithy.model.traits.HttpQueryTrait;
+import software.amazon.smithy.model.traits.HttpTrait;
 
 /**
  * Simple Smithy Build plugin for generating Erlang client code.
@@ -1008,7 +1016,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.write("-include(\"$L.hrl\").", moduleName);
         writer.write("");
         
-        // Export encoding functions
+        // Export encoding and decoding functions
         writer.write("-export([");
         List<UnionShape> unions = new ArrayList<>(unionsToProcess);
         for (int i = 0; i < unions.size(); i++) {
@@ -1018,6 +1026,14 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 writer.write("         ");
             }
             writer.writeInline("encode_" + unionName + "/1");
+            writer.write(",");
+        }
+        writer.write("");
+        for (int i = 0; i < unions.size(); i++) {
+            UnionShape union = unions.get(i);
+            String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+            writer.write("         ");
+            writer.writeInline("decode_" + unionName + "/1");
             if (i < unions.size() - 1) {
                 writer.write(",");
             }
@@ -1028,6 +1044,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate encoding functions for each union
         for (UnionShape union : unionsToProcess) {
             generateUnionEncodingFunction(union, model, symbolProvider, writer);
+        }
+        
+        // Generate decoding functions for each union
+        for (UnionShape union : unionsToProcess) {
+            generateUnionDecodingFunction(union, model, symbolProvider, writer);
         }
         
         // Write to file
@@ -1139,6 +1160,61 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.write("$L({unknown, Data}) ->", functionName);
         writer.indent();
         writer.write("#{<<\"unknown\">> => Data}.");
+        writer.dedent();
+        
+        writer.write("");
+    }
+    
+    private void generateUnionDecodingFunction(
+            UnionShape union,
+            Model model,
+            ErlangSymbolProvider symbolProvider,
+            ErlangWriter writer) {
+        
+        String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+        String functionName = "decode_" + unionName;
+        
+        writer.writeComment("Decode JSON to " + union.getId().getName() + " union");
+        writer.writeSpec(functionName, "(map()) -> " + unionName + "() | {unknown, term()}");
+        
+        // Generate function clauses for each variant
+        List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
+        for (int i = 0; i < members.size(); i++) {
+            MemberShape member = members.get(i);
+            String variantName = ErlangSymbolProvider.toErlangName(member.getMemberName());
+            String originalMemberName = member.getMemberName();
+            Shape targetShape = model.expectShape(member.getTarget());
+            
+            // Function clause: decode_storage_type(#{<<"s3">> := Data}) ->
+            writer.write("$L(#{<<\"$L\">> := Data}) ->", functionName, originalMemberName);
+            writer.indent();
+            
+            // Generate decoding based on target shape type
+            if (targetShape.isStructureShape()) {
+                // Structure: return tagged tuple with data (data is already a map)
+                writer.write("{$L, Data};", variantName);
+            } else if (targetShape.isStringShape() || targetShape.isIntegerShape() || 
+                       targetShape.isLongShape() || targetShape.isBooleanShape() ||
+                       targetShape.isFloatShape() || targetShape.isDoubleShape() ||
+                       targetShape.isBlobShape() || targetShape.isTimestampShape()) {
+                // Primitive: return tagged tuple with data directly
+                writer.write("{$L, Data};", variantName);
+            } else if (targetShape.isListShape() || targetShape.isMapShape()) {
+                // List or map: return tagged tuple with data directly
+                writer.write("{$L, Data};", variantName);
+            } else {
+                // Default: return tagged tuple with data as-is
+                writer.write("{$L, Data};", variantName);
+            }
+            
+            writer.dedent();
+        }
+        
+        // Add unknown variant handler for forward compatibility
+        writer.writeComment("Handle unknown variants for forward compatibility");
+        writer.write("$L(UnknownVariant) ->", functionName);
+        writer.indent();
+        writer.write("{unknown, UnknownVariant}.");
         writer.dedent();
         
         writer.write("");
