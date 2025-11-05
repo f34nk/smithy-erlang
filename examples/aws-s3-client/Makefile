@@ -1,9 +1,9 @@
-.PHONY: all copy generate compile test clean
+.PHONY: all copy generate compile analyze test clean
 
 YELLOW=\033[1;33m
 NC=\033[0m
 
-all: clean copy generate compile test
+all: clean copy generate compile analyze test
 
 copy:
 	#
@@ -30,6 +30,8 @@ compile:
 	#
 	rebar3 lock
 	rebar3 compile
+
+analyze:
 	#
 	# Analyze test code with Dialyzer
 	# Tests must include the types header for type checking
