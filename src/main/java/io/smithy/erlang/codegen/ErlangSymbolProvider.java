@@ -2,6 +2,7 @@ package io.smithy.erlang.codegen;
 
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.*;
+import software.amazon.smithy.model.traits.EnumTrait;
 
 /**
  * Simple symbol provider for mapping Smithy shapes to Erlang names and types.
@@ -42,6 +43,11 @@ public final class ErlangSymbolProvider {
      */
     public String getErlangType(Shape shape) {
         if (shape instanceof StringShape) {
+            StringShape stringShape = (StringShape) shape;
+            if (stringShape.hasTrait(EnumTrait.class)) {
+                // Enum: use the enum type name
+                return toErlangName(shape.getId().getName()) + "()";
+            }
             return "binary()";
         } else if (shape instanceof IntegerShape || shape instanceof LongShape) {
             return "integer()";

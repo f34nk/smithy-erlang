@@ -19,8 +19,10 @@ import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
+import software.amazon.smithy.model.shapes.StringShape;
 import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.shapes.UnionShape;
+import software.amazon.smithy.model.traits.EnumTrait;
 import software.amazon.smithy.model.traits.HttpHeaderTrait;
 import software.amazon.smithy.model.traits.HttpLabelTrait;
 import software.amazon.smithy.model.traits.HttpPayloadTrait;
@@ -702,11 +704,13 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeComment("Generated type definitions for Smithy model");
         writer.write("");
         
-        // Track all structures and unions, and collect them
+        // Track all structures, unions, and enums, and collect them
         java.util.Set<ShapeId> allStructures = new java.util.HashSet<>();
         java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
+        java.util.Set<ShapeId> allEnums = new java.util.HashSet<>();
         List<StructureShape> structuresToProcess = new ArrayList<>();
         List<UnionShape> unionsToProcess = new ArrayList<>();
+        List<StringShape> enumsToProcess = new ArrayList<>();
         
         // Collect all structures and unions from operations
         for (ShapeId operationId : service.getOperations()) {
@@ -737,12 +741,16 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         }
         
-        // Collect all nested structures and unions
+        // Collect all nested structures, unions, and enums
         int previousSize = -1;
         int previousUnionSize = -1;
-        while (structuresToProcess.size() != previousSize || unionsToProcess.size() != previousUnionSize) {
+        int previousEnumSize = -1;
+        while (structuresToProcess.size() != previousSize || 
+               unionsToProcess.size() != previousUnionSize || 
+               enumsToProcess.size() != previousEnumSize) {
             previousSize = structuresToProcess.size();
             previousUnionSize = unionsToProcess.size();
+            previousEnumSize = enumsToProcess.size();
             List<StructureShape> currentStructures = new ArrayList<>(structuresToProcess);
             List<UnionShape> currentUnions = new ArrayList<>(unionsToProcess);
             
@@ -750,7 +758,8 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             for (StructureShape structure : currentStructures) {
                 for (MemberShape member : structure.getAllMembers().values()) {
                     Shape targetShape = model.expectShape(member.getTarget());
-                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, allUnions, unionsToProcess);
+                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, 
+                                      allUnions, unionsToProcess, allEnums, enumsToProcess);
                 }
             }
             
@@ -758,7 +767,8 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             for (UnionShape union : currentUnions) {
                 for (MemberShape member : union.getAllMembers().values()) {
                     Shape targetShape = model.expectShape(member.getTarget());
-                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, allUnions, unionsToProcess);
+                    collectNestedShapes(targetShape, model, allStructures, structuresToProcess, 
+                                      allUnions, unionsToProcess, allEnums, enumsToProcess);
                 }
             }
         }
@@ -769,6 +779,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate structures in dependency order
         for (StructureShape structure : sortedStructures) {
             generateStructure(structure, model, symbolProvider, writer);
+        }
+        
+        // Generate enum types (type definitions only in header)
+        LOGGER.info("Generating " + enumsToProcess.size() + " enum types");
+        for (StringShape enumShape : enumsToProcess) {
+            generateEnum(enumShape, writer);
         }
         
         // Generate union types (type definitions only in header)
@@ -896,7 +912,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             java.util.Set<ShapeId> generatedStructures,
             List<StructureShape> structuresToGenerate,
             java.util.Set<ShapeId> generatedUnions,
-            List<UnionShape> unionsToGenerate) {
+            List<UnionShape> unionsToGenerate,
+            java.util.Set<ShapeId> generatedEnums,
+            List<StringShape> enumsToGenerate) {
         
         if (shape instanceof StructureShape) {
             if (generatedStructures.add(shape.getId())) {
@@ -906,15 +924,25 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             if (generatedUnions.add(shape.getId())) {
                 unionsToGenerate.add((UnionShape) shape);
             }
+        } else if (shape instanceof StringShape) {
+            StringShape stringShape = (StringShape) shape;
+            if (stringShape.hasTrait(EnumTrait.class)) {
+                if (generatedEnums.add(shape.getId())) {
+                    enumsToGenerate.add(stringShape);
+                }
+            }
         } else if (shape instanceof ListShape) {
             Shape memberShape = model.expectShape(((ListShape) shape).getMember().getTarget());
-            collectNestedShapes(memberShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
+            collectNestedShapes(memberShape, model, generatedStructures, structuresToGenerate, 
+                              generatedUnions, unionsToGenerate, generatedEnums, enumsToGenerate);
         } else if (shape instanceof MapShape) {
             MapShape mapShape = (MapShape) shape;
             Shape keyShape = model.expectShape(mapShape.getKey().getTarget());
             Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
-            collectNestedShapes(keyShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
-            collectNestedShapes(valueShape, model, generatedStructures, structuresToGenerate, generatedUnions, unionsToGenerate);
+            collectNestedShapes(keyShape, model, generatedStructures, structuresToGenerate, 
+                              generatedUnions, unionsToGenerate, generatedEnums, enumsToGenerate);
+            collectNestedShapes(valueShape, model, generatedStructures, structuresToGenerate, 
+                              generatedUnions, unionsToGenerate, generatedEnums, enumsToGenerate);
         }
     }
     
@@ -1451,6 +1479,47 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             writer.writeInline("{$L, $L}", variantName, variantType);
             
             if (i < members.size() - 1) {
+                writer.write("");
+            }
+        }
+        
+        // Close type definition
+        writer.write(".");
+    }
+    
+    /**
+     * Generate an enum type definition as Erlang atoms.
+     * Format: -type glacier_retrieval_option() :: expedited | standard | bulk.
+     */
+    private void generateEnum(StringShape enumShape, ErlangWriter writer) {
+        String typeName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+        EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
+        
+        writer.write("");
+        writer.writeComment("Enum type for " + enumShape.getId().getName());
+        
+        // Start type definition
+        writer.write("-type $L() :: ", typeName);
+        
+        // Generate enum values
+        List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
+        for (int i = 0; i < values.size(); i++) {
+            software.amazon.smithy.model.traits.EnumDefinition value = values.get(i);
+            // Use the name if available, otherwise use the value
+            String atomName = value.getName().isPresent() 
+                ? ErlangSymbolProvider.toErlangName(value.getName().get())
+                : ErlangSymbolProvider.toErlangName(value.getValue());
+            
+            // Add pipe separator for all but first value
+            if (i > 0) {
+                writer.writeInline("    | ");
+            } else {
+                writer.writeInline("    ");
+            }
+            
+            writer.writeInline("$L", atomName);
+            
+            if (i < values.size() - 1) {
                 writer.write("");
             }
         }
