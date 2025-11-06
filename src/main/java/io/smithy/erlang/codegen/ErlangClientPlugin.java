@@ -1005,32 +1005,37 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
         }
         
-        // Collect all unions
+        // Collect all unions and enums
         java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
         List<UnionShape> unionsToProcess = new ArrayList<>();
+        java.util.Set<ShapeId> allEnums = new java.util.HashSet<>();
+        List<StringShape> enumsToProcess = new ArrayList<>();
         
-        // Collect unions from operations
+        // Collect unions and enums from operations
         for (ShapeId operationId : service.getOperations()) {
             OperationShape operation = model.expectShape(operationId, OperationShape.class);
             
             operation.getInput().ifPresent(inputId -> {
                 StructureShape inputShape = model.expectShape(inputId, StructureShape.class);
                 collectUnionsFromStructure(inputShape, model, allUnions, unionsToProcess);
+                collectEnumsFromStructure(inputShape, model, allEnums, enumsToProcess);
             });
             
             operation.getOutput().ifPresent(outputId -> {
                 StructureShape outputShape = model.expectShape(outputId, StructureShape.class);
                 collectUnionsFromStructure(outputShape, model, allUnions, unionsToProcess);
+                collectEnumsFromStructure(outputShape, model, allEnums, enumsToProcess);
             });
         }
         
-        // If no unions, skip module generation
-        if (unionsToProcess.isEmpty()) {
-            LOGGER.info("No unions found, skipping types module generation");
+        // If no unions or enums, skip module generation
+        if (unionsToProcess.isEmpty() && enumsToProcess.isEmpty()) {
+            LOGGER.info("No unions or enums found, skipping types module generation");
             return;
         }
         
-        LOGGER.info("Generating types module with " + unionsToProcess.size() + " union encoding functions");
+        LOGGER.info("Generating types module with " + unionsToProcess.size() + " unions and " + 
+                    enumsToProcess.size() + " enums");
         
         ErlangWriter writer = new ErlangWriter();
         
@@ -1046,23 +1051,35 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         // Export encoding and decoding functions
         writer.write("-export([");
+        
+        // Build the export list
+        List<String> exports = new ArrayList<>();
+        
+        // Add union encoding/decoding functions
         List<UnionShape> unions = new ArrayList<>(unionsToProcess);
-        for (int i = 0; i < unions.size(); i++) {
-            UnionShape union = unions.get(i);
+        for (UnionShape union : unions) {
             String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+            exports.add("encode_" + unionName + "/1");
+        }
+        for (UnionShape union : unions) {
+            String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+            exports.add("decode_" + unionName + "/1");
+        }
+        
+        // Add enum encoding functions (decoding in Step 4.7)
+        List<StringShape> enums = new ArrayList<>(enumsToProcess);
+        for (StringShape enumShape : enums) {
+            String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+            exports.add("encode_" + enumName + "/1");
+        }
+        
+        // Write export list
+        for (int i = 0; i < exports.size(); i++) {
             if (i > 0) {
                 writer.write("         ");
             }
-            writer.writeInline("encode_" + unionName + "/1");
-            writer.write(",");
-        }
-        writer.write("");
-        for (int i = 0; i < unions.size(); i++) {
-            UnionShape union = unions.get(i);
-            String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
-            writer.write("         ");
-            writer.writeInline("decode_" + unionName + "/1");
-            if (i < unions.size() - 1) {
+            writer.writeInline(exports.get(i));
+            if (i < exports.size() - 1) {
                 writer.write(",");
             }
         }
@@ -1077,6 +1094,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate decoding functions for each union
         for (UnionShape union : unionsToProcess) {
             generateUnionDecodingFunction(union, model, symbolProvider, writer);
+        }
+        
+        // Generate encoding functions for each enum
+        for (StringShape enumShape : enumsToProcess) {
+            generateEnumEncodingFunction(enumShape, model, writer);
         }
         
         // Write to file
@@ -1244,6 +1266,88 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.indent();
         writer.write("{unknown, UnknownVariant}.");
         writer.dedent();
+        
+        writer.write("");
+    }
+    
+    private void collectEnumsFromStructure(
+            StructureShape structure,
+            Model model,
+            java.util.Set<ShapeId> allEnums,
+            List<StringShape> enumsToProcess) {
+        
+        for (MemberShape member : structure.getAllMembers().values()) {
+            Shape targetShape = model.expectShape(member.getTarget());
+            collectEnumsRecursive(targetShape, model, allEnums, enumsToProcess);
+        }
+    }
+    
+    private void collectEnumsRecursive(
+            Shape shape,
+            Model model,
+            java.util.Set<ShapeId> allEnums,
+            List<StringShape> enumsToProcess) {
+        
+        if (shape instanceof StringShape) {
+            StringShape stringShape = (StringShape) shape;
+            if (stringShape.hasTrait(EnumTrait.class)) {
+                if (allEnums.add(shape.getId())) {
+                    enumsToProcess.add(stringShape);
+                }
+            }
+        } else if (shape instanceof StructureShape) {
+            for (MemberShape member : ((StructureShape) shape).getAllMembers().values()) {
+                Shape memberShape = model.expectShape(member.getTarget());
+                collectEnumsRecursive(memberShape, model, allEnums, enumsToProcess);
+            }
+        } else if (shape instanceof UnionShape) {
+            for (MemberShape member : ((UnionShape) shape).getAllMembers().values()) {
+                Shape memberShape = model.expectShape(member.getTarget());
+                collectEnumsRecursive(memberShape, model, allEnums, enumsToProcess);
+            }
+        } else if (shape instanceof ListShape) {
+            Shape memberShape = model.expectShape(((ListShape) shape).getMember().getTarget());
+            collectEnumsRecursive(memberShape, model, allEnums, enumsToProcess);
+        } else if (shape instanceof MapShape) {
+            MapShape mapShape = (MapShape) shape;
+            Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
+            collectEnumsRecursive(valueShape, model, allEnums, enumsToProcess);
+        }
+    }
+    
+    private void generateEnumEncodingFunction(
+            StringShape enumShape,
+            Model model,
+            ErlangWriter writer) {
+        
+        String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+        String functionName = "encode_" + enumName;
+        EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
+        
+        writer.writeComment("Encode " + enumShape.getId().getName() + " enum to JSON string");
+        writer.writeSpec(functionName, "(" + enumName + "()) -> binary()");
+        
+        // Generate function clauses for each enum value
+        List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
+        for (int i = 0; i < values.size(); i++) {
+            software.amazon.smithy.model.traits.EnumDefinition value = values.get(i);
+            
+            // Get the atom name (snake_case)
+            String atomName = value.getName().isPresent() 
+                ? ErlangSymbolProvider.toErlangName(value.getName().get())
+                : ErlangSymbolProvider.toErlangName(value.getValue());
+            
+            // Get the wire format value (uppercase)
+            String wireValue = value.getValue();
+            
+            // Generate function clause: encode_glacier_retrieval_option(expedited) -> <<"EXPEDITED">>;
+            // Use period for last clause, semicolon for others
+            if (i == values.size() - 1) {
+                writer.write("$L($L) -> <<\"$L\">>.", functionName, atomName, wireValue);
+            } else {
+                writer.write("$L($L) -> <<\"$L\">>;", functionName, atomName, wireValue);
+            }
+        }
         
         writer.write("");
     }
