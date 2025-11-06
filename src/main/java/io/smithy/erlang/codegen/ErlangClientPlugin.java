@@ -1066,11 +1066,15 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             exports.add("decode_" + unionName + "/1");
         }
         
-        // Add enum encoding functions (decoding in Step 4.7)
+        // Add enum encoding/decoding functions
         List<StringShape> enums = new ArrayList<>(enumsToProcess);
         for (StringShape enumShape : enums) {
             String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
             exports.add("encode_" + enumName + "/1");
+        }
+        for (StringShape enumShape : enums) {
+            String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+            exports.add("decode_" + enumName + "/1");
         }
         
         // Write export list
@@ -1099,6 +1103,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate encoding functions for each enum
         for (StringShape enumShape : enumsToProcess) {
             generateEnumEncodingFunction(enumShape, model, writer);
+        }
+        
+        // Generate decoding functions for each enum
+        for (StringShape enumShape : enumsToProcess) {
+            generateEnumDecodingFunction(enumShape, model, writer);
         }
         
         // Write to file
@@ -1348,6 +1357,42 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 writer.write("$L($L) -> <<\"$L\">>;", functionName, atomName, wireValue);
             }
         }
+        
+        writer.write("");
+    }
+    
+    private void generateEnumDecodingFunction(
+            StringShape enumShape,
+            Model model,
+            ErlangWriter writer) {
+        
+        String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+        String functionName = "decode_" + enumName;
+        EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
+        
+        writer.writeComment("Decode JSON string to " + enumShape.getId().getName() + " enum with validation");
+        writer.writeSpec(functionName, "(binary()) -> {ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
+        
+        // Generate function clauses for each enum value
+        List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
+        for (int i = 0; i < values.size(); i++) {
+            software.amazon.smithy.model.traits.EnumDefinition value = values.get(i);
+            
+            // Get the atom name (snake_case)
+            String atomName = value.getName().isPresent() 
+                ? ErlangSymbolProvider.toErlangName(value.getName().get())
+                : ErlangSymbolProvider.toErlangName(value.getValue());
+            
+            // Get the wire format value (from JSON)
+            String wireValue = value.getValue();
+            
+            // Generate function clause: decode_glacier_retrieval_option(<<"expedited">>) -> {ok, expedited};
+            writer.write("$L(<<\"$L\">>) -> {ok, $L};", functionName, wireValue, atomName);
+        }
+        
+        // Add catch-all clause for invalid values
+        writer.writeComment("Catch-all for invalid enum values");
+        writer.write("$L(Other) -> {error, {invalid_enum_value, Other}}.", functionName);
         
         writer.write("");
     }
