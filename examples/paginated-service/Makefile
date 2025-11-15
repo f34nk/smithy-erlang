@@ -41,6 +41,6 @@ test:
 	rebar3 eunit
 
 clean:
-	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
+	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
 	# remove copied files
 	rm -rf model/paginated-test.smithy

@@ -35,4 +35,4 @@ test:
 	rebar3 eunit
 
 clean:
-	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
+	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam

@@ -47,6 +47,6 @@ test:
 	rebar3 eunit
 
 clean:
-	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
+	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
 	# remove copied files
 	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl
