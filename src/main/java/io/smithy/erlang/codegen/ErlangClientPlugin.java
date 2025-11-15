@@ -83,6 +83,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Copy AWS config module
             copyAwsConfigModule(settings, fileManifest);
             
+            // Copy AWS retry module
+            copyAwsRetryModule(settings, fileManifest);
+            
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Erlang client code", e);
@@ -1650,6 +1653,67 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, configContent);
+        }
+    }
+    
+    private void copyAwsRetryModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS retry module to generated output");
+        
+        // Read aws_retry.erl from resources
+        java.io.InputStream retryStream = getClass().getClassLoader().getResourceAsStream("aws_retry.erl");
+        if (retryStream == null) {
+            LOGGER.warning("aws_retry.erl not found in resources, skipping");
+            return;
+        }
+        
+        String retryContent = new String(retryStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        retryStream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_retry.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_retry.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, retryContent);
+                LOGGER.info("Copied AWS retry module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_retry.erl");
+                fileManifest.writeFile(manifestPath, retryContent);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, retryContent);
         }
     }
     

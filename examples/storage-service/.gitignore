@@ -9,3 +9,6 @@ _build/
 .rebar3/
 *.beam
 erl_crash.dump
+
+# ignore copied files
+test/aws_retry_test.erl

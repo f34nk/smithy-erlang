@@ -3,7 +3,13 @@
 YELLOW=\033[1;33m
 NC=\033[0m
 
-all: clean generate compile analyze test 
+all: clean copy generate compile analyze test 
+
+copy:
+	#
+	# Copy the tests from the JAVA test resources
+	#
+	cp ../../src/test/resources/aws_retry_test.erl test/
 
 generate:
 	# 
@@ -36,3 +42,4 @@ test:
 
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump
+	rm -rf test/aws_retry_test.erl
