@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,7 @@ import software.amazon.smithy.model.traits.HttpLabelTrait;
 import software.amazon.smithy.model.traits.HttpPayloadTrait;
 import software.amazon.smithy.model.traits.HttpQueryTrait;
 import software.amazon.smithy.model.traits.HttpTrait;
+import software.amazon.smithy.model.traits.PaginatedTrait;
 
 /**
  * Simple Smithy Build plugin for generating Erlang client code.
@@ -175,6 +177,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         // Generate operation functions
         for (OperationShape operation : operations) {
+            // Check for pagination trait
+            Optional<PaginatedTrait> paginationInfo = getPaginationInfo(operation);
+            if (paginationInfo.isPresent()) {
+                logPaginationInfo(operation, paginationInfo.get(), model);
+            }
+            
             generateOperation(operation, service, model, symbolProvider, writer);
         }
         
@@ -1865,5 +1873,58 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
      */
     private boolean isUnion(Shape shape) {
         return shape.isUnionShape();
+    }
+    
+    /**
+     * Get pagination information from an operation if it has @paginated trait.
+     * 
+     * @param operation The operation shape to check
+     * @return Optional containing the PaginatedTrait if present
+     */
+    private Optional<PaginatedTrait> getPaginationInfo(OperationShape operation) {
+        return operation.getTrait(PaginatedTrait.class);
+    }
+    
+    /**
+     * Check if an operation is paginated.
+     * 
+     * @param operation The operation shape to check
+     * @return true if the operation has @paginated trait
+     */
+    private boolean isPaginated(OperationShape operation) {
+        return operation.hasTrait(PaginatedTrait.class);
+    }
+    
+    /**
+     * Log pagination information for a paginated operation.
+     * 
+     * @param operation The paginated operation
+     * @param pagination The pagination trait
+     * @param model The model containing the operation
+     */
+    private void logPaginationInfo(OperationShape operation, PaginatedTrait pagination, Model model) {
+        String opName = operation.getId().getName();
+        
+        LOGGER.info("Detected paginated operation: " + opName);
+        
+        // Log input token
+        pagination.getInputToken().ifPresent(token ->
+            LOGGER.info("  Input token: " + token)
+        );
+        
+        // Log output token
+        pagination.getOutputToken().ifPresent(token ->
+            LOGGER.info("  Output token: " + token)
+        );
+        
+        // Log page size
+        pagination.getPageSize().ifPresent(pageSize ->
+            LOGGER.info("  Page size: " + pageSize)
+        );
+        
+        // Log items member
+        pagination.getItems().ifPresent(items ->
+            LOGGER.info("  Items member: " + items)
+        );
     }
 }
