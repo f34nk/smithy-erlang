@@ -152,6 +152,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         for (OperationShape operation : operations) {
             String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
             exports.add(opName + "/2");
+            exports.add(opName + "/3"); // Add 3-arity version for retry support
         }
         writer.writeExport(exports.toArray(new String[0]));
         writer.write("");
@@ -314,11 +315,56 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             outputType = "#" + outputRecordName + "{}";
         }
         
+        // Generate 2-arity wrapper that calls 3-arity version
         writer.writeComment("Calls the " + operation.getId().getName() + " operation");
         writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
                 opName, inputType, outputType);
-        // Add guard to ensure runtime uses maps
-        writer.write("$L(Client, Input) when is_map(Input) ->", opName);
+        writer.write("$L(Client, Input) ->", opName);
+        writer.indent();
+        writer.write("$L(Client, Input, #{}).", opName);
+        writer.dedent();
+        writer.write("");
+        
+        // Generate 3-arity version with retry support
+        writer.writeComment("Calls the " + operation.getId().getName() + " operation with options");
+        writer.writeComment("Options:");
+        writer.writeComment("  - enable_retry: Enable automatic retry (default: true)");
+        writer.writeComment("  - max_retries: Maximum retry attempts (default: 3)");
+        writer.writeComment("  - initial_backoff: Initial backoff in ms (default: 100)");
+        writer.writeComment("  - max_backoff: Maximum backoff in ms (default: 20000)");
+        writer.write("-spec $L(Client :: map(), Input :: $L, Options :: map()) -> {ok, $L} | {error, term()}.",
+                opName, inputType, outputType);
+        writer.write("$L(Client, Input, Options) when is_map(Input), is_map(Options) ->", opName);
+        writer.indent();
+        
+        // Create the request function
+        String internalFunctionName = "make_" + opName + "_request";
+        writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
+        writer.write("");
+        
+        // Check if retry is enabled
+        writer.write("case maps:get(enable_retry, Options, true) of");
+        writer.indent();
+        writer.write("true ->");
+        writer.indent();
+        writer.write("%% Retry enabled - wrap with retry logic");
+        writer.write("aws_retry:with_retry(RequestFun, Options);");
+        writer.dedent();
+        writer.write("false ->");
+        writer.indent();
+        writer.write("%% Retry disabled - call directly");
+        writer.write("RequestFun()");
+        writer.dedent();
+        writer.dedent();
+        writer.write("end.");
+        writer.dedent();
+        writer.write("");
+        
+        // Generate internal request function
+        writer.writeComment("Internal function to make the " + operation.getId().getName() + " request");
+        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
+                internalFunctionName, inputType, outputType);
+        writer.write("$L(Client, Input) when is_map(Input) ->", internalFunctionName);
         writer.indent();
         writer.write("Method = <<\"$L\">>,", method);
         writer.write("Endpoint = maps:get(endpoint, Client),");

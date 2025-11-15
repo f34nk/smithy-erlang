@@ -457,12 +457,24 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         
         // For operations with blob payload, Body should not be JSON-encoded
         // Check that we get the body directly without jsx:encode
-        int putObjectStart = content.indexOf("put_object(");
-        int putObjectEnd = content.indexOf("end.", putObjectStart);
+        // The operation logic is now in make_put_object_request internal function
+        // Search for the function definition (with "when" guard), not a call
+        int putObjectStart = content.indexOf("make_put_object_request(Client, Input) when");
+        assertTrue(putObjectStart >= 0, 
+                "Should generate make_put_object_request internal function definition");
+        
+        // Find the next function definition or end of file after this function
+        int putObjectEnd = content.indexOf("\n%% ", putObjectStart + 1);
+        if (putObjectEnd == -1) {
+            // If no next function, go to end of file
+            putObjectEnd = content.length();
+        }
+        
         String putObjectCode = content.substring(putObjectStart, putObjectEnd);
         
         // Should reference Body but not encode it with jsx
-        assertTrue(putObjectCode.contains("Body"),
+        // Check for binary string <<"Body">> or variable Body
+        assertTrue(putObjectCode.contains("Body") || putObjectCode.contains("<<\"Body\">>"),
                 "PutObject should reference Body");
     }
     
