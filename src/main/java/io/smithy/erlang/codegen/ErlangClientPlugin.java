@@ -155,6 +155,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
             exports.add(opName + "/2");
             exports.add(opName + "/3"); // Add 3-arity version for retry support
+            
+            // Add pagination helper exports if operation is paginated
+            if (operation.hasTrait(PaginatedTrait.class)) {
+                exports.add(opName + "_all_pages/2");
+                exports.add(opName + "_all_pages/3");
+            }
         }
         writer.writeExport(exports.toArray(new String[0]));
         writer.write("");
@@ -184,6 +190,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
             
             generateOperation(operation, service, model, symbolProvider, writer);
+            
+            // Generate pagination helper if operation is paginated
+            if (paginationInfo.isPresent()) {
+                generatePaginationHelper(operation, paginationInfo.get(), model, symbolProvider, writer);
+            }
         }
         
         // Write to file
@@ -1926,5 +1937,167 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         pagination.getItems().ifPresent(items ->
             LOGGER.info("  Items member: " + items)
         );
+    }
+    
+    /**
+     * Generate pagination helper functions for a paginated operation.
+     * Generates *_all_pages/2 and *_all_pages/3 functions that automatically
+     * fetch all pages by following continuation tokens.
+     * 
+     * @param operation The paginated operation
+     * @param pagination The pagination trait
+     * @param model The model containing the operation
+     * @param symbolProvider The symbol provider
+     * @param writer The writer to output code
+     */
+    private void generatePaginationHelper(
+            OperationShape operation,
+            PaginatedTrait pagination,
+            Model model,
+            ErlangSymbolProvider symbolProvider,
+            ErlangWriter writer) {
+        
+        String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
+        String helperName = opName + "_all_pages";
+        
+        // Get pagination parameters
+        String outputToken = pagination.getOutputToken().orElse(null);
+        String inputToken = pagination.getInputToken().orElse(null);
+        String itemsMember = pagination.getItems().orElse(null);
+        
+        if (outputToken == null || inputToken == null) {
+            LOGGER.warning("Skipping pagination helper for " + opName + 
+                          ": missing required token configuration");
+            return;
+        }
+        
+        // Generate type specs
+        String inputType = "map()";
+        String outputType = "map()";
+        String itemsType = "list()";
+        
+        if (operation.getInput().isPresent()) {
+            ShapeId inputId = operation.getInput().get();
+            String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
+            inputType = "#" + inputRecordName + "{}";
+        }
+        
+        if (operation.getOutput().isPresent() && itemsMember != null) {
+            ShapeId outputId = operation.getOutput().get();
+            StructureShape outputShape = model.expectShape(outputId, StructureShape.class);
+            
+            // Try to get the items member type
+            if (outputShape.getAllMembers().containsKey(itemsMember)) {
+                MemberShape itemsMemberShape = outputShape.getAllMembers().get(itemsMember);
+                Shape itemsShape = model.expectShape(itemsMemberShape.getTarget());
+                if (itemsShape.isListShape()) {
+                    itemsType = "list()";
+                }
+            }
+        }
+        
+        writer.write("");
+        writer.writeComment("========================================================================");
+        writer.writeComment("Pagination Helper: " + helperName);
+        writer.writeComment("========================================================================");
+        writer.write("");
+        
+        // Generate 2-arity helper (calls 3-arity with default options)
+        writer.writeComment("Fetch all pages for " + operation.getId().getName());
+        writer.writeComment("Automatically follows pagination tokens to retrieve all results");
+        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
+                helperName, inputType, itemsType);
+        writer.write("$L(Client, Input) ->", helperName);
+        writer.indent();
+        writer.write("$L(Client, Input, #{}).", helperName);
+        writer.dedent();
+        writer.write("");
+        
+        // Generate 3-arity helper with options
+        writer.writeComment("Fetch all pages for " + operation.getId().getName() + " with options");
+        writer.writeComment("Options are passed to the underlying operation (e.g., retry settings)");
+        writer.write("-spec $L(Client :: map(), Input :: $L, Options :: map()) -> {ok, $L} | {error, term()}.",
+                helperName, inputType, itemsType);
+        writer.write("$L(Client, Input, Options) when is_map(Input), is_map(Options) ->", helperName);
+        writer.indent();
+        writer.write("$L(Client, Input, Options, []).", helperName + "_recursive");
+        writer.dedent();
+        writer.write("");
+        
+        // Generate recursive helper (internal function)
+        writer.writeComment("Internal recursive function for pagination");
+        writer.write("-spec $L(Client :: map(), Input :: $L, Options :: map(), Acc :: $L) -> {ok, $L} | {error, term()}.",
+                helperName + "_recursive", inputType, itemsType, itemsType);
+        writer.write("$L(Client, Input, Options, Acc) when is_map(Input), is_map(Options), is_list(Acc) ->",
+                helperName + "_recursive");
+        writer.indent();
+        
+        // Make the API call
+        writer.write("case $L(Client, Input, Options) of", opName);
+        writer.indent();
+        
+        // Success case with continuation token
+        if (itemsMember != null) {
+            writer.write("{ok, #{<<\"$L\">> := Items, <<\"$L\">> := NextToken}} when is_binary(NextToken), byte_size(NextToken) > 0 ->",
+                    itemsMember, outputToken);
+        } else {
+            writer.write("{ok, #{<<\"$L\">> := NextToken}} when is_binary(NextToken), byte_size(NextToken) > 0 ->",
+                    outputToken);
+        }
+        writer.indent();
+        writer.writeComment("More pages available - continue pagination");
+        
+        if (itemsMember != null) {
+            writer.write("NewAcc = Acc ++ Items,");
+        } else {
+            writer.write("NewAcc = Acc,");
+        }
+        
+        writer.write("NewInput = Input#{<<\"$L\">> => NextToken},", inputToken);
+        writer.write("$L(Client, NewInput, Options, NewAcc);", helperName + "_recursive");
+        writer.dedent();
+        
+        // Success case without continuation token (last page)
+        if (itemsMember != null) {
+            writer.write("{ok, #{<<\"$L\">> := Items}} ->", itemsMember);
+        } else {
+            writer.write("{ok, _Output} ->");
+        }
+        writer.indent();
+        writer.writeComment("Last page - return accumulated results");
+        if (itemsMember != null) {
+            writer.write("{ok, Acc ++ Items};");
+        } else {
+            writer.write("{ok, Acc};");
+        }
+        writer.dedent();
+        
+        // Success case with empty token (also last page)
+        if (itemsMember != null) {
+            writer.write("{ok, #{<<\"$L\">> := Items, <<\"$L\">> := <<>>}} ->",
+                    itemsMember, outputToken);
+        } else {
+            writer.write("{ok, #{<<\"$L\">> := <<>>}} ->", outputToken);
+        }
+        writer.indent();
+        writer.writeComment("Empty token - return accumulated results");
+        if (itemsMember != null) {
+            writer.write("{ok, Acc ++ Items};");
+        } else {
+            writer.write("{ok, Acc};");
+        }
+        writer.dedent();
+        
+        // Error case
+        writer.write("{error, Reason} ->");
+        writer.indent();
+        writer.writeComment("Error occurred - return error");
+        writer.write("{error, Reason}");
+        writer.dedent();
+        
+        writer.dedent();
+        writer.write("end.");
+        writer.dedent();
+        writer.write("");
     }
 }
