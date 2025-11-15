@@ -1005,18 +1005,28 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
         }
         
-        // Collect all unions and enums
+        // Collect all unions, enums, and input structures for validation
         java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
         List<UnionShape> unionsToProcess = new ArrayList<>();
         java.util.Set<ShapeId> allEnums = new java.util.HashSet<>();
         List<StringShape> enumsToProcess = new ArrayList<>();
+        List<StructureShape> inputStructuresToValidate = new ArrayList<>();
         
-        // Collect unions and enums from operations
+        // Collect unions, enums, and input structures from operations
         for (ShapeId operationId : service.getOperations()) {
             OperationShape operation = model.expectShape(operationId, OperationShape.class);
             
             operation.getInput().ifPresent(inputId -> {
                 StructureShape inputShape = model.expectShape(inputId, StructureShape.class);
+                
+                // Check if structure has required fields
+                boolean hasRequiredFields = inputShape.getAllMembers().values().stream()
+                    .anyMatch(member -> member.hasTrait(software.amazon.smithy.model.traits.RequiredTrait.class));
+                
+                if (hasRequiredFields) {
+                    inputStructuresToValidate.add(inputShape);
+                }
+                
                 collectUnionsFromStructure(inputShape, model, allUnions, unionsToProcess);
                 collectEnumsFromStructure(inputShape, model, allEnums, enumsToProcess);
             });
@@ -1028,14 +1038,14 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             });
         }
         
-        // If no unions or enums, skip module generation
-        if (unionsToProcess.isEmpty() && enumsToProcess.isEmpty()) {
-            LOGGER.info("No unions or enums found, skipping types module generation");
+        // If no unions, enums, or validation needed, skip module generation
+        if (unionsToProcess.isEmpty() && enumsToProcess.isEmpty() && inputStructuresToValidate.isEmpty()) {
+            LOGGER.info("No unions, enums, or validation functions needed, skipping types module generation");
             return;
         }
         
-        LOGGER.info("Generating types module with " + unionsToProcess.size() + " unions and " + 
-                    enumsToProcess.size() + " enums");
+        LOGGER.info("Generating types module with " + unionsToProcess.size() + " unions, " + 
+                    enumsToProcess.size() + " enums, and " + inputStructuresToValidate.size() + " validation functions");
         
         ErlangWriter writer = new ErlangWriter();
         
@@ -1077,6 +1087,12 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             exports.add("decode_" + enumName + "/1");
         }
         
+        // Add validation functions for input structures
+        for (StructureShape inputStructure : inputStructuresToValidate) {
+            String structureName = ErlangSymbolProvider.toErlangName(inputStructure.getId().getName());
+            exports.add("validate_" + structureName + "/1");
+        }
+        
         // Write export list
         for (int i = 0; i < exports.size(); i++) {
             if (i > 0) {
@@ -1108,6 +1124,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate decoding functions for each enum
         for (StringShape enumShape : enumsToProcess) {
             generateEnumDecodingFunction(enumShape, model, writer);
+        }
+        
+        // Generate validation functions for input structures
+        for (StructureShape inputStructure : inputStructuresToValidate) {
+            generateValidationFunction(inputStructure, model, writer);
         }
         
         // Write to file
@@ -1394,6 +1415,58 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeComment("Catch-all for invalid enum values");
         writer.write("$L(Other) -> {error, {invalid_enum_value, Other}}.", functionName);
         
+        writer.write("");
+    }
+    
+    private void generateValidationFunction(
+            StructureShape structure,
+            Model model,
+            ErlangWriter writer) {
+        
+        String structureName = ErlangSymbolProvider.toErlangName(structure.getId().getName());
+        String functionName = "validate_" + structureName;
+        
+        // Collect required field names
+        List<String> requiredFields = new ArrayList<>();
+        for (MemberShape member : structure.getAllMembers().values()) {
+            if (member.hasTrait(software.amazon.smithy.model.traits.RequiredTrait.class)) {
+                requiredFields.add(member.getMemberName());
+            }
+        }
+        
+        if (requiredFields.isEmpty()) {
+            return; // No validation needed
+        }
+        
+        writer.writeComment("Validate required fields for " + structure.getId().getName());
+        writer.writeSpec(functionName, "(map()) -> ok | {error, {missing_required_fields, [binary()]}}");
+        writer.write("$L(Input) when is_map(Input) ->", functionName);
+        writer.indent();
+        
+        // Generate list of required field names
+        writer.write("Required = [");
+        for (int i = 0; i < requiredFields.size(); i++) {
+            String fieldName = requiredFields.get(i);
+            if (i > 0) {
+                writer.write("                ");
+            }
+            writer.writeInline("<<\"$L\">>", fieldName);
+            if (i < requiredFields.size() - 1) {
+                writer.write(",");
+            }
+        }
+        writer.write("],");
+        
+        // Generate validation logic
+        writer.write("Missing = [F || F <- Required, not maps:is_key(F, Input)],");
+        writer.write("case Missing of");
+        writer.indent();
+        writer.write("[] -> ok;");
+        writer.write("_ -> {error, {missing_required_fields, Missing}}");
+        writer.dedent();
+        writer.write("end.");
+        
+        writer.dedent();
         writer.write("");
     }
     
