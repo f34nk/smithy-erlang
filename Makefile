@@ -38,7 +38,7 @@ test/resources:
 	find src/*/resources -type f -name *.erl -exec cp {} "$(TMPDIR)/test/" \;
 	echo \
 	{erl_opts, [debug_info]}.\\n\
-	{deps, []}.\\n\
+	{deps, [jsx]}.\\n\
 	{eunit_opts, [verbose]}. >> "$(TMPDIR)/rebar.config" && \
     tree $(TMPDIR) && \
     cd "$(TMPDIR)" && \
