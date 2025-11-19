@@ -25,7 +25,7 @@ test/java:
 	# Run JAVA tests
 	#
 	rm -rf test-errors.log
-	./gradlew test --info 2>test-errors.log
+	./gradlew test 2>test-errors.log
 	[ -s test-errors.log ] || rm -rf test-errors.log
 
 .PHONY: test/resources
