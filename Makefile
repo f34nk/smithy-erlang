@@ -1,5 +1,6 @@
 X:=$(shell find examples -type d -not -name examples -maxdepth 1 -exec basename {} \;)
 EXAMPLES:=$(foreach x,$(X),examples/$(x)/)
+TMPDIR:=build/tmp
 
 .PHONY: all
 all: clean build test
@@ -16,13 +17,42 @@ build:
 	tree ~/.m2/repository/io/smithy/erlang/smithy-erlang
 
 .PHONY: test
-test:
+test: test/java test/resources
+
+.PHONY: test/java
+test/java:
 	#
-	# Run the tests
+	# Run JAVA tests
 	#
 	rm -rf test-errors.log
 	./gradlew test --info 2>test-errors.log
 	[ -s test-errors.log ] || rm -rf test-errors.log
+
+.PHONY: test/resources
+test/resources:
+	#
+	# Run JAVA resources tests
+	#
+	rm -rf "$(TMPDIR)" && \
+	mkdir -p "$(TMPDIR)/test" && \
+	find src/*/resources -type f -name *.erl -exec cp {} "$(TMPDIR)/test/" \;
+	echo \
+	{erl_opts, [debug_info]}.\\n\
+	{deps, []}.\\n\
+	{eunit_opts, [verbose]}. >> "$(TMPDIR)/rebar.config" && \
+    tree $(TMPDIR) && \
+    cd "$(TMPDIR)" && \
+    find test/ -type f -name "*_test.erl" | \
+    xargs -I {} basename {} | \
+    sed 's/_test.erl/_test/g' | \
+    xargs -I {} echo "rebar3 eunit --module={}" | \
+    xargs -I {} sh -c {}
+
+    # 1. Find all test modules
+    # 2. Get the base name of the test module
+    # 3. Remove the _test.erl suffix
+    # 4. Echo the command to run the test module
+    # 5. Execute the command
 
 .PHONY: clean
 clean:
