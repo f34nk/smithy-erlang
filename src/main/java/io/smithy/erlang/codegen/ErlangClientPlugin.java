@@ -1975,7 +1975,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             return;
         }
         
-        // Generate type specs
+        // Generate type specs (using type aliases, not record syntax)
         String inputType = "map()";
         String outputType = "map()";
         String itemsType = "list()";
@@ -1983,7 +1983,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         if (operation.getInput().isPresent()) {
             ShapeId inputId = operation.getInput().get();
             String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
-            inputType = "#" + inputRecordName + "{}";
+            inputType = inputRecordName + "()";
         }
         
         if (operation.getOutput().isPresent() && itemsMember != null) {
