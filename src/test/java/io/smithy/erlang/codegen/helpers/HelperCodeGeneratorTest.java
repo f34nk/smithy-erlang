@@ -35,10 +35,11 @@ public class HelperCodeGeneratorTest {
                 .id("com.example#GetUser")
                 .build();
         
-        String code = HelperCodeGenerator.generateQueryBuildingCode(operation, inputShape, "Input");
+        java.util.List<String> lines = HelperCodeGenerator.generateQueryBuildingCode(operation, inputShape, "Input");
         
-        assertNotNull(code);
-        assertEquals("    Query = <<\"\">>", code);
+        assertNotNull(lines);
+        assertEquals(1, lines.size());
+        assertEquals("Query = <<\"\">>,", lines.get(0));
     }
     
     @Test

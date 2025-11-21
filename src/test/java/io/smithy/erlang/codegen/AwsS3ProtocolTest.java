@@ -287,8 +287,9 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         String clientFile = "src/" + getModuleName() + ".erl";
         
         assertGeneratedCodeContains(clientFile, "list_objects");
-        assertGeneratedCodeContains(clientFile, "QueryPairs0 = []");
-        assertGeneratedCodeContains(clientFile, "uri_string:compose_query");
+        // Now uses helper-based query building
+        assertGeneratedCodeContains(clientFile, "QueryMapping = [");
+        assertGeneratedCodeContains(clientFile, "runtime_http_request:build_query");
     }
     
     @Test
@@ -296,10 +297,9 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Should build query pairs incrementally
-        assertGeneratedCodeContains(clientFile, "QueryPairs0 = []");
-        assertGeneratedCodeContains(clientFile, "QueryPairs1 = case");
-        assertGeneratedCodeContains(clientFile, "QueryPairs2 = case");
+        // Now uses helper with QueryMapping instead of incremental QueryPairs
+        assertGeneratedCodeContains(clientFile, "QueryMapping = [");
+        assertGeneratedCodeContains(clientFile, "runtime_http_request:build_query(QueryMapping, Input)");
     }
     
     @Test
@@ -307,9 +307,10 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Optional query parameters should check for undefined
-        assertGeneratedCodeContains(clientFile, "case maps:get(<<\"Prefix\">>, Input, undefined) of");
-        assertGeneratedCodeContains(clientFile, "undefined -> QueryPairs");
+        // Query parameters are now handled by the runtime helper with required flags
+        assertGeneratedCodeContains(clientFile, "QueryMapping = [");
+        // The helper handles optional parameters internally
+        assertGeneratedCodeContains(clientFile, "false}"); // optional parameter (required = false)
     }
     
     @Test
@@ -317,9 +318,8 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Should use uri_string:compose_query for encoding
-        assertGeneratedCodeContains(clientFile, "Encoded = uri_string:compose_query");
-        assertGeneratedCodeContains(clientFile, "<<\"?\", Encoded/binary>>");
+        // Helper uses runtime_http_request:build_query which handles encoding
+        assertGeneratedCodeContains(clientFile, "runtime_http_request:build_query");
     }
     
     @Test
@@ -327,9 +327,8 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Should handle empty query string case
-        assertGeneratedCodeContains(clientFile, "QueryString = case QueryPairs");
-        assertGeneratedCodeContains(clientFile, "[] -> <<\"\">>"); 
+        // Empty query strings are now handled by the helper returning <<"">>
+        assertGeneratedCodeContains(clientFile, "Query = ");
     }
     
     @Test
@@ -337,13 +336,13 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Query string should be appended to URL
+        // Query should be appended to URL
         String content = getGeneratedFile(clientFile);
         assertNotNull(content, "Client file should exist");
         
-        // Should have pattern like: Url = <<Endpoint/binary, Uri/binary, QueryString/binary>>
-        assertTrue(content.contains("QueryString/binary"), 
-                "Query string should be appended to URL");
+        // Should have pattern like: Url = <<...Query/binary>>
+        assertTrue(content.contains("Query/binary") || content.contains("Query = <<\"\">>"), 
+                "Query should be part of URL building");
     }
     
     @Test

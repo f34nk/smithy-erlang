@@ -108,22 +108,23 @@ public class HelperCodeGenerator {
      * @param operation Operation shape
      * @param inputShape Input structure shape
      * @param inputVarName Variable name for input map
-     * @return Generated Erlang code for query building
+     * @return List of Erlang code lines for query building
      */
-    public static String generateQueryBuildingCode(
+    public static List<String> generateQueryBuildingCode(
             OperationShape operation,
             StructureShape inputShape,
             String inputVarName) {
         
-        StringBuilder code = new StringBuilder();
+        List<String> lines = new ArrayList<>();
         
         List<MemberShape> queryMembers = findQueryMembers(inputShape);
         if (queryMembers.isEmpty()) {
-            return "    Query = <<\"\">>"; // No query parameters
+            lines.add("Query = <<\"\">>,"); // No query parameters
+            return lines;
         }
         
-        code.append("    %% Build query using helper\n");
-        code.append("    QueryMapping = [\n");
+        lines.add("%% Build query using helper");
+        lines.add("QueryMapping = [");
         
         for (int i = 0; i < queryMembers.size(); i++) {
             MemberShape member = queryMembers.get(i);
@@ -131,21 +132,14 @@ public class HelperCodeGenerator {
             String memberName = member.getMemberName();
             boolean required = member.isRequired();
             
-            code.append("        {<<\"").append(memberName).append("\">>, ")
-                .append("<<\"").append(queryName).append("\">>, ")
-                .append(required).append("}");
-            
-            if (i < queryMembers.size() - 1) {
-                code.append(",");
-            }
-            code.append("\n");
+            String comma = (i < queryMembers.size() - 1) ? "," : "";
+            lines.add("    {<<\"" + memberName + "\">>, <<\"" + queryName + "\">>, " + required + "}" + comma);
         }
         
-        code.append("    ],\n");
-        code.append("    Query = runtime_http_request:build_query(QueryMapping, ")
-            .append(inputVarName).append(")");
+        lines.add("],");
+        lines.add("Query = runtime_http_request:build_query(QueryMapping, " + inputVarName + "),");
         
-        return code.toString();
+        return lines;
     }
     
     /**
