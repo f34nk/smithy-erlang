@@ -1,6 +1,5 @@
 -module(storage_enum_decoding_test).
 -include_lib("eunit/include/eunit.hrl").
--include("../src/generated/storage_client_types.hrl").
 
 %%%===================================================================
 %%% Test Suite for Enum Decoding Functions with Validation
@@ -10,22 +9,22 @@
 %% Test: decode all valid enum values
 %%--------------------------------------------------------------------
 decode_expedited_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"expedited">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"expedited">>),
     ?assertEqual({ok, expedited}, Result).
 
 decode_standard_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"standard">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"standard">>),
     ?assertEqual({ok, standard}, Result).
 
 decode_bulk_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"bulk">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"bulk">>),
     ?assertEqual({ok, bulk}, Result).
 
 %%--------------------------------------------------------------------
 %% Test: decode returns proper tuple format
 %%--------------------------------------------------------------------
 decode_returns_ok_tuple_test() ->
-    {ok, Atom} = storage_client_types:decode_glacier_retrieval_option(<<"expedited">>),
+    {ok, Atom} = storage_client:decode_glacier_retrieval_option(<<"expedited">>),
     ?assert(is_atom(Atom)),
     ?assertEqual(expedited, Atom).
 
@@ -33,28 +32,28 @@ decode_returns_ok_tuple_test() ->
 %% Test: decode invalid values returns error
 %%--------------------------------------------------------------------
 decode_invalid_value_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"invalid">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"invalid">>),
     ?assertMatch({error, {invalid_enum_value, _}}, Result).
 
 decode_invalid_uppercase_test() ->
     %% Wire format is lowercase, not uppercase
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"EXPEDITED">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"EXPEDITED">>),
     ?assertMatch({error, {invalid_enum_value, <<"EXPEDITED">>}}, Result).
 
 decode_invalid_capitalized_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"Expedited">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"Expedited">>),
     ?assertMatch({error, {invalid_enum_value, <<"Expedited">>}}, Result).
 
 decode_empty_binary_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"">>),
     ?assertMatch({error, {invalid_enum_value, <<"">>}}, Result).
 
 decode_numeric_string_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"123">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"123">>),
     ?assertMatch({error, {invalid_enum_value, <<"123">>}}, Result).
 
 decode_special_chars_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"exp@dited">>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"exp@dited">>),
     ?assertMatch({error, {invalid_enum_value, <<"exp@dited">>}}, Result).
 
 %%--------------------------------------------------------------------
@@ -63,16 +62,16 @@ decode_special_chars_test() ->
 decode_error_contains_value_test() ->
     InvalidValue = <<"unknown_option">>,
     {error, {invalid_enum_value, ReturnedValue}} = 
-        storage_client_types:decode_glacier_retrieval_option(InvalidValue),
+        storage_client:decode_glacier_retrieval_option(InvalidValue),
     ?assertEqual(InvalidValue, ReturnedValue).
 
 %%--------------------------------------------------------------------
 %% Test: decode all values and verify distinct atoms
 %%--------------------------------------------------------------------
 decode_distinct_atoms_test() ->
-    {ok, Expedited} = storage_client_types:decode_glacier_retrieval_option(<<"expedited">>),
-    {ok, Standard} = storage_client_types:decode_glacier_retrieval_option(<<"standard">>),
-    {ok, Bulk} = storage_client_types:decode_glacier_retrieval_option(<<"bulk">>),
+    {ok, Expedited} = storage_client:decode_glacier_retrieval_option(<<"expedited">>),
+    {ok, Standard} = storage_client:decode_glacier_retrieval_option(<<"standard">>),
+    {ok, Bulk} = storage_client:decode_glacier_retrieval_option(<<"bulk">>),
     
     %% All atoms should be different
     ?assertNotEqual(Expedited, Standard),
@@ -85,7 +84,7 @@ decode_distinct_atoms_test() ->
 decode_in_case_expression_test() ->
     Input = <<"standard">>,
     
-    Result = case storage_client_types:decode_glacier_retrieval_option(Input) of
+    Result = case storage_client:decode_glacier_retrieval_option(Input) of
         {ok, expedited} -> fast;
         {ok, standard} -> normal;
         {ok, bulk} -> slow;
@@ -97,7 +96,7 @@ decode_in_case_expression_test() ->
 decode_error_in_case_expression_test() ->
     Input = <<"invalid">>,
     
-    Result = case storage_client_types:decode_glacier_retrieval_option(Input) of
+    Result = case storage_client:decode_glacier_retrieval_option(Input) of
         {ok, _} -> valid;
         {error, _} -> invalid
     end,
@@ -109,28 +108,28 @@ decode_error_in_case_expression_test() ->
 %%--------------------------------------------------------------------
 roundtrip_expedited_test() ->
     Original = expedited,
-    Encoded = storage_client_types:encode_glacier_retrieval_option(Original),
-    {ok, Decoded} = storage_client_types:decode_glacier_retrieval_option(Encoded),
+    Encoded = storage_client:encode_glacier_retrieval_option(Original),
+    {ok, Decoded} = storage_client:decode_glacier_retrieval_option(Encoded),
     ?assertEqual(Original, Decoded).
 
 roundtrip_standard_test() ->
     Original = standard,
-    Encoded = storage_client_types:encode_glacier_retrieval_option(Original),
-    {ok, Decoded} = storage_client_types:decode_glacier_retrieval_option(Encoded),
+    Encoded = storage_client:encode_glacier_retrieval_option(Original),
+    {ok, Decoded} = storage_client:decode_glacier_retrieval_option(Encoded),
     ?assertEqual(Original, Decoded).
 
 roundtrip_bulk_test() ->
     Original = bulk,
-    Encoded = storage_client_types:encode_glacier_retrieval_option(Original),
-    {ok, Decoded} = storage_client_types:decode_glacier_retrieval_option(Encoded),
+    Encoded = storage_client:encode_glacier_retrieval_option(Original),
+    {ok, Decoded} = storage_client:decode_glacier_retrieval_option(Encoded),
     ?assertEqual(Original, Decoded).
 
 roundtrip_all_values_test() ->
     AllValues = [expedited, standard, bulk],
     
     Results = lists:map(fun(Value) ->
-        Encoded = storage_client_types:encode_glacier_retrieval_option(Value),
-        {ok, Decoded} = storage_client_types:decode_glacier_retrieval_option(Encoded),
+        Encoded = storage_client:encode_glacier_retrieval_option(Value),
+        {ok, Decoded} = storage_client:decode_glacier_retrieval_option(Encoded),
         Value =:= Decoded
     end, AllValues),
     
@@ -149,7 +148,7 @@ decode_from_json_response_test() ->
     
     %% Extract and decode the enum
     RetrievalBinary = maps:get(<<"retrievalOption">>, JsonResponse),
-    {ok, RetrievalOption} = storage_client_types:decode_glacier_retrieval_option(RetrievalBinary),
+    {ok, RetrievalOption} = storage_client:decode_glacier_retrieval_option(RetrievalBinary),
     
     ?assertEqual(expedited, RetrievalOption).
 
@@ -160,7 +159,7 @@ decode_invalid_from_json_test() ->
     },
     
     RetrievalBinary = maps:get(<<"retrievalOption">>, JsonResponse),
-    Result = storage_client_types:decode_glacier_retrieval_option(RetrievalBinary),
+    Result = storage_client:decode_glacier_retrieval_option(RetrievalBinary),
     
     ?assertMatch({error, {invalid_enum_value, <<"ultra_fast">>}}, Result).
 
@@ -169,7 +168,7 @@ decode_invalid_from_json_test() ->
 %%--------------------------------------------------------------------
 decode_and_use_in_structure_test() ->
     %% Decode enum from wire format
-    {ok, RetrievalOption} = storage_client_types:decode_glacier_retrieval_option(<<"bulk">>),
+    {ok, RetrievalOption} = storage_client:decode_glacier_retrieval_option(<<"bulk">>),
     
     %% Use in structure
     GlacierStorage = #{
@@ -189,7 +188,7 @@ decode_list_of_enums_test() ->
     
     Results = lists:map(
         fun(Bin) -> 
-            storage_client_types:decode_glacier_retrieval_option(Bin) 
+            storage_client:decode_glacier_retrieval_option(Bin) 
         end,
         Binaries
     ),
@@ -202,7 +201,7 @@ decode_list_with_invalid_test() ->
     
     Results = lists:map(
         fun(Bin) -> 
-            storage_client_types:decode_glacier_retrieval_option(Bin) 
+            storage_client:decode_glacier_retrieval_option(Bin) 
         end,
         Binaries
     ),
@@ -216,7 +215,7 @@ decode_list_with_invalid_test() ->
 decode_with_validation_test() ->
     %% Simulate validating enum values from API response
     ValidateEnum = fun(Bin) ->
-        case storage_client_types:decode_glacier_retrieval_option(Bin) of
+        case storage_client:decode_glacier_retrieval_option(Bin) of
             {ok, Value} -> {valid, Value};
             {error, Reason} -> {invalid, Reason}
         end
@@ -229,7 +228,7 @@ decode_with_validation_test() ->
 %% Test: decode and pattern match on result
 %%--------------------------------------------------------------------
 decode_pattern_match_ok_test() ->
-    {ok, Value} = storage_client_types:decode_glacier_retrieval_option(<<"standard">>),
+    {ok, Value} = storage_client:decode_glacier_retrieval_option(<<"standard">>),
     
     Message = case Value of
         expedited -> "Rush processing";
@@ -241,7 +240,7 @@ decode_pattern_match_ok_test() ->
 
 decode_pattern_match_error_test() ->
     {error, {invalid_enum_value, BadValue}} = 
-        storage_client_types:decode_glacier_retrieval_option(<<"not_valid">>),
+        storage_client:decode_glacier_retrieval_option(<<"not_valid">>),
     
     ?assertEqual(<<"not_valid">>, BadValue).
 
@@ -250,7 +249,7 @@ decode_pattern_match_error_test() ->
 %%--------------------------------------------------------------------
 decode_with_default_test() ->
     GetOptionWithDefault = fun(Bin, Default) ->
-        case storage_client_types:decode_glacier_retrieval_option(Bin) of
+        case storage_client:decode_glacier_retrieval_option(Bin) of
             {ok, Value} -> Value;
             {error, _} -> Default
         end
@@ -271,11 +270,11 @@ decode_enum_in_union_test() ->
     }},
     
     %% Decode the union
-    {glacier, GlacierData} = storage_client_types:decode_storage_type(UnionJson),
+    {glacier, GlacierData} = storage_client:decode_storage_type(UnionJson),
     
     %% Extract and decode the enum
     RetrievalBinary = maps:get(<<"retrievalOption">>, GlacierData),
-    {ok, RetrievalOption} = storage_client_types:decode_glacier_retrieval_option(RetrievalBinary),
+    {ok, RetrievalOption} = storage_client:decode_glacier_retrieval_option(RetrievalBinary),
     
     ?assertEqual(expedited, RetrievalOption).
 
@@ -285,30 +284,30 @@ decode_enum_in_union_test() ->
 decode_case_sensitive_test() ->
     %% Lowercase should work
     ?assertMatch({ok, expedited}, 
-        storage_client_types:decode_glacier_retrieval_option(<<"expedited">>)),
+        storage_client:decode_glacier_retrieval_option(<<"expedited">>)),
     
     %% Uppercase should fail
     ?assertMatch({error, {invalid_enum_value, <<"EXPEDITED">>}}, 
-        storage_client_types:decode_glacier_retrieval_option(<<"EXPEDITED">>)),
+        storage_client:decode_glacier_retrieval_option(<<"EXPEDITED">>)),
     
     %% Mixed case should fail
     ?assertMatch({error, {invalid_enum_value, <<"Expedited">>}}, 
-        storage_client_types:decode_glacier_retrieval_option(<<"Expedited">>)).
+        storage_client:decode_glacier_retrieval_option(<<"Expedited">>)).
 
 %%--------------------------------------------------------------------
 %% Test: decode unicode/special characters fail gracefully
 %%--------------------------------------------------------------------
 decode_unicode_test() ->
-    Result = storage_client_types:decode_glacier_retrieval_option(<<"expe̅dited"/utf8>>),
+    Result = storage_client:decode_glacier_retrieval_option(<<"expe̅dited"/utf8>>),
     ?assertMatch({error, {invalid_enum_value, _}}, Result).
 
 decode_whitespace_test() ->
     %% Extra whitespace should not match
     ?assertMatch({error, {invalid_enum_value, <<"expedited ">>}}, 
-        storage_client_types:decode_glacier_retrieval_option(<<"expedited ">>)),
+        storage_client:decode_glacier_retrieval_option(<<"expedited ">>)),
     
     ?assertMatch({error, {invalid_enum_value, <<" expedited">>}}, 
-        storage_client_types:decode_glacier_retrieval_option(<<" expedited">>)).
+        storage_client:decode_glacier_retrieval_option(<<" expedited">>)).
 
 %%--------------------------------------------------------------------
 %% Test: collect valid enums from list
@@ -318,7 +317,7 @@ decode_collect_valid_test() ->
     
     ValidEnums = lists:filtermap(
         fun(Bin) ->
-            case storage_client_types:decode_glacier_retrieval_option(Bin) of
+            case storage_client:decode_glacier_retrieval_option(Bin) of
                 {ok, Value} -> {true, Value};
                 {error, _} -> false
             end
@@ -334,7 +333,7 @@ decode_collect_valid_test() ->
 decode_performance_test() ->
     Binaries = lists:duplicate(1000, <<"expedited">>),
     
-    Results = [storage_client_types:decode_glacier_retrieval_option(B) || B <- Binaries],
+    Results = [storage_client:decode_glacier_retrieval_option(B) || B <- Binaries],
     
     %% All should succeed
     ?assert(lists:all(fun(R) -> R =:= {ok, expedited} end, Results)).

@@ -1,6 +1,5 @@
 -module(storage_encoding_test).
 -include_lib("eunit/include/eunit.hrl").
--include("storage_client_types.hrl").
 
 %% Ignore dialyzer warnings
 -dialyzer([no_return, no_match, no_contracts]).
@@ -10,14 +9,14 @@
 
 %% Test encoding S3 storage variant
 encode_s3_variant_test() ->
-    S3Data = #s3_storage{
-        bucket = <<"my-bucket">>,
-        region = <<"us-east-1">>,
-        prefix = <<"data/">>
+    S3Data = #{
+        <<"bucket">> => <<"my-bucket">>,
+        <<"region">> => <<"us-east-1">>,
+        <<"prefix">> => <<"data/">>
     },
     
     Variant = {s3, S3Data},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     %% Verify it's a map
     ?assert(is_map(Encoded)),
@@ -30,14 +29,14 @@ encode_s3_variant_test() ->
 
 %% Test encoding Glacier storage variant
 encode_glacier_variant_test() ->
-    GlacierData = #glacier_storage{
-        vault = <<"my-vault">>,
-        region = <<"eu-west-1">>,
-        retrieval_option = <<"standard">>
+    GlacierData = #{
+        <<"vault">> => <<"my-vault">>,
+        <<"region">> => <<"eu-west-1">>,
+        <<"retrievalOption">> => <<"standard">>
     },
     
     Variant = {glacier, GlacierData},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     ?assert(is_map(Encoded)),
     ?assert(maps:is_key(<<"glacier">>, Encoded)),
@@ -45,14 +44,14 @@ encode_glacier_variant_test() ->
 
 %% Test encoding EFS storage variant
 encode_efs_variant_test() ->
-    EfsData = #efs_storage{
-        file_system_id = <<"fs-12345678">>,
-        region = <<"ap-southeast-1">>,
-        mount_path = <<"/mnt/efs">>
+    EfsData = #{
+        <<"fileSystemId">> => <<"fs-12345678">>,
+        <<"region">> => <<"ap-southeast-1">>,
+        <<"mountPath">> => <<"/mnt/efs">>
     },
     
     Variant = {efs, EfsData},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     ?assert(is_map(Encoded)),
     ?assert(maps:is_key(<<"efs">>, Encoded)),
@@ -66,7 +65,7 @@ encode_unknown_variant_test() ->
     },
     
     Variant = {unknown, UnknownData},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     ?assert(is_map(Encoded)),
     ?assert(maps:is_key(<<"unknown">>, Encoded)),
@@ -77,15 +76,15 @@ encode_empty_data_test() ->
     EmptyData = #{},
     
     Variant = {s3, EmptyData},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     ?assert(is_map(Encoded)),
     ?assertEqual(EmptyData, maps:get(<<"s3">>, Encoded)).
 
 %% Test that encoded map has exactly one key (the discriminator)
 encode_single_discriminator_test() ->
-    S3Data = #s3_storage{bucket = <<"test">>},
-    Encoded = storage_client_types:encode_storage_type({s3, S3Data}),
+    S3Data = #{<<"bucket">> => <<"test">>},
+    Encoded = storage_client:encode_storage_type({s3, S3Data}),
     
     %% Encoded map should have exactly one key
     ?assertEqual(1, maps:size(Encoded)).
@@ -103,7 +102,7 @@ encode_nested_structure_test() ->
     },
     
     Variant = {s3, NestedData},
-    Encoded = storage_client_types:encode_storage_type(Variant),
+    Encoded = storage_client:encode_storage_type(Variant),
     
     DecodedData = maps:get(<<"s3">>, Encoded),
     ?assertEqual(NestedData, DecodedData),
@@ -120,7 +119,7 @@ encode_binary_values_test() ->
         <<"region">> => <<"üs-wëst-1"/utf8>>
     },
     
-    Encoded = storage_client_types:encode_storage_type({s3, Data}),
+    Encoded = storage_client:encode_storage_type({s3, Data}),
     Result = maps:get(<<"s3">>, Encoded),
     
     ?assertEqual(<<"test-bucket-äöü"/utf8>>, maps:get(<<"bucket">>, Result)),
@@ -128,9 +127,9 @@ encode_binary_values_test() ->
 
 %% Test encoding different variants produces different discriminators
 encode_different_discriminators_test() ->
-    S3Encoded = storage_client_types:encode_storage_type({s3, #{}}),
-    GlacierEncoded = storage_client_types:encode_storage_type({glacier, #{}}),
-    EfsEncoded = storage_client_types:encode_storage_type({efs, #{}}),
+    S3Encoded = storage_client:encode_storage_type({s3, #{}}),
+    GlacierEncoded = storage_client:encode_storage_type({glacier, #{}}),
+    EfsEncoded = storage_client:encode_storage_type({efs, #{}}),
     
     %% Each should have a different discriminator
     ?assert(maps:is_key(<<"s3">>, S3Encoded)),
@@ -153,7 +152,7 @@ encode_variant_list_test() ->
         {efs, #{<<"fileSystemId">> => <<"fs1">>}}
     ],
     
-    Encoded = [storage_client_types:encode_storage_type(V) || V <- Variants],
+    Encoded = [storage_client:encode_storage_type(V) || V <- Variants],
     
     ?assertEqual(3, length(Encoded)),
     
@@ -166,9 +165,9 @@ encode_variant_list_test() ->
 encode_with_pattern_match_test() ->
     HandleVariant = fun(Variant) ->
         case Variant of
-            {s3, _} = V -> storage_client_types:encode_storage_type(V);
-            {glacier, _} = V -> storage_client_types:encode_storage_type(V);
-            {efs, _} = V -> storage_client_types:encode_storage_type(V)
+            {s3, _} = V -> storage_client:encode_storage_type(V);
+            {glacier, _} = V -> storage_client:encode_storage_type(V);
+            {efs, _} = V -> storage_client:encode_storage_type(V)
         end
     end,
     

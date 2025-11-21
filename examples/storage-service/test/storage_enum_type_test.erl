@@ -1,7 +1,6 @@
 -module(storage_enum_type_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("storage_client_types.hrl").
 
 %% Ignore dialyzer warnings
 -dialyzer([no_return, no_match, no_contracts]).

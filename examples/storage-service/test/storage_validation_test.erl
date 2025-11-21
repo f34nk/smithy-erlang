@@ -1,6 +1,5 @@
 -module(storage_validation_test).
 -include_lib("eunit/include/eunit.hrl").
--include("../src/generated/storage_client_types.hrl").
 
 %%%===================================================================
 %%% Test Suite for @required Field Validation
@@ -14,7 +13,7 @@ validate_create_with_all_required_test() ->
         <<"name">> => <<"My Storage">>,
         <<"storageType">> => #{<<"s3">> => #{}}
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 validate_create_with_all_required_and_optional_test() ->
@@ -23,7 +22,7 @@ validate_create_with_all_required_and_optional_test() ->
         <<"storageType">> => #{<<"s3">> => #{}},
         <<"optional_field">> => <<"some_value">>
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -33,7 +32,7 @@ validate_create_missing_name_test() ->
     Input = #{
         <<"storageType">> => #{<<"s3">> => #{}}
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, _}}, Result),
     {error, {missing_required_fields, Missing}} = Result,
     ?assert(lists:member(<<"name">>, Missing)).
@@ -42,14 +41,14 @@ validate_create_missing_storage_type_test() ->
     Input = #{
         <<"name">> => <<"My Storage">>
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, _}}, Result),
     {error, {missing_required_fields, Missing}} = Result,
     ?assert(lists:member(<<"storageType">>, Missing)).
 
 validate_create_missing_all_required_test() ->
     Input = #{},
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, _}}, Result),
     {error, {missing_required_fields, Missing}} = Result,
     ?assertEqual(2, length(Missing)),
@@ -60,7 +59,7 @@ validate_create_missing_both_test() ->
     Input = #{
         <<"other_field">> => <<"value">>
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, [_, _]}}, Result).
 
 %%--------------------------------------------------------------------
@@ -70,7 +69,7 @@ validate_get_with_all_required_test() ->
     Input = #{
         <<"locationId">> => <<"loc-123">>
     },
-    Result = storage_client_types:validate_get_storage_location_input(Input),
+    Result = storage_client:validate_get_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 validate_get_with_required_and_extra_test() ->
@@ -78,7 +77,7 @@ validate_get_with_required_and_extra_test() ->
         <<"locationId">> => <<"loc-123">>,
         <<"extra_field">> => <<"ignored">>
     },
-    Result = storage_client_types:validate_get_storage_location_input(Input),
+    Result = storage_client:validate_get_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -86,7 +85,7 @@ validate_get_with_required_and_extra_test() ->
 %%--------------------------------------------------------------------
 validate_get_missing_location_id_test() ->
     Input = #{},
-    Result = storage_client_types:validate_get_storage_location_input(Input),
+    Result = storage_client:validate_get_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, _}}, Result),
     {error, {missing_required_fields, Missing}} = Result,
     ?assertEqual([<<"locationId">>], Missing).
@@ -95,7 +94,7 @@ validate_get_with_wrong_field_test() ->
     Input = #{
         <<"wrongField">> => <<"value">>
     },
-    Result = storage_client_types:validate_get_storage_location_input(Input),
+    Result = storage_client:validate_get_storage_location_input(Input),
     ?assertMatch({error, {missing_required_fields, [<<"locationId">>]}}, Result).
 
 %%--------------------------------------------------------------------
@@ -107,7 +106,7 @@ validate_create_with_empty_name_test() ->
         <<"storageType">> => #{<<"s3">> => #{}}
     },
     %% Empty values are still present, so validation passes
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 validate_create_with_null_like_values_test() ->
@@ -116,7 +115,7 @@ validate_create_with_null_like_values_test() ->
         <<"storageType">> => undefined
     },
     %% Keys are present, validation passes (value validation is separate)
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -128,7 +127,7 @@ validate_pattern_match_ok_test() ->
         <<"storageType">> => #{}
     },
     
-    case storage_client_types:validate_create_storage_location_input(Input) of
+    case storage_client:validate_create_storage_location_input(Input) of
         ok -> ok;
         {error, _} -> ?assert(false)
     end.
@@ -136,7 +135,7 @@ validate_pattern_match_ok_test() ->
 validate_pattern_match_error_test() ->
     Input = #{},
     
-    case storage_client_types:validate_create_storage_location_input(Input) of
+    case storage_client:validate_create_storage_location_input(Input) of
         ok -> ?assert(false);
         {error, {missing_required_fields, Missing}} ->
             ?assert(is_list(Missing)),
@@ -152,7 +151,7 @@ validate_in_guard_test() ->
         <<"storageType">> => #{}
     },
     
-    IsValid = case storage_client_types:validate_create_storage_location_input(ValidInput) of
+    IsValid = case storage_client:validate_create_storage_location_input(ValidInput) of
         ok -> true;
         _ -> false
     end,
@@ -167,7 +166,7 @@ validate_with_binary_values_test() ->
         <<"name">> => <<"Storage Name">>,
         <<"storageType">> => #{<<"type">> => <<"s3">>}
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 validate_with_map_values_test() ->
@@ -180,7 +179,7 @@ validate_with_map_values_test() ->
             }
         }
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 validate_with_integer_values_test() ->
@@ -189,7 +188,7 @@ validate_with_integer_values_test() ->
         <<"storageType">> => #{}
     },
     %% Validation only checks key presence, not value types
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -202,7 +201,7 @@ validate_before_request_success_test() ->
     },
     
     %% Simulate validation before API call
-    case storage_client_types:validate_create_storage_location_input(Input) of
+    case storage_client:validate_create_storage_location_input(Input) of
         ok ->
             %% Would proceed with API call
             ok;
@@ -211,7 +210,7 @@ validate_before_request_success_test() ->
             {error, Reason}
     end,
     
-    ?assertEqual(ok, storage_client_types:validate_create_storage_location_input(Input)).
+    ?assertEqual(ok, storage_client:validate_create_storage_location_input(Input)).
 
 validate_before_request_failure_test() ->
     Input = #{
@@ -219,7 +218,7 @@ validate_before_request_failure_test() ->
     },
     
     %% Simulate validation before API call
-    Result = case storage_client_types:validate_create_storage_location_input(Input) of
+    Result = case storage_client:validate_create_storage_location_input(Input) of
         ok ->
             %% Would proceed with API call
             make_api_call;
@@ -243,7 +242,7 @@ validate_collect_missing_fields_test() ->
     
     Results = lists:map(
         fun(Input) ->
-            storage_client_types:validate_create_storage_location_input(Input)
+            storage_client:validate_create_storage_location_input(Input)
         end,
         Inputs
     ),
@@ -265,7 +264,7 @@ validate_list_comprehension_test() ->
     
     ValidInputs = [
         I || I <- Inputs,
-        storage_client_types:validate_get_storage_location_input(I) =:= ok
+        storage_client:validate_get_storage_location_input(I) =:= ok
     ],
     
     ?assertEqual(3, length(ValidInputs)).
@@ -276,7 +275,7 @@ validate_list_comprehension_test() ->
 validate_error_contains_field_names_test() ->
     Input = #{},
     {error, {missing_required_fields, Missing}} = 
-        storage_client_types:validate_create_storage_location_input(Input),
+        storage_client:validate_create_storage_location_input(Input),
     
     %% Verify field names are binaries
     ?assert(lists:all(fun is_binary/1, Missing)),
@@ -299,7 +298,7 @@ validate_with_nested_map_test() ->
             }
         }
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -314,8 +313,8 @@ validate_multiple_inputs_test() ->
         <<"locationId">> => <<"loc-123">>
     },
     
-    CreateResult = storage_client_types:validate_create_storage_location_input(CreateInput),
-    GetResult = storage_client_types:validate_get_storage_location_input(GetInput),
+    CreateResult = storage_client:validate_create_storage_location_input(CreateInput),
+    GetResult = storage_client:validate_get_storage_location_input(GetInput),
     
     ?assertEqual(ok, CreateResult),
     ?assertEqual(ok, GetResult).
@@ -328,7 +327,7 @@ validate_with_unicode_test() ->
         <<"name">> => <<"存储位置"/utf8>>,
         <<"storageType">> => #{}
     },
-    Result = storage_client_types:validate_create_storage_location_input(Input),
+    Result = storage_client:validate_create_storage_location_input(Input),
     ?assertEqual(ok, Result).
 
 %%--------------------------------------------------------------------
@@ -337,7 +336,7 @@ validate_with_unicode_test() ->
 validate_field_order_test() ->
     Input = #{},
     {error, {missing_required_fields, Missing}} = 
-        storage_client_types:validate_create_storage_location_input(Input),
+        storage_client:validate_create_storage_location_input(Input),
     
     %% Both fields should be in the error
     ?assertEqual(2, length(Missing)),
@@ -354,7 +353,7 @@ validate_performance_test() ->
         || N <- lists:seq(1, 1000)
     ],
     
-    Results = [storage_client_types:validate_create_storage_location_input(I) || I <- Inputs],
+    Results = [storage_client:validate_create_storage_location_input(I) || I <- Inputs],
     
     %% All should succeed
     ?assert(lists:all(fun(R) -> R =:= ok end, Results)).

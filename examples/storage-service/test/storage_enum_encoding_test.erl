@@ -1,40 +1,40 @@
 -module(storage_enum_encoding_test).
 -include_lib("eunit/include/eunit.hrl").
--include("../src/generated/storage_client_types.hrl").
 
 %%%===================================================================
 %%% Test Suite for Enum Encoding Functions
+%%% Note: Types and helpers are now in storage_client module
 %%%===================================================================
 
 %%--------------------------------------------------------------------
 %% Test: encode all enum values
 %%--------------------------------------------------------------------
 encode_expedited_test() ->
-    Result = storage_client_types:encode_glacier_retrieval_option(expedited),
+    Result = storage_client:encode_glacier_retrieval_option(expedited),
     ?assertEqual(<<"expedited">>, Result).
 
 encode_standard_test() ->
-    Result = storage_client_types:encode_glacier_retrieval_option(standard),
+    Result = storage_client:encode_glacier_retrieval_option(standard),
     ?assertEqual(<<"standard">>, Result).
 
 encode_bulk_test() ->
-    Result = storage_client_types:encode_glacier_retrieval_option(bulk),
+    Result = storage_client:encode_glacier_retrieval_option(bulk),
     ?assertEqual(<<"bulk">>, Result).
 
 %%--------------------------------------------------------------------
 %% Test: return type is binary
 %%--------------------------------------------------------------------
 encode_returns_binary_test() ->
-    Result = storage_client_types:encode_glacier_retrieval_option(expedited),
+    Result = storage_client:encode_glacier_retrieval_option(expedited),
     ?assert(is_binary(Result)).
 
 %%--------------------------------------------------------------------
 %% Test: encoding all values returns distinct binaries
 %%--------------------------------------------------------------------
 encode_distinct_values_test() ->
-    Expedited = storage_client_types:encode_glacier_retrieval_option(expedited),
-    Standard = storage_client_types:encode_glacier_retrieval_option(standard),
-    Bulk = storage_client_types:encode_glacier_retrieval_option(bulk),
+    Expedited = storage_client:encode_glacier_retrieval_option(expedited),
+    Standard = storage_client:encode_glacier_retrieval_option(standard),
+    Bulk = storage_client:encode_glacier_retrieval_option(bulk),
     
     %% All values should be different
     ?assertNotEqual(Expedited, Standard),
@@ -49,7 +49,7 @@ encode_enum_in_structure_test() ->
     GlacierStorage = #{
         <<"vault">> => <<"my-vault">>,
         <<"region">> => <<"us-west-2">>,
-        <<"retrievalOption">> => storage_client_types:encode_glacier_retrieval_option(expedited)
+        <<"retrievalOption">> => storage_client:encode_glacier_retrieval_option(expedited)
     },
     
     %% Verify the encoded value is present
@@ -63,12 +63,12 @@ encode_enum_in_union_test() ->
     GlacierData = #{
         <<"vault">> => <<"my-vault">>,
         <<"region">> => <<"us-west-2">>,
-        <<"retrievalOption">> => storage_client_types:encode_glacier_retrieval_option(standard)
+        <<"retrievalOption">> => storage_client:encode_glacier_retrieval_option(standard)
     },
     StorageType = {glacier, GlacierData},
     
     %% Encode the union
-    EncodedUnion = storage_client_types:encode_storage_type(StorageType),
+    EncodedUnion = storage_client:encode_storage_type(StorageType),
     
     %% Verify the enum is encoded within the union
     GlacierInUnion = maps:get(<<"glacier">>, EncodedUnion),
@@ -82,7 +82,7 @@ encode_with_pattern_match_test() ->
     Expected = [<<"expedited">>, <<"standard">>, <<"bulk">>],
     
     Encoded = lists:map(
-        fun(Opt) -> storage_client_types:encode_glacier_retrieval_option(Opt) end,
+        fun(Opt) -> storage_client:encode_glacier_retrieval_option(Opt) end,
         Options
     ),
     
@@ -95,9 +95,9 @@ encode_in_case_expression_test() ->
     ChosenOption = standard,
     
     Result = case ChosenOption of
-        expedited -> storage_client_types:encode_glacier_retrieval_option(expedited);
-        standard -> storage_client_types:encode_glacier_retrieval_option(standard);
-        bulk -> storage_client_types:encode_glacier_retrieval_option(bulk)
+        expedited -> storage_client:encode_glacier_retrieval_option(expedited);
+        standard -> storage_client:encode_glacier_retrieval_option(standard);
+        bulk -> storage_client:encode_glacier_retrieval_option(bulk)
     end,
     
     ?assertEqual(<<"standard">>, Result).
@@ -109,7 +109,7 @@ encode_list_comprehension_test() ->
     Options = [expedited, standard, bulk, expedited, standard],
     
     EncodedOptions = [
-        storage_client_types:encode_glacier_retrieval_option(Opt) 
+        storage_client:encode_glacier_retrieval_option(Opt) 
         || Opt <- Options
     ],
     
@@ -127,7 +127,7 @@ encode_list_comprehension_test() ->
 %% Test: enum encoding with function reference
 %%--------------------------------------------------------------------
 encode_function_reference_test() ->
-    EncodeFunc = fun storage_client_types:encode_glacier_retrieval_option/1,
+    EncodeFunc = fun storage_client:encode_glacier_retrieval_option/1,
     
     Result = EncodeFunc(bulk),
     ?assertEqual(<<"bulk">>, Result).
@@ -136,8 +136,8 @@ encode_function_reference_test() ->
 %% Test: enum encoding is idempotent when used with binaries
 %%--------------------------------------------------------------------
 encode_idempotent_test() ->
-    Encoded1 = storage_client_types:encode_glacier_retrieval_option(expedited),
-    Encoded2 = storage_client_types:encode_glacier_retrieval_option(expedited),
+    Encoded1 = storage_client:encode_glacier_retrieval_option(expedited),
+    Encoded2 = storage_client:encode_glacier_retrieval_option(expedited),
     
     ?assertEqual(Encoded1, Encoded2),
     ?assert(Encoded1 =:= Encoded2).  %% Exact match
@@ -147,7 +147,7 @@ encode_idempotent_test() ->
 %%--------------------------------------------------------------------
 encode_preserves_case_test() ->
     %% The wire format should be lowercase, not EXPEDITED
-    Result = storage_client_types:encode_glacier_retrieval_option(expedited),
+    Result = storage_client:encode_glacier_retrieval_option(expedited),
     
     ?assertEqual(<<"expedited">>, Result),
     ?assertNotEqual(<<"EXPEDITED">>, Result),
@@ -161,7 +161,7 @@ encode_for_json_request_test() ->
     Request = #{
         <<"vault">> => <<"production-vault">>,
         <<"region">> => <<"eu-west-1">>,
-        <<"retrievalOption">> => storage_client_types:encode_glacier_retrieval_option(expedited)
+        <<"retrievalOption">> => storage_client:encode_glacier_retrieval_option(expedited)
     },
     
     %% Verify it can be encoded to JSON
@@ -178,12 +178,12 @@ encode_in_api_request_test() ->
     %% Simulate creating a Glacier storage location
     CreateRequest = #{
         <<"name">> => <<"Archive Storage">>,
-        <<"storageType">> => storage_client_types:encode_storage_type({
+        <<"storageType">> => storage_client:encode_storage_type({
             glacier,
             #{
                 <<"vault">> => <<"archive-vault">>,
                 <<"region">> => <<"us-east-1">>,
-                <<"retrievalOption">> => storage_client_types:encode_glacier_retrieval_option(bulk)
+                <<"retrievalOption">> => storage_client:encode_glacier_retrieval_option(bulk)
             }
         })
     },
@@ -199,8 +199,8 @@ encode_in_api_request_test() ->
 %% Test: enum encoding comparison
 %%--------------------------------------------------------------------
 encode_comparison_test() ->
-    EncodedExpedited = storage_client_types:encode_glacier_retrieval_option(expedited),
-    EncodedStandard = storage_client_types:encode_glacier_retrieval_option(standard),
+    EncodedExpedited = storage_client:encode_glacier_retrieval_option(expedited),
+    EncodedStandard = storage_client:encode_glacier_retrieval_option(standard),
     
     %% Binary comparison
     ?assert(EncodedExpedited < EncodedStandard),  %% "expedited" < "standard" lexically
