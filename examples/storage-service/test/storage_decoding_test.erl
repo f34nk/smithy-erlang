@@ -1,7 +1,6 @@
 -module(storage_decoding_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("storage_client_types.hrl").
 
 %% Ignore dialyzer warnings
 -dialyzer([no_return, no_match, no_contracts]).
@@ -22,7 +21,7 @@ decode_s3_variant_test() ->
         <<"prefix">> => <<"data/">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({s3, _}, Result),
     {s3, Data} = Result,
@@ -38,7 +37,7 @@ decode_glacier_variant_test() ->
         <<"retrievalOption">> => <<"expedited">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({glacier, _}, Result),
     {glacier, Data} = Result,
@@ -54,7 +53,7 @@ decode_efs_variant_test() ->
         <<"mountPath">> => <<"/mnt/efs">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({efs, _}, Result),
     {efs, Data} = Result,
@@ -73,7 +72,7 @@ decode_unknown_variant_future_type_test() ->
         <<"database">> => <<"analytics">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({unknown, _}, Result),
     {unknown, Data} = Result,
@@ -86,7 +85,7 @@ decode_unknown_variant_multiple_keys_test() ->
         <<"glacier">> => #{<<"vault">> => <<"test">>}
     },
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     %% Should match one variant (first match wins) or unknown
     ?assert(is_tuple(Result)),
@@ -96,7 +95,7 @@ decode_unknown_variant_empty_map_test() ->
     %% Test decoding empty map as unknown variant
     Json = #{},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({unknown, _}, Result),
     {unknown, Data} = Result,
@@ -116,7 +115,7 @@ decode_unknown_variant_complex_data_test() ->
         }
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({unknown, _}, Result),
     {unknown, Data} = Result,
@@ -130,7 +129,7 @@ decode_s3_with_empty_data_test() ->
     %% Test decoding S3 variant with empty data
     Json = #{<<"s3">> => #{}},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({s3, _}, Result),
     {s3, Data} = Result,
@@ -140,7 +139,7 @@ decode_glacier_with_minimal_data_test() ->
     %% Test decoding Glacier variant with minimal required fields
     Json = #{<<"glacier">> => #{<<"vault">> => <<"vault1">>}},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({glacier, _}, Result),
     {glacier, Data} = Result,
@@ -158,8 +157,8 @@ roundtrip_s3_test() ->
         <<"prefix">> => <<"backup/">>
     }},
     
-    Encoded = storage_client_types:encode_storage_type(Original),
-    Decoded = storage_client_types:decode_storage_type(Encoded),
+    Encoded = storage_client:encode_storage_type(Original),
+    Decoded = storage_client:decode_storage_type(Encoded),
     
     ?assertEqual(Original, Decoded).
 
@@ -171,8 +170,8 @@ roundtrip_glacier_test() ->
         <<"retrievalOption">> => <<"standard">>
     }},
     
-    Encoded = storage_client_types:encode_storage_type(Original),
-    Decoded = storage_client_types:decode_storage_type(Encoded),
+    Encoded = storage_client:encode_storage_type(Original),
+    Decoded = storage_client:decode_storage_type(Encoded),
     
     ?assertEqual(Original, Decoded).
 
@@ -184,8 +183,8 @@ roundtrip_efs_test() ->
         <<"mountPath">> => <<"/data">>
     }},
     
-    Encoded = storage_client_types:encode_storage_type(Original),
-    Decoded = storage_client_types:decode_storage_type(Encoded),
+    Encoded = storage_client:encode_storage_type(Original),
+    Decoded = storage_client:decode_storage_type(Encoded),
     
     ?assertEqual(Original, Decoded).
 
@@ -195,10 +194,10 @@ roundtrip_unknown_test() ->
     %% so the roundtrip produces a nested structure
     Original = {unknown, #{<<"custom">> => <<"value">>}},
     
-    Encoded = storage_client_types:encode_storage_type(Original),
+    Encoded = storage_client:encode_storage_type(Original),
     %% Encoded is: #{<<"unknown">> => #{<<"custom">> => <<"value">>}}
     
-    Decoded = storage_client_types:decode_storage_type(Encoded),
+    Decoded = storage_client:decode_storage_type(Encoded),
     %% Decoded is: {unknown, #{<<"unknown">> => #{<<"custom">> => <<"value">>}}}
     
     %% Verify the structure (not identical due to wrapping)
@@ -218,7 +217,7 @@ decode_with_binary_values_test() ->
         <<"prefix">> => <<"path/to/data/">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({s3, _}, Result),
     {s3, Data} = Result,
@@ -234,7 +233,7 @@ decode_with_unicode_test() ->
         <<"retrievalOption">> => <<"bulk">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({glacier, _}, Result),
     {glacier, Data} = Result,
@@ -251,7 +250,7 @@ decode_with_nested_structures_test() ->
         }
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     ?assertMatch({s3, _}, Result),
     {s3, Data} = Result,
@@ -271,7 +270,7 @@ decode_and_pattern_match_test() ->
         <<"mountPath">> => <<"/mnt">>
     }},
     
-    Result = storage_client_types:decode_storage_type(Json),
+    Result = storage_client:decode_storage_type(Json),
     
     %% Pattern match on the result
     {efs, EfsData} = Result,
@@ -283,9 +282,9 @@ decode_multiple_and_distinguish_test() ->
     GlacierJson = #{<<"glacier">> => #{<<"vault">> => <<"v1">>}},
     EfsJson = #{<<"efs">> => #{<<"fileSystemId">> => <<"fs1">>}},
     
-    S3Result = storage_client_types:decode_storage_type(S3Json),
-    GlacierResult = storage_client_types:decode_storage_type(GlacierJson),
-    EfsResult = storage_client_types:decode_storage_type(EfsJson),
+    S3Result = storage_client:decode_storage_type(S3Json),
+    GlacierResult = storage_client:decode_storage_type(GlacierJson),
+    EfsResult = storage_client:decode_storage_type(EfsJson),
     
     ?assertMatch({s3, _}, S3Result),
     ?assertMatch({glacier, _}, GlacierResult),

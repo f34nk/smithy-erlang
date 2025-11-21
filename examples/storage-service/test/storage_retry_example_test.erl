@@ -199,7 +199,7 @@ practical_usage_pattern_test() ->
     },
     
     %% Validation happens first (no retry needed for validation errors)
-    case storage_client_types:validate_create_storage_location_input(Input) of
+    case storage_client:validate_create_storage_location_input(Input) of
         ok ->
             %% Make API call with retry
             Counter = counters:new(1, []),

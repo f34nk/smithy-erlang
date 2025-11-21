@@ -67,14 +67,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         ErlangSymbolProvider symbolProvider = new ErlangSymbolProvider(model, settings);
         
         try {
-            // Generate client module
+            // Generate client module (now includes types and helpers)
             generateClientModule(service, model, symbolProvider, settings, fileManifest);
             
-            // Generate types header file
-            generateTypesHeader(service, model, symbolProvider, settings, fileManifest);
-            
-            // Generate types module (for union encoding/decoding functions)
-            generateTypesModule(service, model, symbolProvider, settings, fileManifest);
+            // NOTE: Removed separate types header and module generation
+            // Types and helper functions are now included in the main client module
             
             // Copy AWS SigV4 module
             copyAwsSigV4Module(settings, fileManifest);
@@ -139,36 +136,186 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
         writer.write("");
         
-        // Include types header file for type specs
-        writer.write("-include(\"$L_types.hrl\").", moduleName);
-        writer.write("");
-        
         // Get all operations
         List<OperationShape> operations = service.getOperations().stream()
                 .map(shapeId -> model.expectShape(shapeId, OperationShape.class))
                 .collect(Collectors.toList());
         
-        // Generate exports
-        List<String> exports = new ArrayList<>();
-        exports.add("new/1");
+        // Collect all structures, unions, and enums for the module
+        java.util.Set<ShapeId> processedStructures = new java.util.HashSet<>();
+        List<StructureShape> structuresToGenerate = new ArrayList<>();
+        java.util.Set<ShapeId> allUnions = new java.util.HashSet<>();
+        List<UnionShape> unionsToProcess = new ArrayList<>();
+        java.util.Set<ShapeId> allEnums = new java.util.HashSet<>();
+        List<StringShape> enumsToProcess = new ArrayList<>();
+        List<StructureShape> inputStructuresToValidate = new ArrayList<>();
+        
+        // Collect from operations
+        for (OperationShape operation : operations) {
+            operation.getInput().ifPresent(inputId -> {
+                StructureShape inputShape = model.expectShape(inputId, StructureShape.class);
+                collectStructuresRecursive(inputShape, model, processedStructures, structuresToGenerate);
+                
+                // Check if structure has required fields
+                boolean hasRequiredFields = inputShape.getAllMembers().values().stream()
+                    .anyMatch(member -> member.hasTrait(software.amazon.smithy.model.traits.RequiredTrait.class));
+                
+                if (hasRequiredFields) {
+                    inputStructuresToValidate.add(inputShape);
+                }
+                
+                collectUnionsFromStructure(inputShape, model, allUnions, unionsToProcess);
+                collectEnumsFromStructure(inputShape, model, allEnums, enumsToProcess);
+            });
+            
+            operation.getOutput().ifPresent(outputId -> {
+                StructureShape outputShape = model.expectShape(outputId, StructureShape.class);
+                collectStructuresRecursive(outputShape, model, processedStructures, structuresToGenerate);
+                collectUnionsFromStructure(outputShape, model, allUnions, unionsToProcess);
+                collectEnumsFromStructure(outputShape, model, allEnums, enumsToProcess);
+            });
+            
+            // Also collect error structures
+            for (ShapeId errorId : operation.getErrors()) {
+                StructureShape errorShape = model.expectShape(errorId, StructureShape.class);
+                collectStructuresRecursive(errorShape, model, processedStructures, structuresToGenerate);
+            }
+        }
+        
+        // Collect structures that are members of unions
+        collectStructuresFromUnions(unionsToProcess, model, processedStructures, structuresToGenerate);
+        
+        // Sort structures topologically
+        List<StructureShape> sortedStructures = topologicalSort(structuresToGenerate, model);
+        
+        // Generate API exports
+        List<String> apiExports = new ArrayList<>();
+        apiExports.add("new/1");
         for (OperationShape operation : operations) {
             String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
-            exports.add(opName + "/2");
-            exports.add(opName + "/3"); // Add 3-arity version for retry support
+            apiExports.add(opName + "/2");
+            apiExports.add(opName + "/3"); // Add 3-arity version for retry support
             
             // Add pagination helper exports if operation is paginated
             if (operation.hasTrait(PaginatedTrait.class)) {
-                exports.add(opName + "_all_pages/2");
-                exports.add(opName + "_all_pages/3");
+                apiExports.add(opName + "_all_pages/2");
+                apiExports.add(opName + "_all_pages/3");
             }
         }
-        writer.writeExport(exports.toArray(new String[0]));
+        writer.writeExport(apiExports.toArray(new String[0]));
         writer.write("");
+        
+        // Generate -export_type() declarations
+        if (!sortedStructures.isEmpty() || !enumsToProcess.isEmpty() || !unionsToProcess.isEmpty()) {
+            writer.write("-export_type([");
+            List<String> typeExports = new ArrayList<>();
+            
+            // Export structure types
+            for (StructureShape structure : sortedStructures) {
+                String typeName = ErlangSymbolProvider.toErlangName(structure.getId().getName());
+                typeExports.add(typeName + "/0");
+            }
+            
+            // Export enum types
+            for (StringShape enumShape : enumsToProcess) {
+                String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+                typeExports.add(enumName + "/0");
+            }
+            
+            // Export union types
+            for (UnionShape union : unionsToProcess) {
+                String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+                typeExports.add(unionName + "/0");
+            }
+            
+            // Write export list
+            for (int i = 0; i < typeExports.size(); i++) {
+                if (i > 0) {
+                    writer.writeInline("             ");
+                }
+                writer.writeInline(typeExports.get(i));
+                if (i < typeExports.size() - 1) {
+                    writer.write(",");
+                } else {
+                    writer.write("");
+                }
+            }
+            writer.write("        ]).");
+            writer.write("");
+        }
+        
+        // Generate helper function exports (if any helpers are needed)
+        if (!unionsToProcess.isEmpty() || !enumsToProcess.isEmpty() || !inputStructuresToValidate.isEmpty()) {
+            writer.write("-export([");
+            List<String> helperExports = new ArrayList<>();
+            
+            // Add union encoding/decoding functions
+            for (UnionShape union : unionsToProcess) {
+                String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+                helperExports.add("encode_" + unionName + "/1");
+            }
+            for (UnionShape union : unionsToProcess) {
+                String unionName = ErlangSymbolProvider.toErlangName(union.getId().getName());
+                helperExports.add("decode_" + unionName + "/1");
+            }
+            
+            // Add enum encoding/decoding functions
+            for (StringShape enumShape : enumsToProcess) {
+                String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+                helperExports.add("encode_" + enumName + "/1");
+            }
+            for (StringShape enumShape : enumsToProcess) {
+                String enumName = ErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+                helperExports.add("decode_" + enumName + "/1");
+            }
+            
+            // Add validation functions
+            for (StructureShape inputStructure : inputStructuresToValidate) {
+                String structureName = ErlangSymbolProvider.toErlangName(inputStructure.getId().getName());
+                helperExports.add("validate_" + structureName + "/1");
+            }
+            
+            // Write export list
+            for (int i = 0; i < helperExports.size(); i++) {
+                if (i > 0) {
+                    writer.writeInline("         ");
+                }
+                writer.writeInline(helperExports.get(i));
+                if (i < helperExports.size() - 1) {
+                    writer.write(",");
+                } else {
+                    writer.write("");
+                }
+            }
+            writer.write("        ]).");
+            writer.write("");
+        }
+        
+        // Generate type definitions inline
+        if (!sortedStructures.isEmpty() || !enumsToProcess.isEmpty() || !unionsToProcess.isEmpty()) {
+            writer.writeComment("Type definitions");
+            writer.write("");
+            
+            // Generate record definitions for all structures
+            for (StructureShape structure : sortedStructures) {
+                generateStructure(structure, model, symbolProvider, writer);
+            }
+            
+            // Generate enum types
+            for (StringShape enumShape : enumsToProcess) {
+                generateEnum(enumShape, writer);
+            }
+            
+            // Generate union types
+            for (UnionShape union : unionsToProcess) {
+                generateUnion(union, model, symbolProvider, writer);
+            }
+        }
         
         // ignore dialyzer warnings
         // For example: "user_client.erl:81:9: The pattern <<68,69,76,69,84,69>> can never match the type <<_:24>>"
         writer.writeComment("Ignore dialyzer warnings for \"The pattern ... can never match the type ...\".");
-        writer.write("-dialyzer({[no_match], [$L]}).", String.join(", ", exports));
+        writer.write("-dialyzer({[no_match], [$L]}).", String.join(", ", apiExports));
         writer.write("");
         
         // Generate new/1 function
@@ -194,6 +341,40 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Generate pagination helper if operation is paginated
             if (paginationInfo.isPresent()) {
                 generatePaginationHelper(operation, paginationInfo.get(), model, symbolProvider, writer);
+            }
+        }
+        
+        // Generate helper functions (encoding, decoding, validation)
+        if (!unionsToProcess.isEmpty() || !enumsToProcess.isEmpty() || !inputStructuresToValidate.isEmpty()) {
+            writer.write("");
+            writer.writeComment("===================================================================");
+            writer.writeComment("Helper Functions");
+            writer.writeComment("===================================================================");
+            writer.write("");
+            
+            // Generate encoding functions for each union
+            for (UnionShape union : unionsToProcess) {
+                generateUnionEncodingFunction(union, model, symbolProvider, writer);
+            }
+            
+            // Generate decoding functions for each union
+            for (UnionShape union : unionsToProcess) {
+                generateUnionDecodingFunction(union, model, symbolProvider, writer);
+            }
+            
+            // Generate encoding functions for each enum
+            for (StringShape enumShape : enumsToProcess) {
+                generateEnumEncodingFunction(enumShape, model, writer);
+            }
+            
+            // Generate decoding functions for each enum
+            for (StringShape enumShape : enumsToProcess) {
+                generateEnumDecodingFunction(enumShape, model, writer);
+            }
+            
+            // Generate validation functions for input structures
+            for (StructureShape inputStructure : inputStructuresToValidate) {
+                generateValidationFunction(inputStructure, model, writer);
             }
         }
         
@@ -1221,6 +1402,37 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         }
     }
     
+    private void collectStructuresRecursive(
+            StructureShape structure,
+            Model model,
+            java.util.Set<ShapeId> processedStructures,
+            List<StructureShape> structuresToGenerate) {
+        
+        // Add this structure if not already processed
+        if (processedStructures.add(structure.getId())) {
+            structuresToGenerate.add(structure);
+            
+            // Recursively collect structures from members
+            for (MemberShape member : structure.getAllMembers().values()) {
+                Shape targetShape = model.expectShape(member.getTarget());
+                if (targetShape.isStructureShape()) {
+                    collectStructuresRecursive((StructureShape) targetShape, model, processedStructures, structuresToGenerate);
+                } else if (targetShape.isListShape()) {
+                    Shape memberShape = model.expectShape(((ListShape) targetShape).getMember().getTarget());
+                    if (memberShape.isStructureShape()) {
+                        collectStructuresRecursive((StructureShape) memberShape, model, processedStructures, structuresToGenerate);
+                    }
+                } else if (targetShape.isMapShape()) {
+                    MapShape mapShape = (MapShape) targetShape;
+                    Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
+                    if (valueShape.isStructureShape()) {
+                        collectStructuresRecursive((StructureShape) valueShape, model, processedStructures, structuresToGenerate);
+                    }
+                }
+            }
+        }
+    }
+    
     private void collectUnionsFromStructure(
             StructureShape structure,
             Model model,
@@ -1260,6 +1472,22 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             MapShape mapShape = (MapShape) shape;
             Shape valueShape = model.expectShape(mapShape.getValue().getTarget());
             collectUnionsRecursive(valueShape, model, allUnions, unionsToProcess);
+        }
+    }
+    
+    private void collectStructuresFromUnions(
+            List<UnionShape> unions,
+            Model model,
+            java.util.Set<ShapeId> processedStructures,
+            List<StructureShape> structuresToGenerate) {
+        
+        for (UnionShape union : unions) {
+            for (MemberShape member : union.getAllMembers().values()) {
+                Shape targetShape = model.expectShape(member.getTarget());
+                if (targetShape.isStructureShape()) {
+                    collectStructuresRecursive((StructureShape) targetShape, model, processedStructures, structuresToGenerate);
+                }
+            }
         }
     }
     
