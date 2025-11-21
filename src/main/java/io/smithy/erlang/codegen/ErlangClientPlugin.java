@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import io.smithy.erlang.codegen.helpers.HelperCodeGenerator;
 import software.amazon.smithy.build.FileManifest;
 import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
@@ -389,45 +390,42 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         writer.write("Endpoint = maps:get(endpoint, Client),");
         writer.write("");
         
-        // Generate URI with path parameter substitution
+        // Generate URI using helper
         String uriVariable;
-        if (httpLabelMembers.isEmpty()) {
-            // No path parameters - use URI as-is
+        if (operation.hasTrait(HttpTrait.class) && !httpLabelMembers.isEmpty()) {
+            // Has path parameters - use helper
+            writer.write("%% Build URI using helper");
+            writer.write("UriPattern = <<\"$L\">>,", uri);
+            writer.write("PathParams = [");
+            writer.indent();
+            for (int i = 0; i < httpLabelMembers.size(); i++) {
+                MemberShape member = httpLabelMembers.get(i);
+                String memberName = member.getMemberName();
+                String comma = (i < httpLabelMembers.size() - 1) ? "," : "";
+                writer.write("{<<\"$L\">>, maps:get(<<\"$L\">>, Input)}$L",
+                        memberName, memberName, comma);
+            }
+            writer.dedent();
+            writer.write("],");
+            writer.write("Url = runtime_http_request:build_uri(UriPattern, PathParams, Endpoint),");
+            uriVariable = "Url";
+        } else {
+            // No path parameters - simple concatenation
             writer.write("%% No path parameters");
             writer.write("Uri = <<\"$L\">>,", uri);
             uriVariable = "Uri";
-        } else {
-                // Path parameters need substitution
-                writer.write("%% Build URL with path parameters");
-                writer.write("Uri0 = <<\"$L\">>,", uri);
-                
-                // Generate substitution code for each @httpLabel member
-                for (int i = 0; i < httpLabelMembers.size(); i++) {
-                    MemberShape member = httpLabelMembers.get(i);
-                    String memberName = member.getMemberName();
-                    String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
-                    
-                    // Get the label name (defaults to member name if not specified)
-                    String labelName = memberName;
-                    
-                    // Extract value from input and URL encode it
-                    writer.write("$LValue = maps:get(<<\"$L\">>, Input),", 
-                            capitalize(erlangFieldName), memberName);
-                    writer.write("$LEncoded = url_encode(ensure_binary($LValue)),",
-                            capitalize(erlangFieldName), capitalize(erlangFieldName));
-                    
-                    // Substitute into URI
-                    writer.write("Uri$L = binary:replace(Uri$L, <<\"{$L}\">>, $LEncoded),",
-                            i + 1, i, labelName, capitalize(erlangFieldName));
-                }
-                
-                uriVariable = "Uri" + httpLabelMembers.size();
-            }
+        }
             
             // Generate query string from @httpQuery parameters
             if (httpQueryMembers.isEmpty()) {
                 // No query parameters
-                writer.write("Url = <<Endpoint/binary, $L/binary>>,", uriVariable);
+                if (uriVariable.equals("Url")) {
+                    // URI already includes endpoint (from helper)
+                    // No need to do anything - Url variable is already set
+                } else {
+                    // URI doesn't include endpoint - concatenate it
+                    writer.write("Url = <<Endpoint/binary, $L/binary>>,", uriVariable);
+                }
             } else {
                 // Build query string incrementally
                 writer.write("");
@@ -477,7 +475,13 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 writer.dedent();
                 writer.write("end,");
                 writer.write("");
-                writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
+                if (uriVariable.equals("Url")) {
+                    // URI already includes endpoint (from helper) - just append query string
+                    writer.write("Url = <<Url/binary, QueryString/binary>>,");
+                } else {
+                    // URI doesn't include endpoint - concatenate everything
+                    writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
+                }
             }
             
             // Generate request body based on @httpPayload

@@ -59,10 +59,11 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Verify path parameter handling for /{Bucket}/{Key}
-        assertGeneratedCodeContains(clientFile, "BucketValue = maps:get(<<\"Bucket\">>, Input)");
-        assertGeneratedCodeContains(clientFile, "KeyValue = maps:get(<<\"Key\">>, Input)");
-        assertGeneratedCodeContains(clientFile, "url_encode(ensure_binary(");
+        // Verify path parameter handling using helper for /{Bucket}/{Key}
+        assertGeneratedCodeContains(clientFile, "PathParams = [");
+        assertGeneratedCodeContains(clientFile, "{<<\"Bucket\">>, maps:get(<<\"Bucket\">>, Input)}");
+        assertGeneratedCodeContains(clientFile, "{<<\"Key\">>, maps:get(<<\"Key\">>, Input)}");
+        assertGeneratedCodeContains(clientFile, "runtime_http_request:build_uri(UriPattern, PathParams, Endpoint)");
     }
     
     @Test
@@ -70,9 +71,10 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Verify path parameter handling exists
-        assertGeneratedCodeContains(clientFile, "BucketValue = maps:get(<<\"Bucket\">>, Input)");
-        assertGeneratedCodeContains(clientFile, "KeyValue = maps:get(<<\"Key\">>, Input)");
+        // Verify path parameter handling using helper
+        assertGeneratedCodeContains(clientFile, "PathParams = [");
+        assertGeneratedCodeContains(clientFile, "{<<\"Bucket\">>, maps:get(<<\"Bucket\">>, Input)}");
+        assertGeneratedCodeContains(clientFile, "{<<\"Key\">>, maps:get(<<\"Key\">>, Input)}");
     }
     
     // ===== @httpHeader Input Tests =====
