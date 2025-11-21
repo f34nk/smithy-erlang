@@ -46,10 +46,14 @@ public class AwsS3ProtocolTest extends AwsProtocolTestBase {
     }
     
     @Test
-    public void testTypesFileGenerated() {
+    public void testTypesIncludedInClientModule() {
         runGenerator();
-        String typesFile = "src/" + getModuleName() + "_types.hrl";
-        assertFileGenerated(typesFile);
+        String clientFile = "src/" + getModuleName() + ".erl";
+        
+        // Verify types are now in the main client module (not separate .hrl)
+        assertGeneratedCodeContains(clientFile, "-export_type([");
+        assertGeneratedCodeContains(clientFile, "-record(");
+        assertGeneratedCodeContains(clientFile, "-type ");
     }
     
     // ===== @httpLabel Tests =====
