@@ -89,6 +89,11 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Copy AWS retry module
             copyAwsRetryModule(settings, fileManifest);
             
+            // Copy runtime helper modules
+            copyRuntimeTypesModule(settings, fileManifest);
+            copyRuntimeHttpRequestModule(settings, fileManifest);
+            copyRuntimeHttpResponseModule(settings, fileManifest);
+            
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Erlang client code", e);
@@ -1747,6 +1752,184 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, retryContent);
+        }
+    }
+    
+    private void copyRuntimeTypesModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying runtime_types module to generated output");
+        
+        // Read runtime_types.erl from resources/runtime/
+        java.io.InputStream stream = getClass().getClassLoader().getResourceAsStream("runtime/runtime_types.erl");
+        if (stream == null) {
+            LOGGER.warning("runtime/runtime_types.erl not found in resources, skipping");
+            return;
+        }
+        
+        String content = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        stream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = false;
+        
+        if (settings.getOutputDir() != null && !settings.getOutputDir().isEmpty()) {
+            useCustomDir = true;
+            
+            // Get the project root (go up from the Smithy build directory)
+            Path projectRoot = fileManifest.getBaseDir();
+            String projectRootStr = projectRoot.toString();
+            
+            if (projectRootStr.contains("/build/smithy/")) {
+                projectRoot = projectRoot;
+                while (!projectRoot.endsWith("/build/smithy/source") && projectRoot.getParent() != null) {
+                    projectRoot = projectRoot.getParent();
+                    if (projectRoot.toString().endsWith("/build/smithy/source")) {
+                        projectRoot = projectRoot.getParent().getParent().getParent();
+                        break;
+                    }
+                }
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("runtime_types.erl");
+        } else {
+            outputPath = fileManifest.getBaseDir().resolve("src/runtime_types.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                Files.createDirectories(outputPath.getParent());
+                Files.writeString(outputPath, content);
+                LOGGER.info("Copied runtime_types.erl to: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/runtime_types.erl");
+                fileManifest.writeFile(manifestPath, content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, content);
+        }
+    }
+    
+    private void copyRuntimeHttpRequestModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying runtime_http_request module to generated output");
+        
+        // Read runtime_http_request.erl from resources/runtime/
+        java.io.InputStream stream = getClass().getClassLoader().getResourceAsStream("runtime/runtime_http_request.erl");
+        if (stream == null) {
+            LOGGER.warning("runtime/runtime_http_request.erl not found in resources, skipping");
+            return;
+        }
+        
+        String content = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        stream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = false;
+        
+        if (settings.getOutputDir() != null && !settings.getOutputDir().isEmpty()) {
+            useCustomDir = true;
+            
+            Path projectRoot = fileManifest.getBaseDir();
+            String projectRootStr = projectRoot.toString();
+            
+            if (projectRootStr.contains("/build/smithy/")) {
+                projectRoot = projectRoot;
+                while (!projectRoot.endsWith("/build/smithy/source") && projectRoot.getParent() != null) {
+                    projectRoot = projectRoot.getParent();
+                    if (projectRoot.toString().endsWith("/build/smithy/source")) {
+                        projectRoot = projectRoot.getParent().getParent().getParent();
+                        break;
+                    }
+                }
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("runtime_http_request.erl");
+        } else {
+            outputPath = fileManifest.getBaseDir().resolve("src/runtime_http_request.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                Files.createDirectories(outputPath.getParent());
+                Files.writeString(outputPath, content);
+                LOGGER.info("Copied runtime_http_request.erl to: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/runtime_http_request.erl");
+                fileManifest.writeFile(manifestPath, content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, content);
+        }
+    }
+    
+    private void copyRuntimeHttpResponseModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying runtime_http_response module to generated output");
+        
+        // Read runtime_http_response.erl from resources/runtime/
+        java.io.InputStream stream = getClass().getClassLoader().getResourceAsStream("runtime/runtime_http_response.erl");
+        if (stream == null) {
+            LOGGER.warning("runtime/runtime_http_response.erl not found in resources, skipping");
+            return;
+        }
+        
+        String content = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        stream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = false;
+        
+        if (settings.getOutputDir() != null && !settings.getOutputDir().isEmpty()) {
+            useCustomDir = true;
+            
+            Path projectRoot = fileManifest.getBaseDir();
+            String projectRootStr = projectRoot.toString();
+            
+            if (projectRootStr.contains("/build/smithy/")) {
+                projectRoot = projectRoot;
+                while (!projectRoot.endsWith("/build/smithy/source") && projectRoot.getParent() != null) {
+                    projectRoot = projectRoot.getParent();
+                    if (projectRoot.toString().endsWith("/build/smithy/source")) {
+                        projectRoot = projectRoot.getParent().getParent().getParent();
+                        break;
+                    }
+                }
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("runtime_http_response.erl");
+        } else {
+            outputPath = fileManifest.getBaseDir().resolve("src/runtime_http_response.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                Files.createDirectories(outputPath.getParent());
+                Files.writeString(outputPath, content);
+                LOGGER.info("Copied runtime_http_response.erl to: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/runtime_http_response.erl");
+                fileManifest.writeFile(manifestPath, content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, content);
         }
     }
     
