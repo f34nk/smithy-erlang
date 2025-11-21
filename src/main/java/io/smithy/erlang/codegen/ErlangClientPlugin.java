@@ -393,21 +393,15 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         // Generate URI using helper
         String uriVariable;
         if (operation.hasTrait(HttpTrait.class) && !httpLabelMembers.isEmpty()) {
-            // Has path parameters - use helper
-            writer.write("%% Build URI using helper");
-            writer.write("UriPattern = <<\"$L\">>,", uri);
-            writer.write("PathParams = [");
-            writer.indent();
-            for (int i = 0; i < httpLabelMembers.size(); i++) {
-                MemberShape member = httpLabelMembers.get(i);
-                String memberName = member.getMemberName();
-                String comma = (i < httpLabelMembers.size() - 1) ? "," : "";
-                writer.write("{<<\"$L\">>, maps:get(<<\"$L\">>, Input)}$L",
-                        memberName, memberName, comma);
+            // Has path parameters - use HelperCodeGenerator
+            HttpTrait httpTrait = operation.expectTrait(HttpTrait.class);
+            List<String> uriLines = HelperCodeGenerator.generateUriBuildingCode(httpTrait, operation, "Input");
+            
+            // Write each line of the generated code
+            for (String line : uriLines) {
+                writer.write(line);
             }
-            writer.dedent();
-            writer.write("],");
-            writer.write("Url = runtime_http_request:build_uri(UriPattern, PathParams, Endpoint),");
+            
             uriVariable = "Url";
         } else {
             // No path parameters - simple concatenation

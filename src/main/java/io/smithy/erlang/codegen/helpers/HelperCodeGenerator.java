@@ -1,8 +1,16 @@
 package io.smithy.erlang.codegen.helpers;
 
-import software.amazon.smithy.model.shapes.*;
-import software.amazon.smithy.model.traits.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import software.amazon.smithy.model.shapes.MemberShape;
+import software.amazon.smithy.model.shapes.OperationShape;
+import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.HttpHeaderTrait;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
+import software.amazon.smithy.model.traits.HttpQueryTrait;
+import software.amazon.smithy.model.traits.HttpTrait;
 
 /**
  * Utility class for generating helper-based Erlang code.
@@ -22,37 +30,32 @@ public class HelperCodeGenerator {
      * @param httpTrait HTTP trait containing URI pattern
      * @param operation Operation shape
      * @param inputVarName Variable name for input map
-     * @return Generated Erlang code for URI building
+     * @return List of Erlang code lines for URI building
      */
-    public static String generateUriBuildingCode(
+    public static List<String> generateUriBuildingCode(
             HttpTrait httpTrait, 
             OperationShape operation,
             String inputVarName) {
         
-        StringBuilder code = new StringBuilder();
+        List<String> lines = new ArrayList<>();
         String uriPattern = httpTrait.getUri().toString();
         
-        code.append("    %% Build URI using helper\n");
-        code.append("    UriPattern = <<\"").append(uriPattern).append("\">>,\n");
-        code.append("    PathParams = [\n");
+        lines.add("%% Build URI using helper");
+        lines.add("UriPattern = <<\"" + uriPattern + "\">>,");
+        lines.add("PathParams = [");
         
-        // Extract path parameters
+        // Extract path parameters - add indented lines
         List<String> pathParams = extractPathParameters(uriPattern);
         for (int i = 0; i < pathParams.size(); i++) {
             String param = pathParams.get(i);
-            code.append("        {<<\"").append(param).append("\">>, ")
-                .append("maps:get(<<\"").append(param).append("\">>, ")
-                .append(inputVarName).append(")}");
-            if (i < pathParams.size() - 1) {
-                code.append(",");
-            }
-            code.append("\n");
+            String comma = (i < pathParams.size() - 1) ? "," : "";
+            lines.add("    {<<\"" + param + "\">>, maps:get(<<\"" + param + "\">>, " + inputVarName + ")}" + comma);
         }
         
-        code.append("    ],\n");
-        code.append("    Url = runtime_http_request:build_uri(UriPattern, PathParams, Endpoint)");
+        lines.add("],");
+        lines.add("Url = runtime_http_request:build_uri(UriPattern, PathParams, Endpoint),");
         
-        return code.toString();
+        return lines;
     }
     
     /**
