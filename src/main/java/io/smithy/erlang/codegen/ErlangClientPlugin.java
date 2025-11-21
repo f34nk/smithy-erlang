@@ -318,20 +318,20 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         }
         
-        // Generate -spec with record types
+        // Generate -spec with type aliases (not record syntax)
         String inputType = "map()";
         String outputType = "map()";
         
         if (operation.getInput().isPresent()) {
             ShapeId inputId = operation.getInput().get();
             String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
-            inputType = "#" + inputRecordName + "{}";
+            inputType = inputRecordName + "()";
         }
         
         if (operation.getOutput().isPresent()) {
             ShapeId outputId = operation.getOutput().get();
             String outputRecordName = ErlangSymbolProvider.toErlangName(outputId.getName());
-            outputType = "#" + outputRecordName + "{}";
+            outputType = outputRecordName + "()";
         }
         
         // Generate 2-arity wrapper that calls 3-arity version
@@ -1040,6 +1040,10 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
                 }
             }
         });
+        
+        // Generate type alias for the record
+        writer.write("-type $L() :: #$L{}.", recordName, recordName);
+        writer.write("");
     }
     
     private void generateTypesModule(
@@ -1971,7 +1975,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             return;
         }
         
-        // Generate type specs
+        // Generate type specs (using type aliases, not record syntax)
         String inputType = "map()";
         String outputType = "map()";
         String itemsType = "list()";
@@ -1979,7 +1983,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         if (operation.getInput().isPresent()) {
             ShapeId inputId = operation.getInput().get();
             String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
-            inputType = "#" + inputRecordName + "{}";
+            inputType = inputRecordName + "()";
         }
         
         if (operation.getOutput().isPresent() && itemsMember != null) {
