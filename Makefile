@@ -71,6 +71,10 @@ examples:
 	@for x in $(EXAMPLES); do \
 		example=`echo $$x|sed 's/\/$$//g'` ; \
 		make $$example ; \
+		if [ $$? -ne 0 ]; then \
+			echo "Error building $$example" ; \
+			exit 1 ; \
+		fi ; \
 	done
 
 # Usage: make examples/user-service
