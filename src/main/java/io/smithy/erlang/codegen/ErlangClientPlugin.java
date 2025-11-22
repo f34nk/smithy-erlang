@@ -314,10 +314,16 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         // ignore dialyzer warnings
         // For example: "user_client.erl:81:9: The pattern <<68,69,76,69,84,69>> can never match the type <<_:24>>"
-        writer.writeComment("Ignore dialyzer warnings for \"The pattern ... can never match the type ...\".");
-        writer.write("-dialyzer({[no_match], [$L]}).", String.join(", ", apiExports));
         writer.write("");
-        
+        writer.writeComment("Suppress dialyzer warnings");
+        writer.writeComment("For example:");
+        writer.writeComment("\"The pattern ... can never match the type ...\".");
+        // TODO: supress for specific functions
+        // writer.write("-dialyzer({[no_contracts, no_match], [$L]}).", String.join(", ", apiExports));
+        // For now: supress for all functions in module
+        writer.write("-dialyzer([no_contracts, no_match]).");
+        writer.write("");
+
         // Generate new/1 function
         writer.writeComment("Creates a new client with the given configuration");
         writer.writeSpec("new", "(Config :: map()) -> {ok, map()}");
