@@ -105,7 +105,7 @@ union_type_in_records_test() ->
     ?assertMatch({s3, _}, maps:get(<<"storageType">>, Input)).
 
 %% Helper function with -spec to test Dialyzer integration
--spec get_storage_type_tag(storage_type()) -> s3 | glacier | efs.
+-spec get_storage_type_tag(storage_client:storage_type()) -> s3 | glacier | efs.
 get_storage_type_tag({Tag, _Data}) ->
     Tag.
 
@@ -121,7 +121,7 @@ dialyzer_spec_test() ->
     ?assertEqual(efs, get_storage_type_tag(EfsStorage)).
 
 %% Test extracting data from variants
--spec get_region_from_storage(storage_type()) -> binary() | undefined.
+-spec get_region_from_storage(storage_client:storage_type()) -> binary() | undefined.
 get_region_from_storage({s3, Data}) ->
     maps:get(<<"region">>, Data, undefined);
 get_region_from_storage({glacier, Data}) ->
