@@ -1,0 +1,16 @@
+{application, s3_client,
+ [{description, "AWS S3 Client - Generated Smithy Client Example"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [
+      kernel,
+      stdlib,
+      inets,
+      ssl,
+      jsx
+  ]},
+  {env, []},
+  {modules, []},
+  {licenses, ["Apache-2.0"]},
+  {links, []}
+ ]}.
