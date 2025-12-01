@@ -70,9 +70,6 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             // Generate client module (now includes types and helpers)
             generateClientModule(service, model, symbolProvider, settings, fileManifest);
             
-            // NOTE: Removed separate types header and module generation
-            // Types and helper functions are now included in the main client module
-            
             // Copy AWS SigV4 module
             copyAwsSigV4Module(settings, fileManifest);
             
