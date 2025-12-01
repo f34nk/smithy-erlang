@@ -5,11 +5,11 @@
 module_loads_test() ->
     ?assert(code:ensure_loaded(storage_client) =:= {module, storage_client}).
 
-%% Test that the types header file is generated and contains union type definition
-types_header_has_union_type_test() ->
-    %% Read the generated header file
-    HeaderPath = "src/generated/storage_client_types.hrl",
-    {ok, Content} = file:read_file(HeaderPath),
+%% Test that the generated module contains union type definition
+types_module_has_union_type_test() ->
+    %% Read the generated module file
+    ModulePath = "src/generated/storage_client.erl",
+    {ok, Content} = file:read_file(ModulePath),
     
     %% Verify union type comment is present
     ?assert(binary:match(Content, <<"Union type for StorageType">>) =/= nomatch),
@@ -17,17 +17,17 @@ types_header_has_union_type_test() ->
     %% Verify actual union type definition is present
     ?assert(binary:match(Content, <<"-type storage_type() ::">>) =/= nomatch),
     
-    %% Verify tagged tuple format
+    %% Verify tagged tuple format with record syntax
     ?assert(binary:match(Content, <<"{s3, #s3_storage{}}">>) =/= nomatch),
     ?assert(binary:match(Content, <<"{glacier, #glacier_storage{}}">>) =/= nomatch),
     ?assert(binary:match(Content, <<"{efs, #efs_storage{}}">>) =/= nomatch).
 
-%% Test that union member structures are generated
-union_member_structures_generated_test() ->
-    HeaderPath = "src/generated/storage_client_types.hrl",
-    {ok, Content} = file:read_file(HeaderPath),
+%% Test that union member type aliases are generated
+union_member_types_generated_test() ->
+    ModulePath = "src/generated/storage_client.erl",
+    {ok, Content} = file:read_file(ModulePath),
     
-    %% Verify all union member structures are present
-    ?assert(binary:match(Content, <<"Record for S3Storage">>) =/= nomatch),
-    ?assert(binary:match(Content, <<"Record for GlacierStorage">>) =/= nomatch),
-    ?assert(binary:match(Content, <<"Record for EfsStorage">>) =/= nomatch).
+    %% Verify all union member type aliases are present
+    ?assert(binary:match(Content, <<"-type s3_storage() ::">>) =/= nomatch),
+    ?assert(binary:match(Content, <<"-type glacier_storage() ::">>) =/= nomatch),
+    ?assert(binary:match(Content, <<"-type efs_storage() ::">>) =/= nomatch).

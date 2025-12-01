@@ -1,7 +1,6 @@
 -module(paginated_service_smoke_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("paginated_service_types.hrl").
 
 %%====================================================================
 %% Smoke Tests: Pagination Helper Functions

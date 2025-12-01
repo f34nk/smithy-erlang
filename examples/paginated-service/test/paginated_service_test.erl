@@ -1,7 +1,6 @@
 -module(paginated_service_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("paginated_service_types.hrl").
 
 %%====================================================================
 %% Test Suite: Pagination Helper Functions (Comprehensive)
