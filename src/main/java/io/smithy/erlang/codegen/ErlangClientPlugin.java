@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 
 import io.smithy.erlang.codegen.aws.AwsProtocol;
 import io.smithy.erlang.codegen.aws.AwsProtocolDetector;
+import io.smithy.erlang.codegen.protocols.Protocol;
+import io.smithy.erlang.codegen.protocols.ProtocolFactory;
 import software.amazon.smithy.build.FileManifest;
 import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
@@ -460,23 +462,27 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             ErlangSymbolProvider symbolProvider,
             ErlangWriter writer) {
         
-        // Detect protocol for this service
+        // Try to detect and use protocol-specific generation
+        AwsProtocol awsProtocol = AwsProtocolDetector.detectProtocol(service);
+        LOGGER.info("Detected protocol: " + awsProtocol.name() + 
+                   " for service: " + service.getId().getName() +
+                   ", operation: " + operation.getId().getName());
+        
+        // Try to create a Protocol implementation for this AWS protocol
         try {
-            AwsProtocol protocol = AwsProtocolDetector.detectProtocol(service);
-            LOGGER.info("Using protocol: " + protocol.name() + 
-                       " for service: " + service.getId().getName() +
-                       ", operation: " + operation.getId().getName());
+            Protocol protocol = ProtocolFactory.createProtocol(awsProtocol);
+            LOGGER.info("Using protocol-specific generator: " + protocol.getName());
             
-            // TODO: Route to protocol-specific generators once implemented
-            // protocol.generateOperation(operation, service, model, symbolProvider, writer);
-            // For now, fall through to existing code generation logic
+            // Use protocol-specific generation
+            protocol.generateOperation(operation, service, model, symbolProvider, writer);
+            return; // Protocol-specific generation complete, don't fall through
             
         } catch (UnsupportedOperationException e) {
-            // No AWS protocol trait found, use default HTTP behavior
-            LOGGER.info("No AWS protocol detected for service: " + service.getId().getName() + 
-                       ", using default HTTP behavior");
+            // Protocol not yet implemented, fall through to default generation
+            LOGGER.info("Protocol " + awsProtocol.name() + " not yet implemented, using default HTTP generation: " + e.getMessage());
         }
         
+        // Fall through to existing code generation logic for non-protocol or unimplemented protocols
         String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
         
         // Get HTTP trait if present
