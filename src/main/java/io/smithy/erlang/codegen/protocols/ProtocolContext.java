@@ -2,9 +2,9 @@ package io.smithy.erlang.codegen.protocols;
 
 import io.smithy.erlang.codegen.ErlangSymbolProvider;
 import io.smithy.erlang.codegen.ErlangWriter;
-import io.smithy.model.Model;
-import io.smithy.model.shapes.OperationShape;
-import io.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.Model;
+import software.amazon.smithy.model.shapes.OperationShape;
+import software.amazon.smithy.model.shapes.ServiceShape;
 
 /**
  * Context holder for protocol code generation.

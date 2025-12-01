@@ -1,7 +1,7 @@
 package io.smithy.erlang.codegen.aws;
 
-import io.smithy.model.shapes.ServiceShape;
-import io.smithy.model.traits.Trait;
+import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.traits.Trait;
 
 import java.util.Optional;
 import java.util.logging.Logger;
