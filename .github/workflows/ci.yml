@@ -1,5 +1,9 @@
 name: CI
 
+env:
+  SMITHY_VERSION: 1.64.0
+  REBAR3_VERSION: 3.22
+  
 on:
   push:
     # branches: [ main, first-draft ]
@@ -40,7 +44,7 @@ jobs:
       uses: erlef/setup-beam@v1
       with:
         otp-version: ${{ matrix.otp-version }}
-        rebar3-version: '3.22'
+        rebar3-version: ${{ env.REBAR3_VERSION }}
     
     - name: Install dependencies
       run: |
@@ -49,7 +53,7 @@ jobs:
     
     - name: Install Smithy CLI
       run: |
-        curl -L https://github.com/smithy-lang/smithy/releases/download/1.51.0/smithy-cli-linux-x86_64.zip -o smithy.zip
+        curl -L https://github.com/smithy-lang/smithy/releases/download/${{ env.SMITHY_VERSION }}/smithy-cli-linux-x86_64.zip -o smithy.zip
         unzip smithy.zip
         cd smithy-cli-linux-x86_64 && ./install --install-dir /usr/local/bin/
         smithy --version
