@@ -152,7 +152,8 @@ public class AwsJsonProtocol implements Protocol {
         writer.indent();
         writer.write("{ok, SignedHeaders} ->");
         writer.indent();
-        writer.write("case httpc:request(post, {binary_to_list(Url), SignedHeaders, binary_to_list(maps:get(<<\"Content-Type\">>, maps:from_list(Headers), <<\"application/x-amz-json-", version, "\">>)), Payload}, [], [{body_format, binary}]) of");
+        writer.write("ContentType = \"application/x-amz-json-" + version + "\",");
+        writer.write("case httpc:request(post, {binary_to_list(Url), SignedHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();
@@ -238,4 +239,3 @@ public class AwsJsonProtocol implements Protocol {
         }
     }
 }
-
