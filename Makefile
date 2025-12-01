@@ -64,7 +64,7 @@ clean:
 
 # Usage: make examples
 .PHONY: examples
-examples:
+examples: examples/clean
 	#
 	# Build $(EXAMPLES)
 	#
