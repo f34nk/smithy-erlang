@@ -31,22 +31,22 @@ public final class ProtocolFactory {
             case AWS_QUERY:
                 throw new UnsupportedOperationException(
                     "AWS Query protocol not yet implemented. " +
-                    "This protocol will be added in Step 7.4.");
+                    "This protocol will be added later");
                 
             case EC2_QUERY:
                 throw new UnsupportedOperationException(
                     "EC2 Query protocol not yet implemented. " +
-                    "This protocol will be added in Step 7.4.");
+                    "This protocol will be added later");
                 
             case REST_XML:
                 throw new UnsupportedOperationException(
                     "REST-XML protocol not yet implemented. " +
-                    "This protocol will be added in Step 7.3.");
+                    "This protocol will be added later");
                 
             case REST_JSON_1:
                 throw new UnsupportedOperationException(
                     "REST-JSON protocol not yet implemented. " +
-                    "This protocol will be added in Step 7.5.");
+                    "This protocol will be added later");
                 
             default:
                 throw new UnsupportedOperationException(

@@ -6,7 +6,6 @@ import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.ShapeId;
-import software.amazon.smithy.model.shapes.StructureShape;
 
 /**
  * AWS JSON Protocol implementation for DynamoDB, Lambda, Kinesis, and other JSON-based AWS services.
@@ -152,8 +151,7 @@ public class AwsJsonProtocol implements Protocol {
         writer.indent();
         writer.write("{ok, SignedHeaders} ->");
         writer.indent();
-        writer.write("ContentType = \"application/x-amz-json-" + version + "\",");
-        writer.write("case httpc:request(post, {binary_to_list(Url), SignedHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
+        writer.write("case httpc:request(post, {binary_to_list(Url), SignedHeaders, binary_to_list(maps:get(<<\"Content-Type\">>, maps:from_list(Headers), <<\"application/x-amz-json-", version, "\">>)), Payload}, [], [{body_format, binary}]) of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();
