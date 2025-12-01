@@ -1,8 +1,47 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [Unreleased] - AWS SDK Support
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+### Added
+- AWS SigV4 request signing with canonical request generation, string-to-sign, and signature calculation
+- Credential provider chain with environment variables, config files, and credential providers
+- Retry logic with exponential backoff, configurable max retries, and jitter
+- Pagination support with automatic helper function generation for paginated operations
+- Union types as tagged tuples with encoding and decoding functions
+- Enum types as atoms with validation and encoding/decoding
+- Field validation for @required trait
+- HTTP protocol bindings: @httpLabel (path parameters), @httpHeader, @httpQuery, @httpPayload
+- URI template parser with proper parameter substitution
+- Single-module code generation (types, records, and functions in one file)
+- Type aliases in function specs for documentation while using maps at runtime
+- Dialyzer suppression for intentional type spec mismatches
+- Four example services: user-service, storage-service, paginated-service, aws-s3-client
+- Comprehensive test coverage with 199+ tests across examples
+- GitHub CI/CD workflow
+
+### Changed
+- Refactored from separate header files to single-module approach
+- Records now only in type specs, maps used at runtime
+- Improved error handling with detailed validation messages
+
+### Limitations
+- No streaming support for large payloads
+- No waiters support
+- No presigned URL generation
+- Field validation limited to @required trait (@range, @length not enforced)
+- No support for AWS-specific traits beyond SigV4
+
+### Dependencies
+- Java 11+
+- Smithy 1.51.0
+- Erlang/OTP 24+
+- rebar3
+- jsx (Erlang JSON library)
+
+### Fixed Issues
+- URI template parameters now properly substituted
+- HTTP bindings respected (headers, query params, payloads)
+- AWS SigV4 authentication headers generated correctly
 
 ## [Unreleased] - First Draft
 
@@ -33,17 +72,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - No pagination support
 - No retry logic
 - No streaming support
-
-### Dependencies
-- Java 11+
-- Smithy 1.51.0
-- Erlang/OTP 24+
-- rebar3
-- jsx (Erlang JSON library)
-
-### Known Issues
-- Generated URIs contain literal {placeholder} strings instead of substituted values
-- All request data sent in JSON body regardless of HTTP bindings
-- No authentication headers added to requests
-
-[Unreleased]: https://github.com/f34nk/smithy-erlang/compare/main...first-draft
