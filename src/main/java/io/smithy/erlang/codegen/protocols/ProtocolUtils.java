@@ -1,16 +1,16 @@
 package io.smithy.erlang.codegen.protocols;
 
-import io.smithy.model.Model;
-import io.smithy.model.shapes.MemberShape;
-import io.smithy.model.shapes.OperationShape;
-import io.smithy.model.shapes.ServiceShape;
-import io.smithy.model.shapes.Shape;
-import io.smithy.model.shapes.StructureShape;
-import io.smithy.model.traits.HttpTrait;
-import io.smithy.model.traits.HttpHeaderTrait;
-import io.smithy.model.traits.HttpLabelTrait;
-import io.smithy.model.traits.HttpPayloadTrait;
-import io.smithy.model.traits.HttpQueryTrait;
+import software.amazon.smithy.model.Model;
+import software.amazon.smithy.model.shapes.MemberShape;
+import software.amazon.smithy.model.shapes.OperationShape;
+import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.shapes.Shape;
+import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.HttpTrait;
+import software.amazon.smithy.model.traits.HttpHeaderTrait;
+import software.amazon.smithy.model.traits.HttpLabelTrait;
+import software.amazon.smithy.model.traits.HttpPayloadTrait;
+import software.amazon.smithy.model.traits.HttpQueryTrait;
 
 import java.util.List;
 import java.util.Optional;
