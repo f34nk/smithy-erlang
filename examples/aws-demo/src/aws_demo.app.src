@@ -1,5 +1,5 @@
-{application, s3_client,
- [{description, "AWS S3 Client - Generated Smithy Client Example"},
+{application, aws_demo,
+ [{description, "AWS Demo - Generated Smithy Client Example"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications, [
