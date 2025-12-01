@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import io.smithy.erlang.codegen.aws.AwsProtocol;
+import io.smithy.erlang.codegen.aws.AwsProtocolDetector;
 import software.amazon.smithy.build.FileManifest;
 import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildPlugin;
@@ -457,6 +459,23 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             Model model,
             ErlangSymbolProvider symbolProvider,
             ErlangWriter writer) {
+        
+        // Detect protocol for this service
+        try {
+            AwsProtocol protocol = AwsProtocolDetector.detectProtocol(service);
+            LOGGER.info("Using protocol: " + protocol.name() + 
+                       " for service: " + service.getId().getName() +
+                       ", operation: " + operation.getId().getName());
+            
+            // TODO: Route to protocol-specific generators once implemented
+            // protocol.generateOperation(operation, service, model, symbolProvider, writer);
+            // For now, fall through to existing code generation logic
+            
+        } catch (UnsupportedOperationException e) {
+            // No AWS protocol trait found, use default HTTP behavior
+            LOGGER.info("No AWS protocol detected for service: " + service.getId().getName() + 
+                       ", using default HTTP behavior");
+        }
         
         String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
         
