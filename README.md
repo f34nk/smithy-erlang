@@ -1,6 +1,6 @@
 # Smithy Erlang Code Generator
 
-[![CI](https://github.com/frank-eickhoff/smithy-erlang/actions/workflows/ci.yml/badge.svg)](https://github.com/frank-eickhoff/smithy-erlang/actions/workflows/ci.yml)
+[![CI](https://github.com/f34nk/smithy-erlang/actions/workflows/ci.yml/badge.svg)](https://github.com/f34nk/smithy-erlang/actions/workflows/ci.yml)
 
 Generates Erlang client code from Smithy service models. Produces client modules, type definitions, and HTTP request/response handling for service operations.
 
