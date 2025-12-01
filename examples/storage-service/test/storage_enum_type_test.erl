@@ -118,40 +118,40 @@ return_enum_value_test() ->
 %%% ----------------------------------------------------------------------------
 
 use_enum_in_record_test() ->
-    %% Test using enum in GlacierStorage record
-    Storage = #glacier_storage{
-        vault = <<"my-vault">>,
-        region = <<"us-east-1">>,
-        retrieval_option = expedited
+    %% Test using enum in GlacierStorage map
+    Storage = #{
+        <<"vault">> => <<"my-vault">>,
+        <<"region">> => <<"us-east-1">>,
+        <<"retrievalOption">> => expedited
     },
     
-    ?assertEqual(expedited, Storage#glacier_storage.retrieval_option),
-    ?assertEqual(<<"my-vault">>, Storage#glacier_storage.vault).
+    ?assertEqual(expedited, maps:get(<<"retrievalOption">>, Storage)),
+    ?assertEqual(<<"my-vault">>, maps:get(<<"vault">>, Storage)).
 
 update_enum_in_record_test() ->
-    %% Test updating enum value in record
-    Storage1 = #glacier_storage{
-        vault = <<"vault">>,
-        region = <<"us-west-2">>,
-        retrieval_option = expedited
+    %% Test updating enum value in map
+    Storage1 = #{
+        <<"vault">> => <<"vault">>,
+        <<"region">> => <<"us-west-2">>,
+        <<"retrievalOption">> => expedited
     },
     
-    Storage2 = Storage1#glacier_storage{retrieval_option = standard},
+    Storage2 = Storage1#{<<"retrievalOption">> => standard},
     
-    ?assertEqual(expedited, Storage1#glacier_storage.retrieval_option),
-    ?assertEqual(standard, Storage2#glacier_storage.retrieval_option).
+    ?assertEqual(expedited, maps:get(<<"retrievalOption">>, Storage1)),
+    ?assertEqual(standard, maps:get(<<"retrievalOption">>, Storage2)).
 
 match_record_with_enum_test() ->
-    %% Test pattern matching record with enum
-    Storage = #glacier_storage{
-        vault = <<"test">>,
-        region = <<"us-east-1">>,
-        retrieval_option = bulk
+    %% Test pattern matching map with enum
+    Storage = #{
+        <<"vault">> => <<"test">>,
+        <<"region">> => <<"us-east-1">>,
+        <<"retrievalOption">> => bulk
     },
     
-    Result = case Storage of
-        #glacier_storage{retrieval_option = bulk} -> slow_option;
-        #glacier_storage{retrieval_option = expedited} -> fast_option;
+    Result = case maps:get(<<"retrievalOption">>, Storage) of
+        bulk -> slow_option;
+        expedited -> fast_option;
         _ -> other_option
     end,
     
