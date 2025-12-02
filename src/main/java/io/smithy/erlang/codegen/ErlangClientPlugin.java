@@ -1,8 +1,10 @@
 package io.smithy.erlang.codegen;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -91,6 +93,9 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             
             // Copy AWS Query module (for Query protocol)
             copyAwsQueryModule(settings, fileManifest);
+            
+            // Copy AWS S3 module (for S3 special handling)
+            copyAwsS3Module(settings, fileManifest);
             
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
@@ -2167,6 +2172,51 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, queryContent);
+        }
+    }
+    
+    private void copyAwsS3Module(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS S3 module to generated output");
+        
+        // Read the template from resources
+        String s3Content;
+        try (InputStream is = getClass().getResourceAsStream("/aws_s3.erl")) {
+            if (is == null) {
+                throw new RuntimeException("Cannot find aws_s3.erl resource");
+            }
+            s3Content = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        
+        // Determine output path
+        String outputDir = settings.getOutputDir();
+        Path outputPath;
+        boolean useCustomDir = outputDir != null && !outputDir.isEmpty();
+        
+        if (useCustomDir) {
+            outputPath = Paths.get(outputDir, "src", "aws_s3.erl");
+        } else {
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_s3.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, s3Content);
+                LOGGER.info("Copied AWS S3 module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_s3.erl");
+                fileManifest.writeFile(manifestPath, s3Content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, s3Content);
         }
     }
     
