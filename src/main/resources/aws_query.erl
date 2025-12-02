@@ -82,10 +82,13 @@ flatten_value(Key, Value, Acc) when is_map(Value) ->
     %% Nested map - recursively flatten with key as prefix
     NestedParams = flatten_params(Value, Key),
     NestedParams ++ Acc;
+flatten_value(_Key, [], Acc) ->
+    %% Empty list - don't add any parameters
+    Acc;
 flatten_value(Key, Value, Acc) when is_list(Value) ->
     case is_string_list(Value) of
         true ->
-            %% It's a string value
+            %% It's a string value (non-empty)
             [{Key, list_to_binary(Value)} | Acc];
         false ->
             %% It's a list of items - use 1-based indexing
