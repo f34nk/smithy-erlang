@@ -64,14 +64,6 @@ Run all example builds and tests:
 make examples
 ```
 
-Run specific example tests:
-
-```bash
-make examples/storage-service
-make examples/user-service
-make examples/paginated-service
-```
-
 All examples include comprehensive test suites using meck for HTTP mocking. Tests verify:
 - Request construction with proper HTTP bindings
 - SigV4 signature calculation
@@ -132,6 +124,7 @@ Generated files in `src/generated/`:
 - Enum types as atoms with validation
 
 ### Missing AWS Features
+- XML protocol
 - Streaming support for large payloads
 - Waiters for long-running operations
 - Presigned URL generation
