@@ -32,9 +32,7 @@ public final class ProtocolFactory {
                 return new AwsQueryProtocol();
                 
             case EC2_QUERY:
-                throw new UnsupportedOperationException(
-                    "EC2 Query protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new Ec2QueryProtocol();
                 
             case REST_XML:
                 throw new UnsupportedOperationException(
