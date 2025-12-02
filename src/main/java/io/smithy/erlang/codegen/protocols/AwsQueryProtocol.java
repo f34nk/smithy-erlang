@@ -153,12 +153,14 @@ public class AwsQueryProtocol implements Protocol {
         
         // Make the request with SigV4 signing
         writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Client, Method, Url, Headers, Payload) of");
+        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Payload, Client) of");
         writer.indent();
         writer.write("{ok, SignedHeaders} ->");
         writer.indent();
         writer.write("ContentType = \"application/x-www-form-urlencoded\",");
-        writer.write("case httpc:request(post, {binary_to_list(Url), SignedHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
+        writer.write("%% Convert binary headers to string format for httpc");
+        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
+        writer.write("case httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();

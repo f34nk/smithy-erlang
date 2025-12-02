@@ -16,6 +16,7 @@ import software.amazon.smithy.model.traits.RequiredTrait;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * REST-XML Protocol implementation for S3, CloudFront, Route 53, SES, and other REST-XML AWS services.
@@ -157,10 +158,6 @@ public class RestXmlProtocol implements Protocol {
             uri = "/"; // Default fallback
         }
         
-        writer.write("Method = <<\"$L\">>,", method);
-        writer.write("Endpoint = maps:get(endpoint, Client),");
-        writer.write("");
-        
         // Get HTTP binding members
         Optional<StructureShape> inputShape = ProtocolUtils.getInputShape(operation, model);
         List<MemberShape> httpLabelMembers = inputShape
@@ -173,43 +170,21 @@ public class RestXmlProtocol implements Protocol {
             .map(ProtocolUtils::getHeaderMembers)
             .orElse(java.util.Collections.emptyList());
         
-        // Generate URI with path parameters
-        String uriVariable;
-        if (httpLabelMembers.isEmpty()) {
-            writer.write("%% No path parameters");
-            writer.write("Uri = <<\"$L\">>,", uri);
-            uriVariable = "Uri";
-        } else {
-            writer.write("%% Build URL with path parameters");
-            writer.write("Uri0 = <<\"$L\">>,", uri);
-            
-            // Generate substitution code for each @httpLabel member
-            for (int i = 0; i < httpLabelMembers.size(); i++) {
-                MemberShape member = httpLabelMembers.get(i);
-                String memberName = member.getMemberName();
-                String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
-                String labelName = memberName;
-                String currentUriVar = "Uri" + i;
-                String nextUriVar = "Uri" + (i + 1);
-                
-                writer.write("$LValue = maps:get(<<\"$L\">>, Input),",
-                        capitalize(erlangFieldName), memberName);
-                writer.write("$LEncoded = url_encode(ensure_binary($LValue)),",
-                        capitalize(erlangFieldName), capitalize(erlangFieldName));
-                writer.write("$L = binary:replace($L, <<\"{$L}\">>, $LEncoded),",
-                        nextUriVar, currentUriVar, labelName, capitalize(erlangFieldName));
-            }
-            
-            uriVariable = "Uri" + httpLabelMembers.size();
-        }
+        // Check if this is an S3 service (uses aws_s3:build_url for proper bucket routing)
+        boolean isS3Service = isS3Service(service);
+        boolean useS3Url = isS3Service && hasS3BucketParameter(httpLabelMembers);
         
+        writer.write("Method = <<\"$L\">>,", method);
+        // Only generate Endpoint if not using S3 URL builder (S3 extracts endpoint from Client)
+        if (!useS3Url) {
+            writer.write("Endpoint = maps:get(endpoint, Client),");
+        }
         writer.write("");
         
-        // Generate query string from @httpQuery parameters
+        // Build query string first (needed for both S3 and generic URL building)
         if (httpQueryMembers.isEmpty()) {
             writer.write("%% No query parameters");
             writer.write("QueryString = <<\"\">>,");
-            writer.write("Url = <<Endpoint/binary, $L/binary>>,", uriVariable);
         } else {
             writer.write("%% Build query string from @httpQuery parameters");
             writer.write("QueryPairs0 = [],");
@@ -248,7 +223,16 @@ public class RestXmlProtocol implements Protocol {
             writer.dedent();
             writer.dedent();
             writer.write("end,");
-            writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
+        }
+        
+        writer.write("");
+        
+        // Generate URL - use aws_s3:build_url for S3 services with Bucket parameter
+        if (useS3Url) {
+            generateS3Url(httpLabelMembers, writer);
+        } else {
+            // Generic URL building for non-S3 REST-XML services
+            generateGenericUrl(uri, httpLabelMembers, writer);
         }
         
         writer.write("");
@@ -363,16 +347,18 @@ public class RestXmlProtocol implements Protocol {
         
         // Make the request with SigV4 signing
         writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Client, Method, Url, Headers, Body) of");
+        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Body, Client) of");
         writer.indent();
         writer.write("{ok, SignedHeaders} ->");
         writer.indent();
         writer.write("ContentType = \"$L\",", contentType);
+        writer.write("%% Convert binary headers to string format for httpc");
+        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
         writer.write("Request = case Method of");
         writer.indent();
-        writer.write("<<\"GET\">> -> {binary_to_list(Url), SignedHeaders};");
-        writer.write("<<\"DELETE\">> -> {binary_to_list(Url), SignedHeaders};");
-        writer.write("_ -> {binary_to_list(Url), SignedHeaders, ContentType, Body}");
+        writer.write("<<\"GET\">> -> {binary_to_list(Url), StringHeaders};");
+        writer.write("<<\"DELETE\">> -> {binary_to_list(Url), StringHeaders};");
+        writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
         writer.dedent();
         writer.write("end,");
         writer.write("");
@@ -557,10 +543,14 @@ public class RestXmlProtocol implements Protocol {
                         }
                         String headerNameLower = headerName.toLowerCase();
                         
+                        // Use unique variable names to avoid "unsafe variable in case" error
+                        // W1_N for keyfind result, W2_N for case match
+                        String w1Var = "W1_" + i;
+                        String w2Var = "W2_" + i;
                         writer.write("$LValue = case lists:keyfind(\"$L\", 1, ResponseHeaders) of",
                                 capitalize(erlangFieldName), headerNameLower);
                         writer.indent();
-                        writer.write("{_, Val} -> list_to_binary(Val);");
+                        writer.write("{_, $L} -> list_to_binary($L);", w1Var, w1Var);
                         writer.write("false -> undefined");
                         writer.dedent();
                         writer.write("end,");
@@ -570,7 +560,7 @@ public class RestXmlProtocol implements Protocol {
                                 nextOutputVar2, capitalize(erlangFieldName));
                         writer.indent();
                         writer.write("undefined -> $L;", currentOutputVar2);
-                        writer.write("Val -> $L#{<<\"$L\">> => Val}", currentOutputVar2, memberName2);
+                        writer.write("$L -> $L#{<<\"$L\">> => $L}", w2Var, currentOutputVar2, memberName2, w2Var);
                         writer.dedent();
                         writer.write("end,");
                     }
@@ -606,10 +596,14 @@ public class RestXmlProtocol implements Protocol {
                 String currentOutputVar = "Output" + i;
                 String nextOutputVar = "Output" + (i + 1);
                 
+                // Use unique variable names to avoid "unsafe variable in case" error
+                // V1_N for keyfind result, V2_N for case match
+                String v1Var = "V1_" + i;
+                String v2Var = "V2_" + i;
                 writer.write("$LValue = case lists:keyfind(\"$L\", 1, ResponseHeaders) of",
                         capitalize(erlangFieldName), headerNameLower);
                 writer.indent();
-                writer.write("{_, Val} -> list_to_binary(Val);");
+                writer.write("{_, $L} -> list_to_binary($L);", v1Var, v1Var);
                 writer.write("false -> undefined");
                 writer.dedent();
                 writer.write("end,");
@@ -617,7 +611,7 @@ public class RestXmlProtocol implements Protocol {
                         nextOutputVar, capitalize(erlangFieldName));
                 writer.indent();
                 writer.write("undefined -> $L;", currentOutputVar);
-                writer.write("Val -> $L#{<<\"$L\">> => Val}", currentOutputVar, memberName);
+                writer.write("$L -> $L#{<<\"$L\">> => $L}", v2Var, currentOutputVar, memberName, v2Var);
                 writer.dedent();
                 writer.write("end,");
             }
@@ -660,5 +654,95 @@ public class RestXmlProtocol implements Protocol {
             return str;
         }
         return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+    
+    /**
+     * Checks if the service is S3 or S3-like.
+     * S3 services need special URL routing (bucket-in-hostname vs path-style).
+     */
+    private boolean isS3Service(ServiceShape service) {
+        String serviceName = service.getId().getName().toLowerCase();
+        return serviceName.contains("s3") || 
+               serviceName.equals("simplestorage") ||
+               serviceName.equals("simplesstorageservice");
+    }
+    
+    /**
+     * Checks if the operation has a Bucket parameter (typical S3 pattern).
+     */
+    private boolean hasS3BucketParameter(List<MemberShape> httpLabelMembers) {
+        return httpLabelMembers.stream()
+            .anyMatch(m -> m.getMemberName().equalsIgnoreCase("Bucket"));
+    }
+    
+    /**
+     * Generates S3-specific URL building using aws_s3:build_url/4.
+     * This handles virtual-hosted-style vs path-style URL routing.
+     */
+    private void generateS3Url(List<MemberShape> httpLabelMembers, ErlangWriter writer) {
+        writer.write("%% S3-specific URL building with bucket routing");
+        writer.write("%% Uses aws_s3:build_url/4 for virtual-hosted/path-style auto-detection");
+        
+        // Extract Bucket parameter
+        Optional<MemberShape> bucketMember = httpLabelMembers.stream()
+            .filter(m -> m.getMemberName().equalsIgnoreCase("Bucket"))
+            .findFirst();
+        
+        // Extract Key parameter (may not exist for bucket-level operations)
+        Optional<MemberShape> keyMember = httpLabelMembers.stream()
+            .filter(m -> m.getMemberName().equalsIgnoreCase("Key"))
+            .findFirst();
+        
+        if (bucketMember.isPresent()) {
+            String bucketMemberName = bucketMember.get().getMemberName();
+            writer.write("Bucket = maps:get(<<\"$L\">>, Input, <<>>),", bucketMemberName);
+        } else {
+            writer.write("Bucket = <<>>,");
+        }
+        
+        if (keyMember.isPresent()) {
+            String keyMemberName = keyMember.get().getMemberName();
+            writer.write("Key = maps:get(<<\"$L\">>, Input, <<>>),", keyMemberName);
+        } else {
+            writer.write("Key = <<>>,");
+        }
+        
+        writer.write("Url = aws_s3:build_url(Client, Bucket, Key, QueryString),");
+    }
+    
+    /**
+     * Generates generic URL building for non-S3 REST-XML services.
+     */
+    private void generateGenericUrl(String uri, List<MemberShape> httpLabelMembers, ErlangWriter writer) {
+        String uriVariable;
+        if (httpLabelMembers.isEmpty()) {
+            writer.write("%% No path parameters");
+            writer.write("Uri = <<\"$L\">>,", uri);
+            uriVariable = "Uri";
+        } else {
+            writer.write("%% Build URL with path parameters");
+            writer.write("Uri0 = <<\"$L\">>,", uri);
+            
+            // Generate substitution code for each @httpLabel member
+            for (int i = 0; i < httpLabelMembers.size(); i++) {
+                MemberShape member = httpLabelMembers.get(i);
+                String memberName = member.getMemberName();
+                String erlangFieldName = ErlangSymbolProvider.toErlangName(memberName);
+                String labelName = memberName;
+                String currentUriVar = "Uri" + i;
+                String nextUriVar = "Uri" + (i + 1);
+                
+                writer.write("$LValue = maps:get(<<\"$L\">>, Input),",
+                        capitalize(erlangFieldName), memberName);
+                writer.write("$LEncoded = url_encode(ensure_binary($LValue)),",
+                        capitalize(erlangFieldName), capitalize(erlangFieldName));
+                writer.write("$L = binary:replace($L, <<\"{$L}\">>, $LEncoded),",
+                        nextUriVar, currentUriVar, labelName, capitalize(erlangFieldName));
+            }
+            
+            uriVariable = "Uri" + httpLabelMembers.size();
+        }
+        
+        writer.write("Url = <<Endpoint/binary, $L/binary, QueryString/binary>>,", uriVariable);
     }
 }

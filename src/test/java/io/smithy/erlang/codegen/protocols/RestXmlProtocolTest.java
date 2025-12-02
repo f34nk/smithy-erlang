@@ -148,10 +148,11 @@ public class RestXmlProtocolTest extends AwsProtocolTestBase {
         runGenerator();
         String clientFile = "src/" + getModuleName() + ".erl";
         
-        // Verify path parameter substitution for Bucket and Key
-        assertGeneratedCodeContains(clientFile, "BucketValue = maps:get(<<\"Bucket\">>, Input)");
-        assertGeneratedCodeContains(clientFile, "KeyValue = maps:get(<<\"Key\">>, Input)");
-        assertGeneratedCodeContains(clientFile, "binary:replace");
+        // For S3 services, path parameters (Bucket, Key) are handled by aws_s3:build_url
+        // which provides virtual-hosted-style vs path-style URL routing
+        assertGeneratedCodeContains(clientFile, "Bucket = maps:get(<<\"Bucket\">>, Input");
+        assertGeneratedCodeContains(clientFile, "Key = maps:get(<<\"Key\">>, Input");
+        assertGeneratedCodeContains(clientFile, "aws_s3:build_url");
     }
     
     @Test
@@ -209,7 +210,8 @@ public class RestXmlProtocolTest extends AwsProtocolTestBase {
         String clientFile = "src/" + getModuleName() + ".erl";
         
         // Verify AWS SigV4 signing is integrated
-        assertGeneratedCodeContains(clientFile, "aws_sigv4:sign_request(Client, Method, Url, Headers, Body)");
+        // Argument order: (Method, Url, Headers, Body, Client/Credentials)
+        assertGeneratedCodeContains(clientFile, "aws_sigv4:sign_request(Method, Url, Headers, Body, Client)");
     }
     
     @Test
