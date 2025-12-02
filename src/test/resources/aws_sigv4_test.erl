@@ -747,7 +747,7 @@ sign_request_basic_test() ->
         service => <<"s3">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Should return a list of headers
     ?assert(is_list(Result)),
@@ -775,7 +775,7 @@ sign_request_with_session_token_test() ->
         service => <<"dynamodb">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Should have Authorization header
     ?assert(lists:keyfind(<<"Authorization">>, 1, Result) =/= false),
@@ -797,7 +797,7 @@ sign_request_without_session_token_test() ->
         service => <<"s3">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Should NOT have X-Amz-Security-Token header
     ?assertEqual(false, lists:keyfind(<<"X-Amz-Security-Token">>, 1, Result)).
@@ -815,7 +815,7 @@ sign_request_authorization_format_test() ->
         service => <<"s3">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     {_, AuthHeader} = lists:keyfind(<<"Authorization">>, 1, Result),
     
@@ -840,7 +840,7 @@ sign_request_date_format_test() ->
         service => <<"s3">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     {_, DateTime} = lists:keyfind(<<"X-Amz-Date">>, 1, Result),
     
@@ -869,7 +869,7 @@ sign_request_post_with_body_test() ->
         service => <<"dynamodb">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Should have all required headers
     ?assert(lists:keyfind(<<"Authorization">>, 1, Result) =/= false),
@@ -891,8 +891,8 @@ sign_request_deterministic_test() ->
     },
     
     %% Call twice
-    Result1 = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
-    Result2 = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result1} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result2} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Both should have Authorization header
     {_, Auth1} = lists:keyfind(<<"Authorization">>, 1, Result1),
@@ -915,7 +915,7 @@ integration_sign_request_complete_test() ->
         service => <<"s3">>
     },
     
-    Result = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
+    {ok, Result} = aws_sigv4:sign_request(Method, Url, Headers, Body, Credentials),
     
     %% Extract headers
     {_, AuthHeader} = lists:keyfind(<<"Authorization">>, 1, Result),
