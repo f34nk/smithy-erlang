@@ -18,7 +18,7 @@ ENV PATH="/opt/hashicorp:${PATH}"
 
 # Set up working directory with proper permissions
 WORKDIR /app
-COPY --chmod=755 entrypoint.sh main.tf config.toml /app/
+COPY --chmod=755 entrypoint.sh main.tf config1.toml config2.toml /app/
 RUN chown -R nonroot:nonroot /app
 
 USER nonroot

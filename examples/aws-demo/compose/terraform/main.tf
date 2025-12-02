@@ -27,9 +27,16 @@ resource "aws_s3_bucket" "config_bucket" {
   bucket = "us1-nonprod-configs"
 }
 
-resource "aws_s3_object" "config_file" {
+resource "aws_s3_object" "config_file1" {
     bucket = aws_s3_bucket.config_bucket.id
     acl    = "public-read"
-    key    = "configs/config.toml"
-    source = "config.toml"
+    key    = "configs/config1.toml"
+    source = "config1.toml"
+}
+
+resource "aws_s3_object" "config_file2" {
+    bucket = aws_s3_bucket.config_bucket.id
+    acl    = "public-read"
+    key    = "configs/config2.toml"
+    source = "config2.toml"
 }
