@@ -2181,23 +2181,39 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         
         LOGGER.info("Copying AWS S3 module to generated output");
         
-        // Read the template from resources
-        String s3Content;
-        try (InputStream is = getClass().getResourceAsStream("/aws_s3.erl")) {
-            if (is == null) {
-                throw new RuntimeException("Cannot find aws_s3.erl resource");
-            }
-            s3Content = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        // Read aws_s3.erl from resources
+        java.io.InputStream s3Stream = getClass().getClassLoader().getResourceAsStream("aws_s3.erl");
+        if (s3Stream == null) {
+            LOGGER.warning("aws_s3.erl not found in resources, skipping");
+            return;
         }
         
+        String s3Content = new String(s3Stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        s3Stream.close();
+        
         // Determine output path
-        String outputDir = settings.getOutputDir();
         Path outputPath;
-        boolean useCustomDir = outputDir != null && !outputDir.isEmpty();
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
         
         if (useCustomDir) {
-            outputPath = Paths.get(outputDir, "src", "aws_s3.erl");
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_s3.erl");
         } else {
+            // Use default FileManifest location
             outputPath = fileManifest.getBaseDir().resolve("src/aws_s3.erl");
         }
         
