@@ -29,19 +29,13 @@ public final class ProtocolFactory {
                 return new AwsJsonProtocol("1.1");
                 
             case AWS_QUERY:
-                throw new UnsupportedOperationException(
-                    "AWS Query protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new AwsQueryProtocol();
                 
             case EC2_QUERY:
-                throw new UnsupportedOperationException(
-                    "EC2 Query protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new Ec2QueryProtocol();
                 
             case REST_XML:
-                throw new UnsupportedOperationException(
-                    "REST-XML protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new RestXmlProtocol();
                 
             case REST_JSON_1:
                 throw new UnsupportedOperationException(

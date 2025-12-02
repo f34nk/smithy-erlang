@@ -64,25 +64,37 @@ run() ->
     
     try s3_client:list_buckets(Client, ListInput, #{enable_retry => false}) of
         {ok, ListOutput} ->
-            Buckets = maps:get(<<"buckets">>, ListOutput, []),
-            io:format("Found ~p bucket(s)~n", [length(Buckets)]),
+            io:format("~nSUCCESS: ListBuckets returned successfully!~n"),
+            io:format("Response: ~p~n~n", [ListOutput]),
+            %% Extract buckets from S3 XML response structure
+            %% Structure: ListAllMyBucketsResult -> Buckets -> Bucket (may be map or list)
+            BucketsData = case ListOutput of
+                #{<<"ListAllMyBucketsResult">> := #{<<"Buckets">> := #{<<"Bucket">> := B}}} -> B;
+                #{<<"ListAllMyBucketsResult">> := #{<<"Buckets">> := B}} -> B;
+                #{<<"Buckets">> := #{<<"Bucket">> := B}} -> B;
+                #{<<"Buckets">> := B} -> B;
+                _ -> []
+            end,
+            %% Normalize to list (single bucket comes as map, multiple as list)
+            BucketList = case BucketsData of
+                M when is_map(M) -> [M];
+                L when is_list(L) -> L;
+                _ -> []
+            end,
+            io:format("Found ~p bucket(s):~n", [length(BucketList)]),
             lists:foreach(fun(Bucket) ->
-                Name = maps:get(<<"name">>, Bucket, <<"unknown">>),
+                Name = maps:get(<<"Name">>, Bucket, maps:get(<<"name">>, Bucket, <<"unknown">>)),
                 io:format("  - ~s~n", [Name])
-            end, Buckets),
+            end, BucketList),
             io:format("~n");
+        {error, {aws_error, StatusCode, Code, Message}} ->
+            io:format("AWS Error: ~p ~s - ~s~n", [StatusCode, Code, Message]);
         {error, ListError} ->
-            io:format("Response received from Moto, but parsing failed (expected).~n"),
-            io:format("Error details: ~p~n", [ListError]),
-            io:format("~nSUCCESS: Connection to Moto S3 mock working!~n"),
-            io:format("(Note: Current generator only supports JSON, but S3 returns XML)~n~n")
+            io:format("Error from S3: ~p~n", [ListError])
     catch
-        error:badarg ->
-            io:format("~nSUCCESS: HTTP request to Moto S3 mock successful!~n"),
-            io:format("Response received, but JSON parsing failed (expected).~n"),
-            io:format("(Note: Current generator only supports JSON, but real S3/Moto returns XML)~n~n");
-        Error:Reason ->
-            io:format("Unexpected error: ~p:~p~n~n", [Error, Reason])
+        error:Reason:Stacktrace ->
+            io:format("Unexpected error: ~p~n", [Reason]),
+            io:format("Stacktrace: ~p~n~n", [Stacktrace])
     end,
     
     io:format("=== S3 Client Application Complete ===~n"),

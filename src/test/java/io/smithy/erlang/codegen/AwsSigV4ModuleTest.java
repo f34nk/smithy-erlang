@@ -35,7 +35,8 @@ public class AwsSigV4ModuleTest {
             "Module should export sign_request/5");
         
         // Check for function definition (full implementation)
-        assertTrue(content.contains("sign_request(Method, Url, Headers, Body, Credentials)"), 
+        // Parameter name changed from Credentials to Client to match generated code
+        assertTrue(content.contains("sign_request(Method, Url, Headers, Body, Client)"), 
             "Module should define sign_request/5 function with full implementation");
         
         // Check for proper documentation

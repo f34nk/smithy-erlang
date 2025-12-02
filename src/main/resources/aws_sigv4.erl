@@ -43,16 +43,30 @@
     Url :: binary(),
     Headers :: [{binary(), binary()}],
     Body :: binary(),
-    Credentials :: map()
-) -> [{binary(), binary()}].
-sign_request(Method, Url, Headers, Body, Credentials) ->
-    %% Extract credentials
-    #{
-        access_key_id := AccessKeyId,
-        secret_access_key := SecretAccessKey,
-        region := Region,
-        service := Service
-    } = Credentials,
+    Client :: map()
+) -> {ok, [{binary(), binary()}]} | {error, term()}.
+sign_request(Method, Url, Headers, Body, Client) ->
+    %% Extract credentials - handle both flat and nested formats
+    %% Flat: #{access_key_id => ..., secret_access_key => ...}
+    %% Nested: #{credentials => #{access_key_id => ..., secret_access_key => ...}}
+    {AccessKeyId, SecretAccessKey, SessionToken} = case maps:get(credentials, Client, undefined) of
+        undefined ->
+            %% Flat format
+            {maps:get(access_key_id, Client),
+             maps:get(secret_access_key, Client),
+             maps:get(session_token, Client, undefined)};
+        Creds when is_map(Creds) ->
+            %% Nested format
+            {maps:get(access_key_id, Creds),
+             maps:get(secret_access_key, Creds),
+             maps:get(session_token, Creds, undefined)}
+    end,
+    
+    %% Get region (required)
+    Region = maps:get(region, Client),
+    
+    %% Derive service from URL if not provided
+    Service = maps:get(service, Client, derive_service_from_url(Url)),
     
     %% Generate timestamp
     DateTime = iso8601_datetime(),
@@ -62,7 +76,7 @@ sign_request(Method, Url, Headers, Body, Credentials) ->
     HeadersWithDate = [{<<"X-Amz-Date">>, DateTime} | Headers],
     
     %% Add X-Amz-Security-Token if using temporary credentials
-    HeadersWithToken = case maps:get(session_token, Credentials, undefined) of
+    HeadersWithToken = case SessionToken of
         undefined -> 
             HeadersWithDate;
         Token -> 
@@ -85,7 +99,60 @@ sign_request(Method, Url, Headers, Body, Credentials) ->
     AuthHeader = format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature),
     
     %% Step 5: Add Authorization header and return
-    [{<<"Authorization">>, AuthHeader} | HeadersWithToken].
+    {ok, [{<<"Authorization">>, AuthHeader} | HeadersWithToken]}.
+
+%% @doc Derive AWS service name from URL
+%%
+%% Attempts to determine the service from the URL host.
+%% Falls back to "s3" if unable to determine.
+%%
+%% @param Url The URL to parse
+%% @returns Service name as binary
+-spec derive_service_from_url(binary()) -> binary().
+derive_service_from_url(Url) ->
+    %% Parse the URL to get the host
+    Host = case Url of
+        <<"https://", Rest/binary>> -> extract_host(Rest);
+        <<"http://", Rest/binary>> -> extract_host(Rest);
+        _ -> extract_host(Url)
+    end,
+    
+    %% Try to extract service from host
+    %% Common patterns:
+    %% - s3.amazonaws.com -> s3
+    %% - bucket.s3.amazonaws.com -> s3
+    %% - dynamodb.us-east-1.amazonaws.com -> dynamodb
+    %% - sqs.us-east-1.amazonaws.com -> sqs
+    %% - moto:5050 -> s3 (local testing)
+    %% - localhost:5050 -> s3 (local testing)
+    case Host of
+        <<"s3.", _/binary>> -> <<"s3">>;
+        <<"s3-", _/binary>> -> <<"s3">>;
+        <<_/binary>> = H ->
+            %% Check if host contains a known service
+            case binary:match(H, <<".s3.">>) of
+                {_, _} -> <<"s3">>;
+                nomatch ->
+                    %% Try to extract service from subdomain
+                    case binary:split(H, <<".">>) of
+                        [Service, <<"amazonaws">>, <<"com">>] -> Service;
+                        [Service, _Region, <<"amazonaws">>, <<"com">>] -> Service;
+                        [_Bucket, Service, _Region, <<"amazonaws">>, <<"com">>] -> Service;
+                        _ ->
+                            %% Default to s3 for local/unknown endpoints
+                            <<"s3">>
+                    end
+            end
+    end.
+
+%% @doc Extract host from URL rest (after scheme)
+-spec extract_host(binary()) -> binary().
+extract_host(UrlRest) ->
+    %% Get everything before the first /
+    case binary:split(UrlRest, <<"/">>) of
+        [Host | _] -> Host;
+        [] -> UrlRest
+    end.
 
 %%====================================================================
 %% Canonical Request Generation

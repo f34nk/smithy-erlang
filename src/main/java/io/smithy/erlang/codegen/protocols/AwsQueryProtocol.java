@@ -8,33 +8,39 @@ import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.ShapeId;
 
 /**
- * AWS JSON Protocol implementation for DynamoDB, Lambda, Kinesis, and other JSON-based AWS services.
- * 
- * Supports both awsJson1.0 and awsJson1.1 protocols.
+ * AWS Query Protocol implementation for SQS, SNS, RDS, CloudFormation, and other Query-based AWS services.
  * 
  * Key characteristics:
  * - POST requests to "/"
- * - X-Amz-Target header: {ServiceName}_{Version}.{OperationName}
- * - Content-Type: application/x-amz-json-1.0 or application/x-amz-json-1.1
- * - JSON body encoding/decoding with jsx
+ * - Content-Type: application/x-www-form-urlencoded
+ * - Body: Form-urlencoded parameters with Action, Version, and request params
+ * - Response: XML (decoded with aws_xml)
  * - AWS SigV4 signing
+ * 
+ * Request format:
+ *   Action=OperationName&Version=2012-11-05&Param1=Value1&Param2=Value2
+ * 
+ * Response format:
+ *   <OperationNameResponse>
+ *       <OperationNameResult>
+ *           ...
+ *       </OperationNameResult>
+ *       <ResponseMetadata>
+ *           <RequestId>...</RequestId>
+ *       </ResponseMetadata>
+ *   </OperationNameResponse>
  */
-public class AwsJsonProtocol implements Protocol {
-    
-    private final String version; // "1.0" or "1.1"
+public class AwsQueryProtocol implements Protocol {
     
     /**
-     * Creates an AWS JSON protocol handler.
-     * 
-     * @param version The AWS JSON version ("1.0" or "1.1")
+     * Creates an AWS Query protocol handler.
      */
-    public AwsJsonProtocol(String version) {
-        this.version = version;
+    public AwsQueryProtocol() {
     }
     
     @Override
     public String getName() {
-        return "awsJson" + version;
+        return "awsQuery";
     }
     
     @Override
@@ -49,7 +55,7 @@ public class AwsJsonProtocol implements Protocol {
     
     @Override
     public String getContentType(ServiceShape service) {
-        return "application/x-amz-json-" + version;
+        return "application/x-www-form-urlencoded";
     }
     
     @Override
@@ -130,7 +136,7 @@ public class AwsJsonProtocol implements Protocol {
         writer.write("$L(Client, Input) when is_map(Input) ->", internalFunctionName);
         writer.indent();
         
-        // AWS JSON always uses POST to "/"
+        // AWS Query always uses POST to "/"
         writer.write("Method = <<\"POST\">>,");
         writer.write("Endpoint = maps:get(endpoint, Client),");
         writer.write("Path = <<\"/\">>,");
@@ -151,7 +157,7 @@ public class AwsJsonProtocol implements Protocol {
         writer.indent();
         writer.write("{ok, SignedHeaders} ->");
         writer.indent();
-        writer.write("ContentType = \"application/x-amz-json-" + version + "\",");
+        writer.write("ContentType = \"application/x-www-form-urlencoded\",");
         writer.write("%% Convert binary headers to string format for httpc");
         writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
         writer.write("case httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
@@ -165,7 +171,39 @@ public class AwsJsonProtocol implements Protocol {
         writer.dedent();
         writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
         writer.indent();
-        writer.write("{error, {http_error, StatusCode, ErrorBody}};");
+        writer.write("%% Parse AWS Query error response (XML)");
+        writer.write("case aws_xml:decode(ErrorBody) of");
+        writer.indent();
+        writer.write("{ok, ErrorMap} ->");
+        writer.indent();
+        writer.write("case ErrorMap of");
+        writer.indent();
+        writer.write("#{<<\"ErrorResponse\">> := #{<<\"Error\">> := Error}} ->");
+        writer.indent();
+        writer.write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        writer.write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
+        writer.dedent();
+        writer.write("#{<<\"Error\">> := Error} ->");
+        writer.indent();
+        writer.write("%% Some services return Error directly");
+        writer.write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        writer.write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
+        writer.dedent();
+        writer.write("_ ->");
+        writer.indent();
+        writer.write("{error, {http_error, StatusCode, ErrorBody}}");
+        writer.dedent();
+        writer.dedent();
+        writer.write("end;");
+        writer.dedent();
+        writer.write("{error, _} ->");
+        writer.indent();
+        writer.write("{error, {http_error, StatusCode, ErrorBody}}");
+        writer.dedent();
+        writer.dedent();
+        writer.write("end;");
         writer.dedent();
         writer.write("{error, Reason} ->");
         writer.indent();
@@ -190,20 +228,10 @@ public class AwsJsonProtocol implements Protocol {
             ServiceShape service,
             ErlangWriter writer) {
         
-        writer.writeComment("AWS JSON protocol headers");
-        
-        // Get service name and version
-        String serviceName = service.getId().getName();
-        String serviceVersion = service.getVersion();
-        
-        // X-Amz-Target header format: {ServiceName}_{Version}.{OperationName}
-        String operationName = operation.getId().getName();
-        String target = serviceName + "_" + serviceVersion + "." + operationName;
-        
+        writer.writeComment("AWS Query protocol headers");
         writer.write("Headers = [");
         writer.indent();
-        writer.write("{<<\"X-Amz-Target\">>, <<\"$L\">>},", target);
-        writer.write("{<<\"Content-Type\">>, <<\"application/x-amz-json-$L\">>}", version);
+        writer.write("{<<\"Content-Type\">>, <<\"application/x-www-form-urlencoded\">>}");
         writer.dedent();
         writer.write("],");
     }
@@ -214,12 +242,16 @@ public class AwsJsonProtocol implements Protocol {
             Model model,
             ErlangWriter writer) {
         
-        writer.writeComment("Encode request body as JSON");
+        // Get operation name and service version for Action and Version parameters
+        String operationName = operation.getId().getName();
+        
+        writer.writeComment("Encode request body as form-urlencoded with Action parameter");
+        writer.write("Action = <<\"$L\">>,", operationName);
         
         if (operation.getInput().isPresent()) {
-            writer.write("Payload = jsx:encode(Input),");
+            writer.write("Payload = aws_query:encode(Action, Input),");
         } else {
-            writer.write("Payload = <<\"{}\">>,");
+            writer.write("Payload = aws_query:encode(Action, #{}),");
         }
     }
     
@@ -229,11 +261,43 @@ public class AwsJsonProtocol implements Protocol {
             Model model,
             ErlangWriter writer) {
         
-        writer.writeComment("Decode JSON response");
+        String operationName = operation.getId().getName();
+        String resultKey = operationName + "Result";
+        
+        writer.writeComment("Decode XML response");
         
         if (operation.getOutput().isPresent()) {
-            writer.write("DecodedBody = jsx:decode(ResponseBody, [return_maps]),");
-            writer.write("{ok, DecodedBody};");
+            writer.write("%% AWS Query response format: <OperationNameResponse><OperationNameResult>...</OperationNameResult></OperationNameResponse>");
+            String responseKey = operationName + "Response";
+            writer.write("case aws_xml:decode(ResponseBody) of");
+            writer.indent();
+            writer.write("{ok, XmlMap} ->");
+            writer.indent();
+            writer.write("case XmlMap of");
+            writer.indent();
+            writer.write("#{<<\"$L\">> := #{<<\"$L\">> := Result}} ->", responseKey, resultKey);
+            writer.indent();
+            writer.write("{ok, Result};");
+            writer.dedent();
+            writer.write("#{<<\"$L\">> := Response} ->", responseKey);
+            writer.indent();
+            writer.write("%% Some operations return result directly in response");
+            writer.write("{ok, Response};");
+            writer.dedent();
+            writer.write("_ ->");
+            writer.indent();
+            writer.write("%% Return decoded XML as-is if structure doesn't match");
+            writer.write("{ok, XmlMap}");
+            writer.dedent();
+            writer.dedent();
+            writer.write("end;");
+            writer.dedent();
+            writer.write("{error, DecodeError} ->");
+            writer.indent();
+            writer.write("{error, {xml_decode_error, DecodeError}}");
+            writer.dedent();
+            writer.dedent();
+            writer.write("end;");
         } else {
             writer.write("%% No output structure, return empty map");
             writer.write("{ok, #{}};");

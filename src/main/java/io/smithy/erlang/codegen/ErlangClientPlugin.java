@@ -1,8 +1,10 @@
 package io.smithy.erlang.codegen;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -85,6 +87,15 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             
             // Copy AWS retry module
             copyAwsRetryModule(settings, fileManifest);
+            
+            // Copy AWS XML module (for REST-XML protocol)
+            copyAwsXmlModule(settings, fileManifest);
+            
+            // Copy AWS Query module (for Query protocol)
+            copyAwsQueryModule(settings, fileManifest);
+            
+            // Copy AWS S3 module (for S3 special handling)
+            copyAwsS3Module(settings, fileManifest);
             
             LOGGER.info("Erlang client code generation completed successfully");
         } catch (Exception e) {
@@ -2039,6 +2050,189 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
             }
         } else {
             fileManifest.writeFile(outputPath, retryContent);
+        }
+    }
+    
+    private void copyAwsXmlModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS XML module to generated output");
+        
+        // Read aws_xml.erl from resources
+        java.io.InputStream xmlStream = getClass().getClassLoader().getResourceAsStream("aws_xml.erl");
+        if (xmlStream == null) {
+            LOGGER.warning("aws_xml.erl not found in resources, skipping");
+            return;
+        }
+        
+        String xmlContent = new String(xmlStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        xmlStream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_xml.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_xml.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, xmlContent);
+                LOGGER.info("Copied AWS XML module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_xml.erl");
+                fileManifest.writeFile(manifestPath, xmlContent);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, xmlContent);
+        }
+    }
+    
+    private void copyAwsQueryModule(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS Query module to generated output");
+        
+        // Read aws_query.erl from resources
+        java.io.InputStream queryStream = getClass().getClassLoader().getResourceAsStream("aws_query.erl");
+        if (queryStream == null) {
+            LOGGER.warning("aws_query.erl not found in resources, skipping");
+            return;
+        }
+        
+        String queryContent = new String(queryStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        queryStream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_query.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_query.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, queryContent);
+                LOGGER.info("Copied AWS Query module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_query.erl");
+                fileManifest.writeFile(manifestPath, queryContent);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, queryContent);
+        }
+    }
+    
+    private void copyAwsS3Module(
+            ErlangClientSettings settings,
+            FileManifest fileManifest) throws IOException {
+        
+        LOGGER.info("Copying AWS S3 module to generated output");
+        
+        // Read aws_s3.erl from resources
+        java.io.InputStream s3Stream = getClass().getClassLoader().getResourceAsStream("aws_s3.erl");
+        if (s3Stream == null) {
+            LOGGER.warning("aws_s3.erl not found in resources, skipping");
+            return;
+        }
+        
+        String s3Content = new String(s3Stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        s3Stream.close();
+        
+        // Determine output path
+        Path outputPath;
+        boolean useCustomDir = settings.getOutputDir() != null && !settings.getOutputDir().isEmpty();
+        
+        if (useCustomDir) {
+            // Navigate up from build/smithy/source/projection/ to project root, then resolve outputDir
+            Path baseDir = fileManifest.getBaseDir();
+            Path projectRoot = baseDir;
+            
+            // Try to navigate up 4 levels (typical Smithy build structure)
+            for (int i = 0; i < 4 && projectRoot != null && projectRoot.getParent() != null; i++) {
+                projectRoot = projectRoot.getParent();
+            }
+            
+            // If projectRoot is null, fall back to baseDir
+            if (projectRoot == null) {
+                projectRoot = baseDir;
+            }
+            
+            Path customOutputDir = projectRoot.resolve(settings.getOutputDir());
+            outputPath = customOutputDir.resolve("aws_s3.erl");
+        } else {
+            // Use default FileManifest location
+            outputPath = fileManifest.getBaseDir().resolve("src/aws_s3.erl");
+        }
+        
+        // Write the file
+        if (useCustomDir) {
+            try {
+                if (outputPath.getParent() != null) {
+                    Files.createDirectories(outputPath.getParent());
+                }
+                Files.writeString(outputPath, s3Content);
+                LOGGER.info("Copied AWS S3 module: " + outputPath);
+            } catch (java.nio.file.FileSystemException e) {
+                // Fall back to FileManifest if we can't write to filesystem
+                LOGGER.warning("Cannot write to custom directory, using FileManifest instead: " + e.getMessage());
+                Path manifestPath = fileManifest.getBaseDir().resolve("src/aws_s3.erl");
+                fileManifest.writeFile(manifestPath, s3Content);
+            }
+        } else {
+            fileManifest.writeFile(outputPath, s3Content);
         }
     }
     

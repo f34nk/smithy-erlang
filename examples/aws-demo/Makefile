@@ -16,6 +16,7 @@ copy:
 	cp ../../src/test/resources/aws_sigv4_test.erl test/
 	cp ../../src/test/resources/aws_credentials_test.erl test/
 	cp ../../src/test/resources/aws_config_test.erl test/
+	cp ../../src/test/resources/aws_s3_test.erl test/
 
 generate:
 	# 
@@ -49,7 +50,7 @@ test:
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
 	# remove copied files
-	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl
+	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl test/aws_s3_test.erl
 
 docker/test: docker/clean
 	docker compose build && docker compose run --rm test
