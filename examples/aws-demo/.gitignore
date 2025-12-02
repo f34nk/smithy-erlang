@@ -15,3 +15,4 @@ model/aws-s3-client.smithy
 test/aws_sigv4_test.erl
 test/aws_credentials_test.erl
 test/aws_config_test.erl
+test/aws_s3_test.erl
