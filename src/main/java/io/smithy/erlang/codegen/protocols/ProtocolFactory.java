@@ -29,9 +29,7 @@ public final class ProtocolFactory {
                 return new AwsJsonProtocol("1.1");
                 
             case AWS_QUERY:
-                throw new UnsupportedOperationException(
-                    "AWS Query protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new AwsQueryProtocol();
                 
             case EC2_QUERY:
                 throw new UnsupportedOperationException(
