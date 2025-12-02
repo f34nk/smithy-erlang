@@ -51,11 +51,25 @@ public abstract class AwsProtocolTestBase {
         assertNotNull(modelPath, "Model path must not be null");
         
         try {
-            model = Model.assembler()
+            var assembler = Model.assembler()
                     .discoverModels(getClass().getClassLoader())  // Discover AWS traits from classpath
-                    .addImport(getClass().getResource(modelPath))
-                    .assemble()
-                    .unwrap();
+                    .addImport(getClass().getResource(modelPath));
+            
+            var result = assembler.assemble();
+            
+            // Print validation events if there are errors
+            if (result.isBroken()) {
+                System.err.println("=== Model validation errors for " + modelPath + " ===");
+                result.getValidationEvents().forEach(event -> {
+                    System.err.println("  " + event.getSeverity() + ": " + event.getMessage());
+                    if (event.getShapeId().isPresent()) {
+                        System.err.println("    Shape: " + event.getShapeId().get());
+                    }
+                });
+                System.err.println("=== End validation errors ===");
+            }
+            
+            model = result.unwrap();
             
             assertNotNull(model, "Model should be loaded");
         } catch (Exception e) {
