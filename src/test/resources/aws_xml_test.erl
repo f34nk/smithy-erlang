@@ -167,25 +167,21 @@ decode_empty_input_test() ->
 %% Test: AWS S3-style XML
 %%--------------------------------------------------------------------
 decode_s3_list_buckets_response_test() ->
-    Xml = <<"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    Xml =
+        <<"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
             "<ListAllMyBucketsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">",
-            "<Owner><ID>abc123</ID><DisplayName>myuser</DisplayName></Owner>",
-            "<Buckets>",
+            "<Owner><ID>abc123</ID><DisplayName>myuser</DisplayName></Owner>", "<Buckets>",
             "<Bucket><Name>bucket1</Name><CreationDate>2024-01-01T00:00:00.000Z</CreationDate></Bucket>",
             "<Bucket><Name>bucket2</Name><CreationDate>2024-01-02T00:00:00.000Z</CreationDate></Bucket>",
-            "</Buckets>",
-            "</ListAllMyBucketsResult>">>,
+            "</Buckets>", "</ListAllMyBucketsResult>">>,
     {ok, Result} = aws_xml:decode(Xml),
     ?assert(maps:is_key(<<"ListAllMyBucketsResult">>, Result)).
 
 decode_s3_error_response_test() ->
-    Xml = <<"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-            "<Error>",
-            "<Code>NoSuchBucket</Code>",
+    Xml =
+        <<"<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "<Error>", "<Code>NoSuchBucket</Code>",
             "<Message>The specified bucket does not exist</Message>",
-            "<BucketName>mybucket</BucketName>",
-            "<RequestId>abc123</RequestId>",
-            "</Error>">>,
+            "<BucketName>mybucket</BucketName>", "<RequestId>abc123</RequestId>", "</Error>">>,
     {ok, Result} = aws_xml:decode(Xml),
     ErrorMap = maps:get(<<"Error">>, Result),
     ?assertEqual(<<"NoSuchBucket">>, maps:get(<<"Code">>, ErrorMap)).
@@ -223,10 +219,11 @@ encode_special_chars_test() ->
 %% Test: Whitespace handling
 %%--------------------------------------------------------------------
 decode_with_whitespace_test() ->
-    Xml = <<"<Root>
-              <Name>John</Name>
-              <City>Seattle</City>
-            </Root>">>,
+    Xml =
+        <<"<Root>\n"
+        "              <Name>John</Name>\n"
+        "              <City>Seattle</City>\n"
+        "            </Root>">>,
     {ok, Result} = aws_xml:decode(Xml),
     ?assert(maps:is_key(<<"Root">>, Result)).
 

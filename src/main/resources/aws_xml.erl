@@ -35,16 +35,24 @@ encode(Map) when is_map(Map) ->
 -spec encode(map(), atom() | binary() | undefined) -> iolist().
 encode(Map, undefined) when is_map(Map) ->
     %% No root element, encode map contents directly
-    Elements = maps:fold(fun(K, V, Acc) -> 
-        [encode_element(K, V) | Acc] 
-    end, [], Map),
+    Elements = maps:fold(
+        fun(K, V, Acc) ->
+            [encode_element(K, V) | Acc]
+        end,
+        [],
+        Map
+    ),
     lists:reverse(Elements);
 encode(Map, RootName) when is_map(Map) ->
     %% Wrap in root element
     RootAtom = to_atom(RootName),
-    Elements = maps:fold(fun(K, V, Acc) -> 
-        [encode_element(K, V) | Acc] 
-    end, [], Map),
+    Elements = maps:fold(
+        fun(K, V, Acc) ->
+            [encode_element(K, V) | Acc]
+        end,
+        [],
+        Map
+    ),
     Content = lists:reverse(Elements),
     xmerl:export_simple([{RootAtom, [], Content}], xmerl_xml).
 
@@ -58,9 +66,13 @@ encode_element(Key, Value) ->
 -spec encode_value(term()) -> [tuple()] | list().
 encode_value(Value) when is_map(Value) ->
     %% Nested map - recursively encode
-    maps:fold(fun(K, V, Acc) -> 
-        [encode_element(K, V) | Acc] 
-    end, [], Value);
+    maps:fold(
+        fun(K, V, Acc) ->
+            [encode_element(K, V) | Acc]
+        end,
+        [],
+        Value
+    );
 encode_value(Value) when is_list(Value) ->
     case is_string_list(Value) of
         true ->
@@ -68,15 +80,18 @@ encode_value(Value) when is_list(Value) ->
             [Value];
         false ->
             %% It's a list of items - encode each item
-            lists:map(fun(Item) ->
-                case is_map(Item) of
-                    true ->
-                        %% For list of maps, encode as nested content
-                        encode_value(Item);
-                    false ->
-                        encode_value(Item)
-                end
-            end, Value)
+            lists:map(
+                fun(Item) ->
+                    case is_map(Item) of
+                        true ->
+                            %% For list of maps, encode as nested content
+                            encode_value(Item);
+                        false ->
+                            encode_value(Item)
+                    end
+                end,
+                Value
+            )
     end;
 encode_value(Value) when is_binary(Value) ->
     [binary_to_list(Value)];
@@ -138,15 +153,19 @@ xml_to_map(_) ->
 %% @doc Extract text content from XML content list
 -spec extract_text([tuple()]) -> binary().
 extract_text(Content) ->
-    TextParts = lists:filtermap(fun
-        (#xmlText{value = Value}) ->
-            Trimmed = string:trim(Value),
-            case Trimmed of
-                "" -> false;
-                _ -> {true, Trimmed}
-            end;
-        (_) -> false
-    end, Content),
+    TextParts = lists:filtermap(
+        fun
+            (#xmlText{value = Value}) ->
+                Trimmed = string:trim(Value),
+                case Trimmed of
+                    "" -> false;
+                    _ -> {true, Trimmed}
+                end;
+            (_) ->
+                false
+        end,
+        Content
+    ),
     case TextParts of
         [] -> <<>>;
         _ -> list_to_binary(string:join(TextParts, ""))
@@ -155,27 +174,38 @@ extract_text(Content) ->
 %% @doc Extract child elements from XML content list
 -spec extract_children([tuple()]) -> [map()].
 extract_children(Content) ->
-    lists:filtermap(fun
-        (#xmlElement{} = El) -> {true, xml_to_map(El)};
-        (_) -> false
-    end, Content).
+    lists:filtermap(
+        fun
+            (#xmlElement{} = El) -> {true, xml_to_map(El)};
+            (_) -> false
+        end,
+        Content
+    ).
 
 %% @doc Merge list of child maps into a single map
 %% Handles duplicate keys by creating lists
 -spec merge_children([map()]) -> map().
 merge_children(Children) ->
-    lists:foldl(fun(ChildMap, Acc) ->
-        maps:fold(fun(K, V, InnerAcc) ->
-            case maps:find(K, InnerAcc) of
-                {ok, ExistingValue} when is_list(ExistingValue) ->
-                    maps:put(K, ExistingValue ++ [V], InnerAcc);
-                {ok, ExistingValue} ->
-                    maps:put(K, [ExistingValue, V], InnerAcc);
-                error ->
-                    maps:put(K, V, InnerAcc)
-            end
-        end, Acc, ChildMap)
-    end, #{}, Children).
+    lists:foldl(
+        fun(ChildMap, Acc) ->
+            maps:fold(
+                fun(K, V, InnerAcc) ->
+                    case maps:find(K, InnerAcc) of
+                        {ok, ExistingValue} when is_list(ExistingValue) ->
+                            maps:put(K, ExistingValue ++ [V], InnerAcc);
+                        {ok, ExistingValue} ->
+                            maps:put(K, [ExistingValue, V], InnerAcc);
+                        error ->
+                            maps:put(K, V, InnerAcc)
+                    end
+                end,
+                Acc,
+                ChildMap
+            )
+        end,
+        #{},
+        Children
+    ).
 
 %% ============================================================================
 %% Internal helper functions
@@ -189,7 +219,9 @@ to_atom(Key) when is_list(Key) -> list_to_atom(Key).
 
 %% @doc Check if a list is a string (list of characters)
 -spec is_string_list(list()) -> boolean().
-is_string_list([]) -> true;
-is_string_list([H|T]) when is_integer(H), H >= 0, H =< 1114111 ->
+is_string_list([]) ->
+    true;
+is_string_list([H | T]) when is_integer(H), H >= 0, H =< 1114111 ->
     is_string_list(T);
-is_string_list(_) -> false.
+is_string_list(_) ->
+    false.

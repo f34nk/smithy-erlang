@@ -77,7 +77,7 @@ get_credentials() ->
 get_credentials(Options) when is_map(Options) ->
     %% Extract profile option (default to "default")
     Profile = maps:get(profile, Options, <<"default">>),
-    
+
     %% Build provider chain with profile-aware credentials file provider
     Providers = [
         fun from_environment/0,
@@ -85,7 +85,7 @@ get_credentials(Options) when is_map(Options) ->
         %% TODO: Add fun from_ec2_metadata/0 (IAM role)
         %% TODO: Add fun from_ecs_metadata/0 (ECS container credentials)
     ],
-    
+
     try_providers(Providers).
 
 %% @doc Get the filepath to the credentials file
@@ -152,11 +152,9 @@ from_environment() ->
         {false, _} ->
             %% AWS_ACCESS_KEY_ID not set
             {error, no_access_key};
-        
         {_, false} ->
             %% AWS_SECRET_ACCESS_KEY not set
             {error, no_secret_key};
-        
         {AccessKeyId, SecretAccessKey} when is_list(AccessKeyId), is_list(SecretAccessKey) ->
             %% Both required credentials present
             %% Convert from list (os:getenv returns list) to binary
@@ -164,13 +162,12 @@ from_environment() ->
                 access_key_id => list_to_binary(AccessKeyId),
                 secret_access_key => list_to_binary(SecretAccessKey)
             },
-            
+
             %% Check for optional session token (for temporary credentials from STS)
             case os:getenv("AWS_SESSION_TOKEN") of
                 false ->
                     %% No session token - permanent credentials (IAM user)
                     {ok, Credentials};
-                
                 Token when is_list(Token) ->
                     %% Session token present - temporary credentials (STS)
                     {ok, Credentials#{session_token => list_to_binary(Token)}}
@@ -246,7 +243,7 @@ from_credentials_file(Profile) when is_binary(Profile) ->
         Home ->
             %% Build path to credentials file
             CredFile = filename:join([Home, ".aws", "credentials"]),
-            
+
             %% Read file
             case file:read_file(CredFile) of
                 {ok, Content} ->
@@ -268,10 +265,10 @@ from_credentials_file(Profile) when is_binary(Profile) ->
 parse_credentials_file(Content, Profile) ->
     %% Split into lines
     Lines = binary:split(Content, <<"\n">>, [global, trim]),
-    
+
     %% Build profile section header
     ProfileSection = <<"[", Profile/binary, "]">>,
-    
+
     %% Find profile and extract credentials
     case find_profile_credentials(Lines, ProfileSection) of
         {ok, Credentials} ->
@@ -286,7 +283,7 @@ parse_credentials_file(Content, Profile) ->
 find_profile_credentials([Line | Rest], ProfileSection) ->
     %% Trim whitespace from line
     TrimmedLine = string:trim(Line, both),
-    
+
     case TrimmedLine of
         ProfileSection ->
             %% Found profile section, extract credentials
@@ -305,16 +302,14 @@ find_profile_credentials([], _ProfileSection) ->
 extract_credentials([Line | Rest], Acc) ->
     %% Trim whitespace
     TrimmedLine = string:trim(Line, both),
-    
+
     case TrimmedLine of
         <<>> ->
             %% Empty line, end of section
             validate_credentials(Acc);
-        
         <<"[", _/binary>> ->
             %% Next section started, end of current profile
             validate_credentials(Acc);
-        
         _ ->
             %% Parse key=value line
             case binary:split(TrimmedLine, <<"=">>, [trim]) of
@@ -322,22 +317,22 @@ extract_credentials([Line | Rest], Acc) ->
                     %% Trim whitespace from key and value
                     TrimmedKey = string:trim(Key, both),
                     TrimmedValue = string:trim(Value, both),
-                    
+
                     %% Add to accumulator based on key
-                    NewAcc = case TrimmedKey of
-                        <<"aws_access_key_id">> ->
-                            Acc#{access_key_id => TrimmedValue};
-                        <<"aws_secret_access_key">> ->
-                            Acc#{secret_access_key => TrimmedValue};
-                        <<"aws_session_token">> ->
-                            Acc#{session_token => TrimmedValue};
-                        _ ->
-                            %% Unknown key, ignore
-                            Acc
-                    end,
-                    
+                    NewAcc =
+                        case TrimmedKey of
+                            <<"aws_access_key_id">> ->
+                                Acc#{access_key_id => TrimmedValue};
+                            <<"aws_secret_access_key">> ->
+                                Acc#{secret_access_key => TrimmedValue};
+                            <<"aws_session_token">> ->
+                                Acc#{session_token => TrimmedValue};
+                            _ ->
+                                %% Unknown key, ignore
+                                Acc
+                        end,
+
                     extract_credentials(Rest, NewAcc);
-                
                 _ ->
                     %% Not a key=value line, skip
                     extract_credentials(Rest, Acc)
@@ -359,17 +354,16 @@ validate_credentials(_) ->
 
 %% @private
 %% Try each credential provider in order until one succeeds
--spec try_providers([fun(() -> {ok, map()} | {error, atom()})]) -> {ok, map()} | {error, no_credentials}.
+-spec try_providers([fun(() -> {ok, map()} | {error, atom()})]) ->
+    {ok, map()} | {error, no_credentials}.
 try_providers([]) ->
     %% No providers succeeded
     {error, no_credentials};
-
 try_providers([Provider | Rest]) ->
     case Provider() of
         {ok, Credentials} ->
             %% Provider succeeded - return credentials
             {ok, Credentials};
-        
         {error, _Reason} ->
             %% Provider failed - try next provider
             try_providers(Rest)

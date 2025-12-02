@@ -108,7 +108,7 @@ from_config_file(Profile) ->
             {ok, <<"us-east-1">>};
         Home ->
             ConfigFile = filename:join([Home, ".aws", "config"]),
-            
+
             case file:read_file(ConfigFile) of
                 {ok, Content} ->
                     case parse_region_from_config(Content, Profile) of
@@ -127,18 +127,19 @@ from_config_file(Profile) ->
 parse_region_from_config(Content, Profile) ->
     %% Split into lines
     Lines = binary:split(Content, <<"\n">>, [global, trim]),
-    
+
     %% Build profile section header
     %% Note: config file uses [profile name] format (not [name] like credentials file)
-    ProfileSection = case Profile of
-        <<"default">> ->
-            %% Special case: default profile is just [default]
-            <<"[default]">>;
-        _ ->
-            %% Other profiles use [profile name]
-            <<"[profile ", Profile/binary, "]">>
-    end,
-    
+    ProfileSection =
+        case Profile of
+            <<"default">> ->
+                %% Special case: default profile is just [default]
+                <<"[default]">>;
+            _ ->
+                %% Other profiles use [profile name]
+                <<"[profile ", Profile/binary, "]">>
+        end,
+
     %% Find profile and extract region
     find_profile_region(Lines, ProfileSection).
 
@@ -148,7 +149,7 @@ parse_region_from_config(Content, Profile) ->
 find_profile_region([Line | Rest], ProfileSection) ->
     %% Trim whitespace from line
     TrimmedLine = string:trim(Line, both),
-    
+
     case TrimmedLine of
         ProfileSection ->
             %% Found profile section, extract region
@@ -167,16 +168,14 @@ find_profile_region([], _ProfileSection) ->
 extract_region_from_section([Line | Rest]) ->
     %% Trim whitespace
     TrimmedLine = string:trim(Line, both),
-    
+
     case TrimmedLine of
         <<>> ->
             %% Empty line, end of section
             error;
-        
         <<"[", _/binary>> ->
             %% Next section started, region not found in this section
             error;
-        
         _ ->
             %% Parse key=value line
             case binary:split(TrimmedLine, <<"=">>, [trim]) of
@@ -184,7 +183,7 @@ extract_region_from_section([Line | Rest]) ->
                     %% Trim whitespace from key and value
                     TrimmedKey = string:trim(Key, both),
                     TrimmedValue = string:trim(Value, both),
-                    
+
                     case TrimmedKey of
                         <<"region">> ->
                             %% Found region!
@@ -193,7 +192,6 @@ extract_region_from_section([Line | Rest]) ->
                             %% Not region key, continue
                             extract_region_from_section(Rest)
                     end;
-                
                 _ ->
                     %% Not a key=value line, skip
                     extract_region_from_section(Rest)

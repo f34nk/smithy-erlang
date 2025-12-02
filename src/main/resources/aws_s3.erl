@@ -47,13 +47,14 @@ build_url(Client, Bucket, Key, QueryString) ->
 -spec build_url(map(), binary(), binary(), binary(), map()) -> binary().
 build_url(Client, Bucket, Key, QueryString, Options) ->
     Endpoint = maps:get(endpoint, Client, <<"https://s3.amazonaws.com">>),
-    
-    UsePathStyle = case maps:get(path_style, Options, auto) of
-        true -> true;
-        false -> false;
-        auto -> use_path_style(Endpoint)
-    end,
-    
+
+    UsePathStyle =
+        case maps:get(path_style, Options, auto) of
+            true -> true;
+            false -> false;
+            auto -> use_path_style(Endpoint)
+        end,
+
     case UsePathStyle of
         true ->
             build_path_style_url(Endpoint, Bucket, Key, QueryString);
@@ -67,19 +68,21 @@ build_url(Client, Bucket, Key, QueryString, Options) ->
 -spec build_path_style_url(binary(), binary(), binary(), binary()) -> binary().
 build_path_style_url(Endpoint, Bucket, Key, QueryString) ->
     %% Remove trailing slash from endpoint if present
-    Endpoint1 = case binary:last(Endpoint) of
-        $/ -> binary:part(Endpoint, 0, byte_size(Endpoint) - 1);
-        _ -> Endpoint
-    end,
-    
+    Endpoint1 =
+        case binary:last(Endpoint) of
+            $/ -> binary:part(Endpoint, 0, byte_size(Endpoint) - 1);
+            _ -> Endpoint
+        end,
+
     %% Build path
-    Path = case {Bucket, Key} of
-        {<<>>, <<>>} -> <<"/">>;
-        {<<>>, _} -> <<"/", Key/binary>>;
-        {_, <<>>} -> <<"/", Bucket/binary>>;
-        {_, _} -> <<"/", Bucket/binary, "/", Key/binary>>
-    end,
-    
+    Path =
+        case {Bucket, Key} of
+            {<<>>, <<>>} -> <<"/">>;
+            {<<>>, _} -> <<"/", Key/binary>>;
+            {_, <<>>} -> <<"/", Bucket/binary>>;
+            {_, _} -> <<"/", Bucket/binary, "/", Key/binary>>
+        end,
+
     <<Endpoint1/binary, Path/binary, QueryString/binary>>.
 
 %% @doc Build virtual-hosted-style S3 URL
@@ -88,33 +91,35 @@ build_path_style_url(Endpoint, Bucket, Key, QueryString) ->
 build_virtual_hosted_url(Endpoint, Region, Bucket, Key, QueryString) ->
     %% Parse the endpoint to get scheme and host
     {Scheme, Host} = parse_endpoint(Endpoint),
-    
+
     %% Build virtual-hosted host
-    VirtualHost = case Bucket of
-        <<>> -> 
-            %% No bucket - use original host (e.g., ListBuckets)
-            Host;
-        _ ->
-            %% Add bucket prefix to host
-            %% Check if host is s3.amazonaws.com (need to add region)
-            case Host of
-                <<"s3.amazonaws.com">> ->
-                    <<Bucket/binary, ".s3.", Region/binary, ".amazonaws.com">>;
-                <<"s3.", _/binary>> ->
-                    %% Already has region, just add bucket
-                    <<Bucket/binary, ".", Host/binary>>;
-                _ ->
-                    %% Custom endpoint - add bucket prefix
-                    <<Bucket/binary, ".", Host/binary>>
-            end
-    end,
-    
+    VirtualHost =
+        case Bucket of
+            <<>> ->
+                %% No bucket - use original host (e.g., ListBuckets)
+                Host;
+            _ ->
+                %% Add bucket prefix to host
+                %% Check if host is s3.amazonaws.com (need to add region)
+                case Host of
+                    <<"s3.amazonaws.com">> ->
+                        <<Bucket/binary, ".s3.", Region/binary, ".amazonaws.com">>;
+                    <<"s3.", _/binary>> ->
+                        %% Already has region, just add bucket
+                        <<Bucket/binary, ".", Host/binary>>;
+                    _ ->
+                        %% Custom endpoint - add bucket prefix
+                        <<Bucket/binary, ".", Host/binary>>
+                end
+        end,
+
     %% Build path (key only for virtual-hosted)
-    Path = case Key of
-        <<>> -> <<"/">>;
-        _ -> <<"/", Key/binary>>
-    end,
-    
+    Path =
+        case Key of
+            <<>> -> <<"/">>;
+            _ -> <<"/", Key/binary>>
+        end,
+
     <<Scheme/binary, "://", VirtualHost/binary, Path/binary, QueryString/binary>>.
 
 %% @doc Parse endpoint into scheme and host
@@ -137,10 +142,11 @@ parse_endpoint(Endpoint) ->
 -spec strip_port_and_path(binary()) -> binary().
 strip_port_and_path(HostWithPort) ->
     %% Remove path if present
-    Host1 = case binary:split(HostWithPort, <<"/">>) of
-        [H | _] -> H;
-        [] -> HostWithPort
-    end,
+    Host1 =
+        case binary:split(HostWithPort, <<"/">>) of
+            [H | _] -> H;
+            [] -> HostWithPort
+        end,
     %% Keep port for now (needed for localhost:5050 etc)
     Host1.
 
@@ -167,23 +173,28 @@ calculate_content_md5(Body) when is_binary(Body) ->
 is_localhost(Endpoint) ->
     {_, Host} = parse_endpoint(Endpoint),
     %% Strip port if present
-    HostOnly = case binary:split(Host, <<":">>) of
-        [H | _] -> H;
-        [] -> Host
-    end,
+    HostOnly =
+        case binary:split(Host, <<":">>) of
+            [H | _] -> H;
+            [] -> Host
+        end,
     is_localhost_host(HostOnly).
 
 %% @doc Check if host is localhost or IP address
 -spec is_localhost_host(binary()) -> boolean().
-is_localhost_host(<<"localhost">>) -> true;
-is_localhost_host(<<"127.0.0.1">>) -> true;
-is_localhost_host(<<"0.0.0.0">>) -> true;
-is_localhost_host(<<"::1">>) -> true;
+is_localhost_host(<<"localhost">>) ->
+    true;
+is_localhost_host(<<"127.0.0.1">>) ->
+    true;
+is_localhost_host(<<"0.0.0.0">>) ->
+    true;
+is_localhost_host(<<"::1">>) ->
+    true;
 is_localhost_host(Host) ->
     %% Check if it's an IP address (contains only digits and dots)
     is_ip_address(Host) orelse
-    %% Check for docker-style hostnames
-    is_docker_host(Host).
+        %% Check for docker-style hostnames
+        is_docker_host(Host).
 
 %% @doc Check if string looks like an IP address
 -spec is_ip_address(binary()) -> boolean().

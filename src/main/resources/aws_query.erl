@@ -38,22 +38,23 @@ encode(Action, Params) when is_map(Params) ->
 -spec encode(binary() | string(), map(), binary() | string() | undefined) -> binary().
 encode(Action, Params, Version) when is_map(Params) ->
     ActionStr = to_query_value(Action),
-    
+
     %% Flatten nested parameters
     FlatParams = flatten_params(Params),
-    
+
     %% Build query parameters list
     BaseParams = [{<<"Action">>, ActionStr}],
-    
+
     %% Add version if provided
-    ParamsWithVersion = case Version of
-        undefined -> BaseParams;
-        V -> [{<<"Version">>, to_query_value(V)} | BaseParams]
-    end,
-    
+    ParamsWithVersion =
+        case Version of
+            undefined -> BaseParams;
+            V -> [{<<"Version">>, to_query_value(V)} | BaseParams]
+        end,
+
     %% Combine with flattened parameters
     AllParams = ParamsWithVersion ++ FlatParams,
-    
+
     %% Encode as query string
     encode_query_string(AllParams).
 
@@ -67,14 +68,19 @@ flatten_params(Params) when is_map(Params) ->
 %% @doc Flatten parameters with a prefix
 -spec flatten_params(map(), binary()) -> [{binary(), binary()}].
 flatten_params(Params, Prefix) when is_map(Params) ->
-    maps:fold(fun(Key, Value, Acc) ->
-        KeyBin = to_query_key(Key),
-        FullKey = case Prefix of
-            <<>> -> KeyBin;
-            _ -> <<Prefix/binary, ".", KeyBin/binary>>
+    maps:fold(
+        fun(Key, Value, Acc) ->
+            KeyBin = to_query_key(Key),
+            FullKey =
+                case Prefix of
+                    <<>> -> KeyBin;
+                    _ -> <<Prefix/binary, ".", KeyBin/binary>>
+                end,
+            flatten_value(FullKey, Value, Acc)
         end,
-        flatten_value(FullKey, Value, Acc)
-    end, [], Params).
+        [],
+        Params
+    ).
 
 %% @doc Flatten a single value
 -spec flatten_value(binary(), term(), [{binary(), binary()}]) -> [{binary(), binary()}].
@@ -92,12 +98,16 @@ flatten_value(Key, Value, Acc) when is_list(Value) ->
             [{Key, list_to_binary(Value)} | Acc];
         false ->
             %% It's a list of items - use 1-based indexing
-            {_, IndexedParams} = lists:foldl(fun(Item, {Index, InnerAcc}) ->
-                IndexBin = integer_to_binary(Index),
-                IndexedKey = <<Key/binary, ".", IndexBin/binary>>,
-                NewAcc = flatten_value(IndexedKey, Item, InnerAcc),
-                {Index + 1, NewAcc}
-            end, {1, Acc}, Value),
+            {_, IndexedParams} = lists:foldl(
+                fun(Item, {Index, InnerAcc}) ->
+                    IndexBin = integer_to_binary(Index),
+                    IndexedKey = <<Key/binary, ".", IndexBin/binary>>,
+                    NewAcc = flatten_value(IndexedKey, Item, InnerAcc),
+                    {Index + 1, NewAcc}
+                end,
+                {1, Acc},
+                Value
+            ),
             IndexedParams
     end;
 flatten_value(Key, Value, Acc) ->
@@ -136,17 +146,22 @@ to_query_value(false) ->
 
 %% @doc Check if a list is a string (list of characters)
 -spec is_string_list(list()) -> boolean().
-is_string_list([]) -> true;
-is_string_list([H|T]) when is_integer(H), H >= 0, H =< 1114111 ->
+is_string_list([]) ->
+    true;
+is_string_list([H | T]) when is_integer(H), H >= 0, H =< 1114111 ->
     is_string_list(T);
-is_string_list(_) -> false.
+is_string_list(_) ->
+    false.
 
 %% @doc Encode a list of {Key, Value} tuples as URL-encoded query string
 -spec encode_query_string([{binary(), binary()}]) -> binary().
 encode_query_string(Params) ->
-    Pairs = lists:map(fun({K, V}) ->
-        EncodedK = uri_string:quote(K),
-        EncodedV = uri_string:quote(V),
-        <<EncodedK/binary, "=", EncodedV/binary>>
-    end, Params),
+    Pairs = lists:map(
+        fun({K, V}) ->
+            EncodedK = uri_string:quote(K),
+            EncodedV = uri_string:quote(V),
+            <<EncodedK/binary, "=", EncodedV/binary>>
+        end,
+        Params
+    ),
     iolist_to_binary(lists:join(<<"&">>, Pairs)).

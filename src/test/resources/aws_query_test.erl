@@ -130,7 +130,9 @@ encode_sqs_message_attributes_test() ->
     Result = aws_query:encode(<<"SendMessage">>, Params),
     ?assert(binary:match(Result, <<"MessageAttribute.1.Name=CustomAttribute">>) =/= nomatch),
     ?assert(binary:match(Result, <<"MessageAttribute.1.Value.DataType=String">>) =/= nomatch),
-    ?assert(binary:match(Result, <<"MessageAttribute.1.Value.StringValue=CustomValue">>) =/= nomatch).
+    ?assert(
+        binary:match(Result, <<"MessageAttribute.1.Value.StringValue=CustomValue">>) =/= nomatch
+    ).
 
 %%--------------------------------------------------------------------
 %% Test: URL encoding of special characters

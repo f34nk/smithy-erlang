@@ -49,55 +49,61 @@ sign_request(Method, Url, Headers, Body, Client) ->
     %% Extract credentials - handle both flat and nested formats
     %% Flat: #{access_key_id => ..., secret_access_key => ...}
     %% Nested: #{credentials => #{access_key_id => ..., secret_access_key => ...}}
-    {AccessKeyId, SecretAccessKey, SessionToken} = case maps:get(credentials, Client, undefined) of
-        undefined ->
-            %% Flat format
-            {maps:get(access_key_id, Client),
-             maps:get(secret_access_key, Client),
-             maps:get(session_token, Client, undefined)};
-        Creds when is_map(Creds) ->
-            %% Nested format
-            {maps:get(access_key_id, Creds),
-             maps:get(secret_access_key, Creds),
-             maps:get(session_token, Creds, undefined)}
-    end,
-    
+    {AccessKeyId, SecretAccessKey, SessionToken} =
+        case maps:get(credentials, Client, undefined) of
+            undefined ->
+                %% Flat format
+                {
+                    maps:get(access_key_id, Client),
+                    maps:get(secret_access_key, Client),
+                    maps:get(session_token, Client, undefined)
+                };
+            Creds when is_map(Creds) ->
+                %% Nested format
+                {
+                    maps:get(access_key_id, Creds),
+                    maps:get(secret_access_key, Creds),
+                    maps:get(session_token, Creds, undefined)
+                }
+        end,
+
     %% Get region (required)
     Region = maps:get(region, Client),
-    
+
     %% Derive service from URL if not provided
     Service = maps:get(service, Client, derive_service_from_url(Url)),
-    
+
     %% Generate timestamp
     DateTime = iso8601_datetime(),
     Date = binary:part(DateTime, 0, 8),
-    
+
     %% Add X-Amz-Date header (required by AWS)
     HeadersWithDate = [{<<"X-Amz-Date">>, DateTime} | Headers],
-    
+
     %% Add X-Amz-Security-Token if using temporary credentials
-    HeadersWithToken = case SessionToken of
-        undefined -> 
-            HeadersWithDate;
-        Token -> 
-            [{<<"X-Amz-Security-Token">>, Token} | HeadersWithDate]
-    end,
-    
+    HeadersWithToken =
+        case SessionToken of
+            undefined ->
+                HeadersWithDate;
+            Token ->
+                [{<<"X-Amz-Security-Token">>, Token} | HeadersWithDate]
+        end,
+
     %% Step 1: Create canonical request
     CanonicalRequest = create_canonical_request(Method, Url, HeadersWithToken, Body),
-    
+
     %% Step 2: Create string to sign
     CredentialScope = credential_scope(DateTime, Region, Service),
     StringToSign = create_string_to_sign(DateTime, CredentialScope, CanonicalRequest),
-    
+
     %% Step 3: Calculate signature
     SigningKey = derive_signing_key(SecretAccessKey, Date, Region, Service),
     Signature = calculate_signature(SigningKey, StringToSign),
-    
+
     %% Step 4: Format Authorization header
     SignedHeaders = signed_header_list(HeadersWithToken),
     AuthHeader = format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature),
-    
+
     %% Step 5: Add Authorization header and return
     {ok, [{<<"Authorization">>, AuthHeader} | HeadersWithToken]}.
 
@@ -111,12 +117,13 @@ sign_request(Method, Url, Headers, Body, Client) ->
 -spec derive_service_from_url(binary()) -> binary().
 derive_service_from_url(Url) ->
     %% Parse the URL to get the host
-    Host = case Url of
-        <<"https://", Rest/binary>> -> extract_host(Rest);
-        <<"http://", Rest/binary>> -> extract_host(Rest);
-        _ -> extract_host(Url)
-    end,
-    
+    Host =
+        case Url of
+            <<"https://", Rest/binary>> -> extract_host(Rest);
+            <<"http://", Rest/binary>> -> extract_host(Rest);
+            _ -> extract_host(Url)
+        end,
+
     %% Try to extract service from host
     %% Common patterns:
     %% - s3.amazonaws.com -> s3
@@ -126,18 +133,24 @@ derive_service_from_url(Url) ->
     %% - moto:5050 -> s3 (local testing)
     %% - localhost:5050 -> s3 (local testing)
     case Host of
-        <<"s3.", _/binary>> -> <<"s3">>;
-        <<"s3-", _/binary>> -> <<"s3">>;
+        <<"s3.", _/binary>> ->
+            <<"s3">>;
+        <<"s3-", _/binary>> ->
+            <<"s3">>;
         <<_/binary>> = H ->
             %% Check if host contains a known service
             case binary:match(H, <<".s3.">>) of
-                {_, _} -> <<"s3">>;
+                {_, _} ->
+                    <<"s3">>;
                 nomatch ->
                     %% Try to extract service from subdomain
                     case binary:split(H, <<".">>) of
-                        [Service, <<"amazonaws">>, <<"com">>] -> Service;
-                        [Service, _Region, <<"amazonaws">>, <<"com">>] -> Service;
-                        [_Bucket, Service, _Region, <<"amazonaws">>, <<"com">>] -> Service;
+                        [Service, <<"amazonaws">>, <<"com">>] ->
+                            Service;
+                        [Service, _Region, <<"amazonaws">>, <<"com">>] ->
+                            Service;
+                        [_Bucket, Service, _Region, <<"amazonaws">>, <<"com">>] ->
+                            Service;
                         _ ->
                             %% Default to s3 for local/unknown endpoints
                             <<"s3">>
@@ -182,36 +195,45 @@ extract_host(UrlRest) ->
 create_canonical_request(Method, Uri, Headers, Body) ->
     %% 1. HTTP method (already canonical - uppercase)
     CanonicalMethod = Method,
-    
+
     %% 2. Canonical URI (path component, URL-encoded except /)
     ParsedUri = uri_string:parse(Uri),
-    CanonicalUri = case maps:get(path, ParsedUri, <<>>) of
-        <<>> -> <<"/">>;  %% Empty path becomes /
-        Path -> Path      %% Path is already URL-encoded
-    end,
-    
+    CanonicalUri =
+        case maps:get(path, ParsedUri, <<>>) of
+            %% Empty path becomes /
+            <<>> -> <<"/">>;
+            %% Path is already URL-encoded
+            Path -> Path
+        end,
+
     %% 3. Canonical query string (sorted by key, URL-encoded)
-    CanonicalQuery = case maps:get(query, ParsedUri, undefined) of
-        undefined -> <<>>;
-        Query -> canonicalize_query_string(Query)
-    end,
-    
+    CanonicalQuery =
+        case maps:get(query, ParsedUri, undefined) of
+            undefined -> <<>>;
+            Query -> canonicalize_query_string(Query)
+        end,
+
     %% 4. Canonical headers (lowercase, sorted, trimmed)
     CanonicalHeaders = canonicalize_headers(Headers),
-    
+
     %% 5. Signed headers (semicolon-separated list of header names)
     SignedHeaders = signed_header_list(Headers),
-    
+
     %% 6. Hashed payload (SHA256 in lowercase hex)
     HashedPayload = hash_sha256(Body),
-    
+
     %% Build canonical request with newlines between components
     <<
-        CanonicalMethod/binary, "\n",
-        CanonicalUri/binary, "\n",
-        CanonicalQuery/binary, "\n",
-        CanonicalHeaders/binary, "\n",
-        SignedHeaders/binary, "\n",
+        CanonicalMethod/binary,
+        "\n",
+        CanonicalUri/binary,
+        "\n",
+        CanonicalQuery/binary,
+        "\n",
+        CanonicalHeaders/binary,
+        "\n",
+        SignedHeaders/binary,
+        "\n",
         HashedPayload/binary
     >>.
 
@@ -235,10 +257,10 @@ canonicalize_query_string(<<"?", Query/binary>>) ->
 canonicalize_query_string(Query) when is_binary(Query) ->
     %% Parse query string into list of {Key, Value} pairs
     Params = uri_string:dissect_query(Query),
-    
+
     %% Sort by key
     SortedParams = lists:sort(fun({K1, _}, {K2, _}) -> K1 =< K2 end, Params),
-    
+
     %% URL-encode and format as key=value
     EncodedParams = lists:map(
         fun({Key, Value}) ->
@@ -250,7 +272,7 @@ canonicalize_query_string(Query) when is_binary(Query) ->
         end,
         SortedParams
     ),
-    
+
     %% Join with &
     join_binaries(EncodedParams, <<"&">>).
 
@@ -275,10 +297,10 @@ canonicalize_headers(Headers) ->
         end,
         Headers
     ),
-    
+
     %% Sort by header name
     Sorted = lists:sort(fun({N1, _}, {N2, _}) -> N1 =< N2 end, Normalized),
-    
+
     %% Format as name:value\n for each header
     Formatted = lists:map(
         fun({Name, Value}) ->
@@ -286,7 +308,7 @@ canonicalize_headers(Headers) ->
         end,
         Sorted
     ),
-    
+
     %% Join all headers
     iolist_to_binary(Formatted).
 
@@ -303,10 +325,10 @@ signed_header_list(Headers) ->
         fun({Name, _Value}) -> string:lowercase(Name) end,
         Headers
     ),
-    
+
     %% Sort and remove duplicates
     Sorted = lists:sort(lists:usort(Names)),
-    
+
     %% Join with semicolon
     join_binaries(Sorted, <<";">>).
 
@@ -350,11 +372,14 @@ hash_sha256(Data) ->
 create_string_to_sign(DateTime, CredentialScope, CanonicalRequest) ->
     Algorithm = <<"AWS4-HMAC-SHA256">>,
     HashedCanonicalRequest = hash_sha256(CanonicalRequest),
-    
+
     <<
-        Algorithm/binary, "\n",
-        DateTime/binary, "\n",
-        CredentialScope/binary, "\n",
+        Algorithm/binary,
+        "\n",
+        DateTime/binary,
+        "\n",
+        CredentialScope/binary,
+        "\n",
         HashedCanonicalRequest/binary
     >>.
 
@@ -398,7 +423,7 @@ credential_scope(DateTime, Region, Service) ->
 iso8601_datetime() ->
     %% Get current UTC time
     {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:universal_time(),
-    
+
     %% Format as YYYYMMDDTHHMMSSZ
     iolist_to_binary(
         io_lib:format(
@@ -441,16 +466,16 @@ iso8601_datetime() ->
 derive_signing_key(SecretAccessKey, Date, Region, Service) ->
     %% Step 1: Prepend "AWS4" to secret key and hash with date
     DateKey = hmac_sha256(<<"AWS4", SecretAccessKey/binary>>, Date),
-    
+
     %% Step 2: Hash with region
     RegionKey = hmac_sha256(DateKey, Region),
-    
+
     %% Step 3: Hash with service
     ServiceKey = hmac_sha256(RegionKey, Service),
-    
+
     %% Step 4: Hash with "aws4_request" terminator
     SigningKey = hmac_sha256(ServiceKey, <<"aws4_request">>),
-    
+
     SigningKey.
 
 %% @doc Calculate signature from string to sign
@@ -469,7 +494,7 @@ derive_signing_key(SecretAccessKey, Date, Region, Service) ->
 calculate_signature(SigningKey, StringToSign) ->
     %% Sign the string to sign
     Signature = hmac_sha256(SigningKey, StringToSign),
-    
+
     %% Convert to lowercase hex
     binary:encode_hex(Signature, lowercase).
 
@@ -513,9 +538,16 @@ hmac_sha256(Key, Data) ->
 format_auth_header(AccessKeyId, CredentialScope, SignedHeaders, Signature) ->
     <<
         "AWS4-HMAC-SHA256 ",
-        "Credential=", AccessKeyId/binary, "/", CredentialScope/binary, ", ",
-        "SignedHeaders=", SignedHeaders/binary, ", ",
-        "Signature=", Signature/binary
+        "Credential=",
+        AccessKeyId/binary,
+        "/",
+        CredentialScope/binary,
+        ", ",
+        "SignedHeaders=",
+        SignedHeaders/binary,
+        ", ",
+        "Signature=",
+        Signature/binary
     >>.
 
 %%====================================================================
