@@ -95,3 +95,8 @@ examples/clean:
 		make clean ; \
 		cd - ; \
 	done
+
+.PHONY: demo
+demo:
+	cd examples/aws-demo && \
+	make docker/test

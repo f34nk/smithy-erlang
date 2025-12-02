@@ -73,6 +73,14 @@ All examples include comprehensive test suites using meck for HTTP mocking. Test
 - Field validation
 - Response parsing and error handling
 
+Run end to end demo:
+
+```bash
+make demo
+```
+
+The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto).
+And acsesses the bucket using a smithy-erlang generated `s3_client`.
 
 ## Basic Usage
 

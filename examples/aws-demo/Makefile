@@ -3,7 +3,7 @@
 YELLOW=\033[1;33m
 NC=\033[0m
 
-all: clean copy generate compile analyze test docker/clean docker/test
+all: clean copy generate compile analyze test
 
 copy:
 	#
@@ -52,7 +52,7 @@ clean:
 	# remove copied files
 	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl test/aws_s3_test.erl
 
-docker/test: docker/clean
+docker/test: clean copy generate compile docker/clean
 	docker compose build && docker compose run --rm test
 
 docker/clean:
