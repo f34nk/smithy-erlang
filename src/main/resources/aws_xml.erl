@@ -80,18 +80,19 @@ encode_value(Value) when is_list(Value) ->
     end;
 encode_value(Value) when is_binary(Value) ->
     [binary_to_list(Value)];
-encode_value(Value) when is_atom(Value) ->
-    [atom_to_list(Value)];
 encode_value(Value) when is_integer(Value) ->
     [integer_to_list(Value)];
 encode_value(Value) when is_float(Value) ->
     [float_to_list(Value)];
+%% Specific atom values must come before generic is_atom clause
 encode_value(true) ->
     ["true"];
 encode_value(false) ->
     ["false"];
 encode_value(undefined) ->
-    [].
+    [];
+encode_value(Value) when is_atom(Value) ->
+    [atom_to_list(Value)].
 
 %% @doc Decode XML binary to Erlang map
 %%
