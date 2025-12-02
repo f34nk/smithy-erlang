@@ -207,7 +207,8 @@ public class AwsQueryProtocolTest extends AwsProtocolTestBase {
         String clientFile = "src/" + getModuleName() + ".erl";
         
         // Verify AWS SigV4 signing is integrated
-        assertGeneratedCodeContains(clientFile, "aws_sigv4:sign_request(Client, Method, Url, Headers, Payload)");
+        // Argument order: (Method, Url, Headers, Payload, Client/Credentials)
+        assertGeneratedCodeContains(clientFile, "aws_sigv4:sign_request(Method, Url, Headers, Payload, Client)");
     }
     
     @Test
