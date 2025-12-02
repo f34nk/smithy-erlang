@@ -2,7 +2,13 @@ $version: "2.0"
 
 namespace com.example.s3.test
 
+use aws.protocols#restXml
+use smithy.api#xmlNamespace
+
 /// Minimal S3 subset for testing AWS features
+/// Uses REST-XML protocol like real AWS S3
+@restXml
+@xmlNamespace(uri: "http://s3.amazonaws.com/doc/2006-03-01/")
 service S3Client {
     version: "2024-10-31"
     operations: [
