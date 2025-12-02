@@ -35,9 +35,7 @@ public final class ProtocolFactory {
                 return new Ec2QueryProtocol();
                 
             case REST_XML:
-                throw new UnsupportedOperationException(
-                    "REST-XML protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new RestXmlProtocol();
                 
             case REST_JSON_1:
                 throw new UnsupportedOperationException(
