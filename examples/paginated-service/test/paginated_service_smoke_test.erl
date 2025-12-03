@@ -38,7 +38,10 @@ pagination_helpers_exported_test() ->
 
 client_creation_test() ->
     %% Verify client creation works
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     Result = paginated_service:new(Config),
     ?assertMatch({ok, _}, Result),
     {ok, Client} = Result,
@@ -71,7 +74,10 @@ pagination_helper_count_test() ->
 
 example_usage_basic_test() ->
     %% Example: Basic usage of pagination helper
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     Input = #{},
     
     %% Expected usage (would make HTTP calls):
@@ -82,7 +88,10 @@ example_usage_basic_test() ->
 
 example_usage_with_options_test() ->
     %% Example: Usage with retry options
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     Input = #{},
     _Options = #{
         enable_retry => true,
@@ -98,7 +107,10 @@ example_usage_with_options_test() ->
 
 example_usage_with_page_size_test() ->
     %% Example: Usage with page size control
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     Input = #{<<"maxResults">> => 100},
     
     %% Expected usage (would make HTTP calls):

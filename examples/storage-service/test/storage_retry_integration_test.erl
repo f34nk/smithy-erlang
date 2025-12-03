@@ -10,7 +10,10 @@
 %%--------------------------------------------------------------------
 two_arity_wrapper_test() ->
     %% Mock client and input
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     Input = #{<<"locationId">> => <<"loc-123">>},
     
     %% This would make an actual HTTP request, so we just verify

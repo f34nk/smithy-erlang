@@ -50,7 +50,10 @@ retry_storage_operation_test() ->
         end
     end,
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     Input = #{<<"locationId">> => <<"loc-456">>},
     
     %% Retry the operation
@@ -190,7 +193,9 @@ practical_usage_pattern_test() ->
     %% Example: Wrapping a client call with retry
     Client = #{
         endpoint => <<"https://api.example.com">>,
-        region => <<"us-east-1">>
+        region => <<"us-east-1">>,
+        access_key_id => <<"test_key">>,
+        secret_access_key => <<"test_secret">>
     },
     
     Input = #{

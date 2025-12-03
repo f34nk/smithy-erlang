@@ -90,7 +90,10 @@ module_loads_test() ->
 %%--------------------------------------------------------------------
 
 client_creation_test() ->
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     ?assertMatch(#{endpoint := <<"https://api.example.com">>}, Client).
 
@@ -135,7 +138,10 @@ single_page_test() ->
             http_ok_response(#{<<"items">> => Items})
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -181,7 +187,10 @@ multi_page_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -203,7 +212,10 @@ empty_result_test() ->
             http_ok_response(#{<<"items">> => []})
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -226,7 +238,10 @@ empty_token_test() ->
             http_ok_response(#{<<"items">> => Items, <<"nextToken">> => <<>>})
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -247,7 +262,10 @@ error_on_first_page_test() ->
             http_error_response(500, <<"Internal Server Error">>)
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -275,7 +293,10 @@ error_on_second_page_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -297,7 +318,10 @@ pagination_with_options_test() ->
             http_ok_response(#{<<"items">> => Items})
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     Options = #{max_retries => 5, initial_backoff => 100},
@@ -331,7 +355,10 @@ page_size_pagination_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{<<"maxResults">> => 2},
     
@@ -368,7 +395,10 @@ token_propagation_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -413,7 +443,10 @@ large_result_set_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
@@ -451,7 +484,10 @@ order_preservation_test() ->
             end
         end),
     
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = paginated_service:new(Config),
     Input = #{},
     
