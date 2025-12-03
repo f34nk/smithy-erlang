@@ -38,9 +38,7 @@ public final class ProtocolFactory {
                 return new RestXmlProtocol();
                 
             case REST_JSON_1:
-                throw new UnsupportedOperationException(
-                    "REST-JSON protocol not yet implemented. " +
-                    "This protocol will be added later");
+                return new RestJsonProtocol();
                 
             default:
                 throw new UnsupportedOperationException(
