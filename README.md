@@ -1,3 +1,5 @@
+# WORK IN PROGRESS
+
 # Smithy Erlang Code Generator
 
 [![CI](https://github.com/f34nk/smithy-erlang/actions/workflows/ci.yml/badge.svg)](https://github.com/f34nk/smithy-erlang/actions/workflows/ci.yml)
@@ -20,6 +22,7 @@ https://smithy.io/2.0/index.html
 
 ### Protocol Support
 - restJson1 protocol with JSON serialization/deserialization
+- restXml protocol with XML serialization/deserialization
 - HTTP protocol bindings: @httpLabel, @httpHeader, @httpQuery, @httpPayload
 - URI template parsing and parameter substitution
 - Field validation for @required trait
@@ -63,15 +66,7 @@ Run all example builds and tests:
 ```bash
 make examples
 ```
-
-All examples include comprehensive test suites using meck for HTTP mocking. Tests verify:
-- Request construction with proper HTTP bindings
-- SigV4 signature calculation
-- Retry logic with exponential backoff
-- Pagination helper functions
-- Union and enum type handling
-- Field validation
-- Response parsing and error handling
+See [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples)
 
 Run end to end demo:
 
@@ -79,8 +74,9 @@ Run end to end demo:
 make demo
 ```
 
-The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto).
-And acsesses the bucket using a smithy-erlang generated `s3_client`.
+The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto) and executes functions from the generated `s3_client`.
+
+See [aws-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/aws-demo/src/aws_demo_app.erl)
 
 ## Basic Usage
 
@@ -96,7 +92,7 @@ Create `smithy-build.json`:
   },
   "plugins": {
     "erlang-client-codegen": {
-      "service": "com.example#MyService",
+      "service": "com.example#MyClient",
       "module": "my_client",
       "outputDir": "src/generated"
     }
@@ -111,11 +107,14 @@ smithy build
 ```
 
 Generated files in `src/generated/`:
-- `my_client.erl` - Single module with types, records, and operation functions
+- `my_client.erl` - A single module with types, records, and operation functions (generated from the smithy model)
 - `aws_sigv4.erl` - AWS Signature V4 request signing
 - `aws_credentials.erl` - Credential provider chain
 - `aws_retry.erl` - Retry logic with exponential backoff
 - `aws_config.erl` - AWS configuration management
+- `aws_xml.erl` - XML parsing for REST-XML protocol
+- `aws_query.erl` - AWS Query protocol support
+- `aws_s3.erl` - S3-specific URL routing utilities
 
 ## AWS SDK Support Status
 
@@ -132,7 +131,6 @@ Generated files in `src/generated/`:
 - Enum types as atoms with validation
 
 ### Missing AWS Features
-- XML protocol
 - Streaming support for large payloads
 - Waiters for long-running operations
 - Presigned URL generation
