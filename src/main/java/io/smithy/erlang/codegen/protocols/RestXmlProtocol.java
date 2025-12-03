@@ -506,12 +506,22 @@ public class RestXmlProtocol implements Protocol {
             // Extract @httpHeader members from response
             // Handle response body based on @httpPayload
             if (!outputPayloadMember.isPresent()) {
-                // No @httpPayload - parse entire response as XML
+                // No @httpPayload - parse entire response as XML (if not empty)
+                // Some operations (like S3 PutObject) return empty body with headers only
+                writer.write("Output0 = case ResponseBody of");
+                writer.indent();
+                writer.write("<<>> -> #{};");
+                writer.write("_ ->");
+                writer.indent();
                 writer.write("case aws_xml:decode(ResponseBody) of");
                 writer.indent();
-                writer.write("{ok, XmlMap} ->");
-                writer.indent();
-                writer.write("Output0 = XmlMap,");
+                writer.write("{ok, XmlMap} -> XmlMap;");
+                writer.write("{error, _} -> #{}");
+                writer.dedent();
+                writer.write("end");
+                writer.dedent();
+                writer.dedent();
+                writer.write("end,");
             } else {
                 // @httpPayload present - handle by type
                 MemberShape payload = outputPayloadMember.get();
@@ -616,21 +626,11 @@ public class RestXmlProtocol implements Protocol {
                 writer.write("end,");
             }
             
-            // Close the XML decode case if needed
+            // Return the final output
+            // Note: When !outputPayloadMember.isPresent(), we use inline case expression
+            // for ResponseBody handling (handles empty bodies gracefully), so no case to close
             String finalOutputVar = "Output" + httpHeaderOutputMembers.size();
-            if (!outputPayloadMember.isPresent()) {
-                writer.write("{ok, $L};", finalOutputVar);
-                writer.dedent();
-                writer.write("{error, DecodeError} ->");
-                writer.indent();
-                writer.write("{error, {xml_decode_error, DecodeError}}");
-                writer.dedent();
-                writer.dedent();
-                writer.write("end;");
-            } else {
-                // Blob or string payload - already handled above
-                writer.write("{ok, $L};", finalOutputVar);
-            }
+            writer.write("{ok, $L};", finalOutputVar);
         }
     }
     
