@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] - AWS Protocol Support Complete
+
+### Added
+- REST-JSON protocol implementation for API Gateway-style services
+- All 5 AWS protocols now supported (awsJson1.0, awsJson1.1, awsQuery, ec2Query, restXml, restJson1)
+
 ## [Unreleased] - AWS SDK Support
 
 ### Added

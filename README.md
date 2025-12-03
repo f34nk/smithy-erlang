@@ -21,8 +21,12 @@ https://smithy.io/2.0/index.html
 - JSON AST file support
 
 ### Protocol Support
-- restJson1 protocol with JSON serialization/deserialization
-- restXml protocol with XML serialization/deserialization
+- All 5 AWS protocols supported:
+  - awsJson1.0 and awsJson1.1 (DynamoDB, Lambda, Kinesis)
+  - awsQuery (SQS, SNS, RDS)
+  - ec2Query (EC2)
+  - restXml (S3, CloudFront, Route 53)
+  - restJson1 (API Gateway, Step Functions)
 - HTTP protocol bindings: @httpLabel, @httpHeader, @httpQuery, @httpPayload
 - URI template parsing and parameter substitution
 - Field validation for @required trait
