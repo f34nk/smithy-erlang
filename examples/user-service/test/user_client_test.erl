@@ -56,7 +56,10 @@ test_get_user_success() ->
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, Result} = user_client:get_user(Client, #{
         <<"userId">> => <<"user-123">>
     }),
@@ -89,7 +92,10 @@ test_get_user_http_call() ->
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, _Result} = user_client:get_user(Client, #{
         <<"userId">> => <<"user-123">>
     }),
@@ -108,16 +114,17 @@ test_get_user_not_found() ->
         {ok, {{undefined, 404, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
-    {error, {StatusCode, ErrorData}} = user_client:get_user(Client, #{
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
+    {error, {aws_error, StatusCode, _Code, Message}} = user_client:get_user(Client, #{
         <<"userId">> => <<"user-999">>
     }),
     
     %% Verify error response
     ?assertEqual(404, StatusCode),
-    ?assert(is_map(ErrorData)),
-    ?assertEqual(<<"User not found">>, maps:get(<<"message">>, ErrorData)),
-    ?assertEqual(<<"user-999">>, maps:get(<<"userId">>, ErrorData)).
+    ?assertEqual(<<"User not found">>, Message).
 
 %% Test: CreateUser returns successful response
 test_create_user_success() ->
@@ -140,7 +147,10 @@ test_create_user_success() ->
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, Result} = user_client:create_user(Client, #{
         <<"name">> => <<"Jane Smith">>,
         <<"email">> => <<"jane@example.com">>,
@@ -168,10 +178,9 @@ test_create_user_http_call() ->
         ?assert(string:str(Url, "https://api.example.com/users") > 0),
         %% Verify content type
         ?assertEqual("application/json", ContentType),
-        %% Verify body contains user data
-        ?assert(is_list(Body)),
-        ?assert(length(Body) > 0),
-        BodyMap = jsx:decode(list_to_binary(Body), [return_maps]),
+        %% Verify body contains user data (may be binary or list)
+        BodyBinary = if is_binary(Body) -> Body; is_list(Body) -> list_to_binary(Body) end,
+        BodyMap = jsx:decode(BodyBinary, [return_maps]),
         ?assert(maps:is_key(<<"name">>, BodyMap)),
         ?assert(maps:is_key(<<"email">>, BodyMap)),
         %% Verify headers
@@ -179,7 +188,10 @@ test_create_user_http_call() ->
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, _Result} = user_client:create_user(Client, #{
         <<"name">> => <<"Jane Smith">>,
         <<"email">> => <<"jane@example.com">>
@@ -202,12 +214,16 @@ test_create_user_with_optional_fields() ->
     
     meck:expect(httpc, request, fun(post, {_Url, _Headers, _ContentType, Body}, _HTTPOptions, _Options) ->
         %% Verify optional fields are included
-        BodyMap = jsx:decode(list_to_binary(Body), [return_maps]),
+        BodyBinary = if is_binary(Body) -> Body; is_list(Body) -> list_to_binary(Body) end,
+        BodyMap = jsx:decode(BodyBinary, [return_maps]),
         ?assertEqual(<<"inactive">>, maps:get(<<"status">>, BodyMap)),
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, Result} = user_client:create_user(Client, #{
         <<"name">> => <<"Bob Wilson">>,
         <<"email">> => <<"bob@example.com">>,
@@ -229,17 +245,18 @@ test_create_user_invalid_data() ->
         {ok, {{undefined, 400, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
-    {error, {StatusCode, ErrorData}} = user_client:create_user(Client, #{
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
+    {error, {aws_error, StatusCode, _Code, Message}} = user_client:create_user(Client, #{
         <<"name">> => <<"Test User">>,
         <<"email">> => <<"invalid-email">>
     }),
     
     %% Verify error response
     ?assertEqual(400, StatusCode),
-    ?assert(is_map(ErrorData)),
-    ?assertEqual(<<"Invalid email format">>, maps:get(<<"message">>, ErrorData)),
-    ?assertEqual(<<"email">>, maps:get(<<"field">>, ErrorData)).
+    ?assertEqual(<<"Invalid email format">>, Message).
 
 %% Test: UpdateUser returns successful response
 test_update_user_success() ->
@@ -261,7 +278,10 @@ test_update_user_success() ->
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, Result} = user_client:update_user(Client, #{
         <<"userId">> => <<"user-123">>,
         <<"name">> => <<"John Updated">>,
@@ -286,23 +306,23 @@ test_update_user_http_call() ->
     meck:expect(httpc, request, fun(Method, {Url, Headers, ContentType, Body}, _HTTPOptions, _Options) ->
         %% Verify HTTP method
         ?assertEqual(put, Method),
-        %% Verify URL contains userId placeholder in path
-        ?assert(string:str(Url, "https://api.example.com/users/") > 0),
-        %% Note: Current implementation doesn't replace {userId} with actual value
-        %% This would need URI template parameter substitution in the generator
+        %% Verify URL contains userId in path (REST-style: /users/{userId})
+        ?assert(string:str(Url, "https://api.example.com/users/user-123") > 0),
         %% Verify content type
         ?assertEqual("application/json", ContentType),
-        %% Verify body is present and contains userId
-        ?assert(is_list(Body)),
-        ?assert(length(Body) > 0),
-        BodyMap = jsx:decode(list_to_binary(Body), [return_maps]),
-        ?assertEqual(<<"user-123">>, maps:get(<<"userId">>, BodyMap)),
+        %% Verify body contains update data (userId is in URL path, not body)
+        BodyBinary = if is_binary(Body) -> Body; is_list(Body) -> list_to_binary(Body) end,
+        BodyMap = jsx:decode(BodyBinary, [return_maps]),
+        ?assert(maps:is_key(<<"name">>, BodyMap)),
         %% Verify headers
         ?assert(is_list(Headers)),
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, _Result} = user_client:update_user(Client, #{
         <<"userId">> => <<"user-123">>,
         <<"name">> => <<"John Updated">>
@@ -323,16 +343,21 @@ test_update_user_partial_update() ->
     },
     ResponseBody = jsx:encode(MockResponse),
     
-    meck:expect(httpc, request, fun(put, {_Url, _Headers, _ContentType, Body}, _HTTPOptions, _Options) ->
-        %% Verify only updated fields are sent
-        BodyMap = jsx:decode(list_to_binary(Body), [return_maps]),
-        ?assertEqual(<<"user-123">>, maps:get(<<"userId">>, BodyMap)),
+    meck:expect(httpc, request, fun(put, {Url, _Headers, _ContentType, Body}, _HTTPOptions, _Options) ->
+        %% Verify userId is in URL path (REST-style)
+        ?assert(string:str(Url, "/users/user-123") > 0),
+        %% Verify only updated fields are sent in body
+        BodyBinary = if is_binary(Body) -> Body; is_list(Body) -> list_to_binary(Body) end,
+        BodyMap = jsx:decode(BodyBinary, [return_maps]),
         ?assertEqual(<<"John Partial">>, maps:get(<<"name">>, BodyMap)),
         %% Other fields should not be in the body (or can be omitted)
         {ok, {{undefined, 200, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
     {ok, Result} = user_client:update_user(Client, #{
         <<"userId">> => <<"user-123">>,
         <<"name">> => <<"John Partial">>
@@ -354,16 +379,18 @@ test_update_user_not_found() ->
         {ok, {{undefined, 404, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
-    {error, {StatusCode, ErrorData}} = user_client:update_user(Client, #{
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
+    {error, {aws_error, StatusCode, _Code, Message}} = user_client:update_user(Client, #{
         <<"userId">> => <<"user-999">>,
         <<"name">> => <<"New Name">>
     }),
     
     %% Verify error response
     ?assertEqual(404, StatusCode),
-    ?assert(is_map(ErrorData)),
-    ?assertEqual(<<"User not found">>, maps:get(<<"message">>, ErrorData)).
+    ?assertEqual(<<"User not found">>, Message).
 
 %% Test: UpdateUser handles 400 InvalidUserData error
 test_update_user_invalid_data() ->
@@ -377,21 +404,25 @@ test_update_user_invalid_data() ->
         {ok, {{undefined, 400, undefined}, [], ResponseBody}}
     end),
     
-    Client = #{endpoint => <<"https://api.example.com">>},
-    {error, {StatusCode, ErrorData}} = user_client:update_user(Client, #{
+    Client = #{endpoint => <<"https://api.example.com">>,
+              access_key_id => <<"test_key">>,
+              secret_access_key => <<"test_secret">>,
+              region => <<"us-east-1">>},
+    {error, {aws_error, StatusCode, _Code, Message}} = user_client:update_user(Client, #{
         <<"userId">> => <<"user-123">>,
         <<"age">> => -5
     }),
     
     %% Verify error response
     ?assertEqual(400, StatusCode),
-    ?assert(is_map(ErrorData)),
-    ?assertEqual(<<"Invalid age value">>, maps:get(<<"message">>, ErrorData)),
-    ?assertEqual(<<"age">>, maps:get(<<"field">>, ErrorData)).
+    ?assertEqual(<<"Invalid age value">>, Message).
 
 %% Test: Client creation works correctly
 test_client_creation() ->
-    Config = #{endpoint => <<"https://api.example.com">>},
+    Config = #{endpoint => <<"https://api.example.com">>,
+               access_key_id => <<"test_key">>,
+               secret_access_key => <<"test_secret">>,
+               region => <<"us-east-1">>},
     {ok, Client} = user_client:new(Config),
     
     ?assert(is_map(Client)),
