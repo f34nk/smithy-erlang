@@ -252,11 +252,13 @@ public class RestJsonProtocol implements Protocol {
                         String memberName = member.getMemberName();
                         String currentMapVar = "BodyMap" + bodyMemberIndex;
                         String nextMapVar = "BodyMap" + (bodyMemberIndex + 1);
+                        // Use unique variable name for each member to avoid "unsafe variable" error
+                        String valVar = "BVal" + bodyMemberIndex;
                         writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of",
                                 nextMapVar, memberName);
                         writer.indent();
                         writer.write("undefined -> $L;", currentMapVar);
-                        writer.write("Val -> $L#{<<\"$L\">> => Val}", currentMapVar, memberName);
+                        writer.write("$L -> $L#{<<\"$L\">> => $L}", valVar, currentMapVar, memberName, valVar);
                         writer.dedent();
                         writer.write("end,");
                         bodyMemberIndex++;
@@ -448,7 +450,7 @@ public class RestJsonProtocol implements Protocol {
                 writer.write("case ResponseBody of");
                 writer.indent();
                 writer.write("<<>> -> {ok, #{}};");
-                writer.write("<<\"{}\">\\> -> {ok, #{}};");
+                writer.write("<<\"{}\">> -> {ok, #{}};");
                 writer.write("_ ->");
                 writer.indent();
                 writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
@@ -478,7 +480,7 @@ public class RestJsonProtocol implements Protocol {
                     writer.write("case ResponseBody of");
                     writer.indent();
                     writer.write("<<>> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
-                    writer.write("<<\"{}\">\\> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
+                    writer.write("<<\"{}\">> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
                     writer.write("_ ->");
                     writer.indent();
                     writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
@@ -503,7 +505,7 @@ public class RestJsonProtocol implements Protocol {
                 writer.write("Output0Result = case ResponseBody of");
                 writer.indent();
                 writer.write("<<>> -> {ok, #{}};");
-                writer.write("<<\"{}\">\\> -> {ok, #{}};");
+                writer.write("<<\"{}\">> -> {ok, #{}};");
                 writer.write("_ ->");
                 writer.indent();
                 writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
@@ -537,7 +539,7 @@ public class RestJsonProtocol implements Protocol {
                     writer.write("Output0Result = case ResponseBody of");
                     writer.indent();
                     writer.write("<<>> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
-                    writer.write("<<\"{}\">\\> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
+                    writer.write("<<\"{}\">> -> {ok, #{<<\"$L\">> => #{}}};", memberName);
                     writer.write("_ ->");
                     writer.indent();
                     writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
@@ -622,7 +624,7 @@ public class RestJsonProtocol implements Protocol {
      * Generates error parsing for REST-JSON responses.
      */
     private void generateErrorParsing(ErlangWriter writer) {
-        writer.write("case ResponseBody of");
+        writer.write("case ErrorBody of");
         writer.indent();
         writer.write("<<>> ->");
         writer.indent();
