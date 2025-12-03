@@ -508,20 +508,25 @@ public class RestXmlProtocol implements Protocol {
             if (!outputPayloadMember.isPresent()) {
                 // No @httpPayload - parse entire response as XML (if not empty)
                 // Some operations (like S3 PutObject) return empty body with headers only
-                writer.write("Output0 = case ResponseBody of");
+                // Use intermediate result to properly propagate XML parsing errors
+                writer.write("Output0Result = case ResponseBody of");
                 writer.indent();
-                writer.write("<<>> -> #{};");
+                writer.write("<<>> -> {ok, #{}};");
                 writer.write("_ ->");
                 writer.indent();
                 writer.write("case aws_xml:decode(ResponseBody) of");
                 writer.indent();
-                writer.write("{ok, XmlMap} -> XmlMap;");
-                writer.write("{error, _} -> #{}");
+                writer.write("{ok, XmlMap} -> {ok, XmlMap};");
+                writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
                 writer.dedent();
                 writer.write("end");
                 writer.dedent();
                 writer.dedent();
                 writer.write("end,");
+                writer.write("case Output0Result of");
+                writer.indent();
+                writer.write("{ok, Output0} ->");
+                writer.indent();
             } else {
                 // @httpPayload present - handle by type
                 MemberShape payload = outputPayloadMember.get();
@@ -627,10 +632,21 @@ public class RestXmlProtocol implements Protocol {
             }
             
             // Return the final output
-            // Note: When !outputPayloadMember.isPresent(), we use inline case expression
-            // for ResponseBody handling (handles empty bodies gracefully), so no case to close
             String finalOutputVar = "Output" + httpHeaderOutputMembers.size();
-            writer.write("{ok, $L};", finalOutputVar);
+            if (!outputPayloadMember.isPresent()) {
+                // Close the Output0Result case - return success
+                writer.write("{ok, $L};", finalOutputVar);
+                writer.dedent();
+                writer.write("{error, _} = Err ->");
+                writer.indent();
+                writer.write("Err");
+                writer.dedent();
+                writer.dedent();
+                writer.write("end;");
+            } else {
+                // Blob or string payload - simple return
+                writer.write("{ok, $L};", finalOutputVar);
+            }
         }
     }
     
