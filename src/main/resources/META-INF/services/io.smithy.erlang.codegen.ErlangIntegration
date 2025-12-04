@@ -1,0 +1,8 @@
+# Erlang code generation integrations are discovered via this SPI file.
+#
+# Add fully qualified class names of ErlangIntegration implementations,
+# one per line. Integrations are executed in priority order (higher first).
+#
+# Example:
+# io.smithy.erlang.codegen.integrations.AwsSigV4Integration
+# io.smithy.erlang.codegen.integrations.AwsProtocolIntegration

@@ -1,20 +1,21 @@
 package io.smithy.erlang.codegen;
 
+import software.amazon.smithy.codegen.core.SmithyIntegration;
+
 /**
  * Integration interface for extending Erlang code generation.
  * 
- * <p>Implementations of this interface can customize the code generation
- * process by hooking into various extension points. Integrations are
- * discovered via Java SPI (Service Provider Interface).
+ * <p>This interface extends Smithy's {@link SmithyIntegration} to provide
+ * type-safe integration points for Erlang code generation. Implementations
+ * can customize the code generation process by hooking into various extension
+ * points.
  * 
- * <p>Note: Full {@code SmithyIntegration} interface compliance will be added
- * in Step 3.1 when {@code ErlangWriter} is enhanced to extend 
- * {@code SymbolWriter}.
- * 
- * <p>To create a custom integration:
+ * <p>Integrations are discovered via Java SPI (Service Provider Interface).
+ * To create a custom integration:
  * <ol>
  *   <li>Implement this interface</li>
- *   <li>Register the implementation in META-INF/services/io.smithy.erlang.codegen.ErlangIntegration</li>
+ *   <li>Register the implementation in 
+ *       {@code META-INF/services/io.smithy.erlang.codegen.ErlangIntegration}</li>
  * </ol>
  * 
  * <p>Example:
@@ -31,8 +32,21 @@ package io.smithy.erlang.codegen;
  *     }
  * }
  * </pre>
+ * 
+ * <h2>Available Extension Points</h2>
+ * <ul>
+ *   <li>{@link #name()} - Returns the integration name for logging</li>
+ *   <li>{@link #priority()} - Controls integration execution order</li>
+ *   <li>{@link #preprocessModel(ErlangContext)} - Called before generation</li>
+ *   <li>{@link #postprocessGeneration(ErlangContext)} - Called after generation</li>
+ * </ul>
+ * 
+ * @see SmithyIntegration
+ * @see ErlangContext
+ * @see ErlangSettings
  */
-public interface ErlangIntegration {
+public interface ErlangIntegration 
+        extends SmithyIntegration<ErlangSettings, ErlangWriter, ErlangContext> {
     
     /**
      * Gets the name of this integration.
@@ -42,6 +56,7 @@ public interface ErlangIntegration {
      *
      * @return Integration name
      */
+    @Override
     default String name() {
         return getClass().getCanonicalName();
     }
@@ -55,6 +70,7 @@ public interface ErlangIntegration {
      *
      * @return Priority value (higher = runs first)
      */
+    @Override
     default byte priority() {
         return 0;
     }

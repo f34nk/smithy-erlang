@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 import software.amazon.smithy.build.FileManifest;
 import software.amazon.smithy.codegen.core.Symbol;
 import software.amazon.smithy.codegen.core.SymbolProvider;
+import software.amazon.smithy.codegen.core.WriterDelegator;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
@@ -29,6 +30,7 @@ class ErlangContextTest {
     private ErlangSettings settings;
     private SymbolProvider symbolProvider;
     private FileManifest fileManifest;
+    private WriterDelegator<ErlangWriter> writerDelegator;
     
     @TempDir
     Path tempDir;
@@ -61,6 +63,9 @@ class ErlangContextTest {
         };
         
         fileManifest = FileManifest.create(tempDir);
+        
+        // Create writer delegator using the factory
+        writerDelegator = new WriterDelegator<>(fileManifest, symbolProvider, ErlangWriter.factory());
     }
     
     // ========== Builder Tests ==========
@@ -73,6 +78,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .build();
         
         assertNotNull(context);
@@ -80,6 +86,7 @@ class ErlangContextTest {
         assertEquals(settings, context.settings());
         assertEquals(symbolProvider, context.symbolProvider());
         assertEquals(fileManifest, context.fileManifest());
+        assertEquals(writerDelegator, context.writerDelegator());
     }
     
     @Test
@@ -94,6 +101,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .integrations(integrations)
                 .build();
         
@@ -108,6 +116,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .build();
         
         assertNotNull(context.integrations());
@@ -122,6 +131,7 @@ class ErlangContextTest {
                     .settings(settings)
                     .symbolProvider(symbolProvider)
                     .fileManifest(fileManifest)
+                    .writerDelegator(writerDelegator)
                     .build();
         });
     }
@@ -134,6 +144,7 @@ class ErlangContextTest {
                     .model(model)
                     .symbolProvider(symbolProvider)
                     .fileManifest(fileManifest)
+                    .writerDelegator(writerDelegator)
                     .build();
         });
     }
@@ -146,6 +157,7 @@ class ErlangContextTest {
                     .model(model)
                     .settings(settings)
                     .fileManifest(fileManifest)
+                    .writerDelegator(writerDelegator)
                     .build();
         });
     }
@@ -158,6 +170,20 @@ class ErlangContextTest {
                     .model(model)
                     .settings(settings)
                     .symbolProvider(symbolProvider)
+                    .writerDelegator(writerDelegator)
+                    .build();
+        });
+    }
+    
+    @Test
+    @DisplayName("Builder throws when writerDelegator is missing")
+    void testBuilderRequiresWriterDelegator() {
+        assertThrows(NullPointerException.class, () -> {
+            ErlangContext.builder()
+                    .model(model)
+                    .settings(settings)
+                    .symbolProvider(symbolProvider)
+                    .fileManifest(fileManifest)
                     .build();
         });
     }
@@ -233,6 +259,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .integrations(integrations)
                 .build();
         
@@ -252,6 +279,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .integrations(integrations)
                 .build();
         
@@ -309,6 +337,7 @@ class ErlangContextTest {
                 .settings(settings)
                 .symbolProvider(symbolProvider)
                 .fileManifest(fileManifest)
+                .writerDelegator(writerDelegator)
                 .build();
     }
     
