@@ -1,19 +1,174 @@
 package io.smithy.erlang.codegen;
 
-import software.amazon.smithy.utils.CodeWriter;
+import software.amazon.smithy.codegen.core.Symbol;
+import software.amazon.smithy.codegen.core.SymbolWriter;
 
-public final class ErlangWriter extends CodeWriter {
+import java.util.function.BiFunction;
+
+/**
+ * Erlang code writer with Symbol support.
+ * 
+ * <p>This class extends {@link SymbolWriter} to provide Erlang-specific
+ * code generation utilities. It includes custom formatters for working
+ * with Smithy Symbols and helper methods for generating Erlang module
+ * structure elements.
+ * 
+ * <h2>Custom Formatters</h2>
+ * <ul>
+ *   <li>{@code $T} - Formats a Symbol's Erlang type (from "erlangType" property)</li>
+ *   <li>{@code $N} - Formats a Symbol's name</li>
+ * </ul>
+ * 
+ * <h2>Example Usage</h2>
+ * <pre>
+ * ErlangWriter writer = new ErlangWriter("my_module");
+ * 
+ * writer.writeModuleHeader()
+ *       .writeExports("foo/1", "bar/2")
+ *       .write("")
+ *       .writeSpec("foo", "binary()", "{ok, term()}")
+ *       .openFunction("foo", "Input")
+ *       .write("{ok, Input}.")
+ *       .closeFunction();
+ * </pre>
+ * 
+ * @see ErlangImportContainer
+ * @see SymbolWriter
+ */
+public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportContainer> {
     
+    /** Default indentation string (4 spaces for Erlang). */
+    private static final String DEFAULT_INDENT = "    ";
+    
+    /** The module name for this writer. */
+    private final String moduleName;
+    
+    /**
+     * Creates a new ErlangWriter with a default module name.
+     * 
+     * <p>This constructor is provided for backward compatibility with code
+     * that doesn't specify a module name upfront. The module name can be
+     * set later using {@link #writeModuleHeader(String)}.
+     * 
+     * @deprecated Use {@link #ErlangWriter(String)} to specify module name upfront
+     */
+    @Deprecated
     public ErlangWriter() {
-        super();
-        // No custom formatters for now - keep it simple
+        this("generated");
     }
     
-    public ErlangWriter writeModule(String moduleName) {
+    /**
+     * Creates a new ErlangWriter for the specified module.
+     *
+     * @param moduleName The Erlang module name (without .erl extension)
+     */
+    public ErlangWriter(String moduleName) {
+        super(new ErlangImportContainer());
+        this.moduleName = moduleName;
+        
+        // Set indentation
+        setIndentText(DEFAULT_INDENT);
+        
+        // Register custom formatters
+        putFormatter('T', new ErlangTypeFormatter());
+        putFormatter('N', new ErlangNameFormatter());
+    }
+    
+    /**
+     * Gets the module name for this writer.
+     *
+     * @return The module name
+     */
+    public String getModuleName() {
+        return moduleName;
+    }
+    
+    // ========== Module Structure Methods ==========
+    
+    /**
+     * Writes the module header declaration.
+     * 
+     * <p>Generates: {@code -module(module_name).}
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeModuleHeader() {
         write("-module($L).", moduleName);
+        write("");
         return this;
     }
     
+    /**
+     * Writes a module header with a custom module name.
+     * 
+     * <p>Generates: {@code -module(custom_name).}
+     *
+     * @param customModuleName The module name to use
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeModuleHeader(String customModuleName) {
+        write("-module($L).", customModuleName);
+        write("");
+        return this;
+    }
+    
+    /**
+     * Writes a module header with a custom module name (backward compatibility).
+     * 
+     * <p>Generates: {@code -module(custom_name).}
+     *
+     * @param customModuleName The module name to use
+     * @return This writer for method chaining
+     * @deprecated Use {@link #writeModuleHeader(String)} instead
+     */
+    @Deprecated
+    public ErlangWriter writeModule(String customModuleName) {
+        write("-module($L).", customModuleName);
+        return this;
+    }
+    
+    /**
+     * Writes function exports.
+     * 
+     * <p>Example output:
+     * <pre>
+     * -export([
+     *     foo/1,
+     *     bar/2
+     * ]).
+     * </pre>
+     *
+     * @param functions Function signatures (e.g., "foo/1", "bar/2")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeExports(String... functions) {
+        if (functions.length == 0) {
+            write("-export([]).");
+            return this;
+        }
+        
+        write("-export([");
+        indent();
+        for (int i = 0; i < functions.length; i++) {
+            String comma = (i < functions.length - 1) ? "," : "";
+            write("$L$L", functions[i], comma);
+        }
+        dedent();
+        write("]).");
+        write("");
+        return this;
+    }
+    
+    /**
+     * Writes function exports (backward compatibility).
+     * 
+     * <p>Uses the old formatting style with fixed alignment.
+     *
+     * @param functions Function signatures (e.g., "foo/1", "bar/2")
+     * @return This writer for method chaining
+     * @deprecated Use {@link #writeExports(String...)} instead
+     */
+    @Deprecated
     public ErlangWriter writeExport(String... functions) {
         if (functions.length == 0) {
             write("-export([]).");
@@ -32,6 +187,202 @@ public final class ErlangWriter extends CodeWriter {
         return this;
     }
     
+    // ========== Type Definition Methods ==========
+    
+    /**
+     * Writes a type definition.
+     * 
+     * <p>Generates: {@code -type name() :: typeSpec.}
+     *
+     * @param name The type name
+     * @param typeSpec The type specification
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeType(String name, String typeSpec) {
+        write("-type $L() :: $L.", name, typeSpec);
+        return this;
+    }
+    
+    /**
+     * Writes an opaque type definition.
+     * 
+     * <p>Generates: {@code -opaque name() :: typeSpec.}
+     *
+     * @param name The type name
+     * @param typeSpec The type specification
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeOpaqueType(String name, String typeSpec) {
+        write("-opaque $L() :: $L.", name, typeSpec);
+        return this;
+    }
+    
+    /**
+     * Writes a type export.
+     * 
+     * <p>Generates: {@code -export_type([name/arity]).}
+     *
+     * @param name The type name
+     * @param arity The type arity
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeExportType(String name, int arity) {
+        write("-export_type([$L/$L]).", name, arity);
+        return this;
+    }
+    
+    /**
+     * Writes multiple type exports.
+     * 
+     * <p>Example output:
+     * <pre>
+     * -export_type([
+     *     foo/0,
+     *     bar/1
+     * ]).
+     * </pre>
+     *
+     * @param types Type specifications (e.g., "foo/0", "bar/1")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeExportTypes(String... types) {
+        if (types.length == 0) {
+            return this;
+        }
+        
+        if (types.length == 1) {
+            write("-export_type([$L]).", types[0]);
+            return this;
+        }
+        
+        write("-export_type([");
+        indent();
+        for (int i = 0; i < types.length; i++) {
+            String comma = (i < types.length - 1) ? "," : "";
+            write("$L$L", types[i], comma);
+        }
+        dedent();
+        write("]).");
+        return this;
+    }
+    
+    // ========== Function Definition Methods ==========
+    
+    /**
+     * Writes a function specification.
+     * 
+     * <p>Generates: {@code -spec functionName(argTypes) -> returnType.}
+     *
+     * @param functionName The function name
+     * @param argTypes The argument types (e.g., "binary(), integer()")
+     * @param returnType The return type (e.g., "{ok, term()} | {error, term()}")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeSpec(String functionName, String argTypes, String returnType) {
+        write("-spec $L($L) -> $L.", functionName, argTypes, returnType);
+        return this;
+    }
+    
+    /**
+     * Writes a function specification with no arguments.
+     * 
+     * <p>Generates: {@code -spec functionName() -> returnType.}
+     *
+     * @param functionName The function name
+     * @param returnType The return type
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeSpec(String functionName, String returnType) {
+        write("-spec $L() -> $L.", functionName, returnType);
+        return this;
+    }
+    
+    /**
+     * Opens a function definition.
+     * 
+     * <p>Generates the function head and increases indentation.
+     * Must be paired with {@link #closeFunction()}.
+     * 
+     * <p>Example:
+     * <pre>
+     * writer.openFunction("foo", "Input, Options")
+     *       .write("Result = process(Input),")
+     *       .write("{ok, Result}.")
+     *       .closeFunction();
+     * </pre>
+     *
+     * @param name The function name
+     * @param params The function parameters
+     * @return This writer for method chaining
+     */
+    public ErlangWriter openFunction(String name, String params) {
+        write("$L($L) ->", name, params);
+        indent();
+        return this;
+    }
+    
+    /**
+     * Opens a function definition with no parameters.
+     *
+     * @param name The function name
+     * @return This writer for method chaining
+     */
+    public ErlangWriter openFunction(String name) {
+        write("$L() ->", name);
+        indent();
+        return this;
+    }
+    
+    /**
+     * Closes a function definition.
+     * 
+     * <p>Decreases indentation and adds a blank line.
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter closeFunction() {
+        dedent();
+        write("");
+        return this;
+    }
+    
+    /**
+     * Writes a complete simple function.
+     * 
+     * <p>For more complex functions, use {@link #openFunction(String, String)}
+     * and {@link #closeFunction()}.
+     *
+     * @param name The function name
+     * @param params The function parameters
+     * @param body A runnable that writes the function body
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeFunction(String name, String params, Runnable body) {
+        write("$L($L) ->", name, params);
+        indent();
+        body.run();
+        dedent();
+        write("");
+        return this;
+    }
+    
+    // ========== Record Methods ==========
+    
+    /**
+     * Writes a record definition.
+     * 
+     * <p>Example output:
+     * <pre>
+     * -record(my_record, {
+     *     field1 :: binary(),
+     *     field2 :: integer()
+     * }).
+     * </pre>
+     *
+     * @param recordName The record name
+     * @param fieldWriter A runnable that writes the record fields
+     * @return This writer for method chaining
+     */
     public ErlangWriter writeRecord(String recordName, Runnable fieldWriter) {
         write("-record($L, {", recordName);
         indent();
@@ -42,34 +393,201 @@ public final class ErlangWriter extends CodeWriter {
         return this;
     }
     
-    public ErlangWriter writeType(String typeName, String typeSpec) {
-        write("-type $L() :: $L.", typeName, typeSpec);
+    // ========== Comment Methods ==========
+    
+    /**
+     * Writes a single-line comment.
+     * 
+     * <p>Generates: {@code %% comment text}
+     *
+     * @param comment The comment text
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeComment(String comment) {
+        write("%% $L", comment);
         return this;
     }
     
-    public ErlangWriter writeSpec(String functionName, String spec) {
-        write("-spec $L$L.", functionName, spec);
+    /**
+     * Writes an EDoc documentation comment.
+     * 
+     * <p>Generates: {@code %%% @doc summary}
+     *
+     * @param summary The documentation summary
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeEdocComment(String summary) {
+        write("%%% @doc $L", summary);
         return this;
     }
     
-    public ErlangWriter writeFunction(String name, String params, Runnable body) {
-        write("$L($L) ->", name, params);
-        indent();
-        body.run();
-        dedent();
+    /**
+     * Writes a multi-line documentation comment.
+     * 
+     * <p>Example output:
+     * <pre>
+     * %% @doc This is the summary.
+     * %%
+     * %% This is additional documentation
+     * %% that spans multiple lines.
+     * </pre>
+     *
+     * @param doc The documentation text (may contain newlines)
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeDocComment(String doc) {
+        String[] lines = doc.split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            if (i == 0) {
+                write("%% @doc $L", lines[i]);
+            } else {
+                write("%% $L", lines[i]);
+            }
+        }
+        return this;
+    }
+    
+    /**
+     * Writes a section separator comment.
+     * 
+     * <p>Example output:
+     * <pre>
+     * %% ==========================================================
+     * %% Section Title
+     * %% ==========================================================
+     * </pre>
+     *
+     * @param title The section title
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeSectionComment(String title) {
+        write("%% ==========================================================");
+        write("%% $L", title);
+        write("%% ==========================================================");
         write("");
         return this;
     }
     
-    public ErlangWriter writeComment(String comment) {
-        write("%% " + comment);
+    // ========== Utility Methods ==========
+    
+    /**
+     * Writes include directive(s) from the import container.
+     * 
+     * <p>This should be called after the module header and before exports.
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeIncludes() {
+        ErlangImportContainer imports = getImportContainer();
+        if (imports.hasIncludes()) {
+            writeWithNoFormatting(imports.toString());
+            write("");
+        }
         return this;
     }
     
-    public ErlangWriter writeDocComment(String doc) {
-        for (String line : doc.split("\n")) {
-            write("%% " + line);
-        }
+    /**
+     * Adds a local include to this writer's import container.
+     *
+     * @param filename The header file to include
+     * @return This writer for method chaining
+     */
+    public ErlangWriter addInclude(String filename) {
+        getImportContainer().addInclude(filename);
         return this;
+    }
+    
+    /**
+     * Adds a library include to this writer's import container.
+     *
+     * @param path The library header path to include
+     * @return This writer for method chaining
+     */
+    public ErlangWriter addIncludeLib(String path) {
+        getImportContainer().addIncludeLib(path);
+        return this;
+    }
+    
+    // ========== Symbol-Aware Methods ==========
+    
+    /**
+     * Writes a type definition using a Symbol.
+     * 
+     * <p>Uses the Symbol's "erlangType" property if available.
+     *
+     * @param name The type name
+     * @param symbol The symbol providing the type specification
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeTypeFromSymbol(String name, Symbol symbol) {
+        String typeSpec = symbol.getProperty("erlangType", String.class).orElse("term()");
+        return writeType(name, typeSpec);
+    }
+    
+    // ========== Custom Formatters ==========
+    
+    /**
+     * Formatter for Erlang type names from Symbols.
+     * 
+     * <p>Usage in format strings: {@code $T}
+     * 
+     * <p>If the value is a {@link Symbol}, returns its "erlangType" property
+     * or "term()" as default. Otherwise, returns the string representation.
+     */
+    private static final class ErlangTypeFormatter implements BiFunction<Object, String, String> {
+        @Override
+        public String apply(Object value, String indent) {
+            if (value instanceof Symbol) {
+                Symbol symbol = (Symbol) value;
+                return symbol.getProperty("erlangType", String.class).orElse("term()");
+            }
+            return String.valueOf(value);
+        }
+    }
+    
+    /**
+     * Formatter for Erlang names from Symbols.
+     * 
+     * <p>Usage in format strings: {@code $N}
+     * 
+     * <p>If the value is a {@link Symbol}, returns its name.
+     * Otherwise, returns the string representation.
+     */
+    private static final class ErlangNameFormatter implements BiFunction<Object, String, String> {
+        @Override
+        public String apply(Object value, String indent) {
+            if (value instanceof Symbol) {
+                return ((Symbol) value).getName();
+            }
+            return String.valueOf(value);
+        }
+    }
+    
+    // ========== Factory Method ==========
+    
+    /**
+     * Creates a factory for ErlangWriter instances.
+     * 
+     * <p>This is useful when integrating with Smithy's WriterDelegator.
+     *
+     * @return A factory that creates ErlangWriter instances
+     */
+    public static Factory factory() {
+        return new Factory();
+    }
+    
+    /**
+     * Factory class for creating ErlangWriter instances.
+     */
+    public static final class Factory implements SymbolWriter.Factory<ErlangWriter> {
+        @Override
+        public ErlangWriter apply(String filename, String namespace) {
+            // Extract module name from filename (remove .erl extension)
+            String moduleName = filename;
+            if (filename.endsWith(".erl")) {
+                moduleName = filename.substring(0, filename.length() - 4);
+            }
+            return new ErlangWriter(moduleName);
+        }
     }
 }
