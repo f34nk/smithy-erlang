@@ -341,7 +341,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
 
         // Generate new/1 function
         writer.writeComment("Creates a new client with the given configuration");
-        writer.writeSpec("new", "(Config :: map()) -> {ok, map()}");
+        writer.writeSpec("new", "Config :: map()", "{ok, map()}");
         writer.writeFunction("new", "Config", () -> {
             writer.write("{ok, Config}.");
         });
@@ -1781,7 +1781,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         }
         
         writer.writeComment("Validate required fields for " + structure.getId().getName());
-        writer.writeSpec(functionName, "(map()) -> ok | {error, {missing_required_fields, [binary()]}}");
+        writer.writeSpec(functionName, "map()", "ok | {error, {missing_required_fields, [binary()]}}");
         writer.write("$L(Input) when is_map(Input) ->", functionName);
         writer.indent();
         
