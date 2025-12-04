@@ -1,12 +1,24 @@
 package io.smithy.erlang.codegen;
 
+import java.util.logging.Logger;
+
 import io.smithy.erlang.codegen.symbol.EnhancedErlangSymbolProvider;
 import software.amazon.smithy.codegen.core.SymbolProvider;
 import software.amazon.smithy.codegen.core.WriterDelegator;
-import software.amazon.smithy.codegen.core.directed.*;
-import software.amazon.smithy.model.shapes.*;
-
-import java.util.logging.Logger;
+import software.amazon.smithy.codegen.core.directed.CreateContextDirective;
+import software.amazon.smithy.codegen.core.directed.CreateSymbolProviderDirective;
+import software.amazon.smithy.codegen.core.directed.CustomizeDirective;
+import software.amazon.smithy.codegen.core.directed.DirectedCodegen;
+import software.amazon.smithy.codegen.core.directed.GenerateEnumDirective;
+import software.amazon.smithy.codegen.core.directed.GenerateErrorDirective;
+import software.amazon.smithy.codegen.core.directed.GenerateIntEnumDirective;
+import software.amazon.smithy.codegen.core.directed.GenerateServiceDirective;
+import software.amazon.smithy.codegen.core.directed.GenerateStructureDirective;
+import software.amazon.smithy.codegen.core.directed.GenerateUnionDirective;
+import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.shapes.Shape;
+import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.shapes.UnionShape;
 
 /**
  * Directed code generator for Erlang.
@@ -116,7 +128,7 @@ public final class ErlangGenerator
         LOGGER.fine("Generating service: " + service.getId());
         
         // Note: Full service generation is handled by ErlangClientPlugin
-        // This will be refactored in Step 4.2 to use ServiceGenerator
+        // This will be refactored to use ServiceGenerator
         // For now, we just log that the shape was encountered
     }
     
