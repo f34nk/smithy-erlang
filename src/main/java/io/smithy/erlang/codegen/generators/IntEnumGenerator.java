@@ -140,7 +140,7 @@ public final class IntEnumGenerator {
         String functionName = "encode_" + enumName;
         
         writer.writeComment("Encode " + intEnumShape.getId().getName() + " atom to integer value");
-        writer.writeSpec(functionName, "(atom()) -> integer()");
+        writer.writeSpec(functionName, "atom()", "integer()");
         
         Map<String, Integer> enumValues = intEnumShape.getEnumValues();
         List<String> names = new ArrayList<>(enumValues.keySet());
@@ -172,7 +172,7 @@ public final class IntEnumGenerator {
         String functionName = "decode_" + enumName;
         
         writer.writeComment("Decode integer value to " + intEnumShape.getId().getName() + " atom");
-        writer.writeSpec(functionName, "(integer()) -> {ok, atom()} | {error, {invalid_int_enum_value, integer()}}");
+        writer.writeSpec(functionName, "integer()", "{ok, atom()} | {error, {invalid_int_enum_value, integer()}}");
         
         Map<String, Integer> enumValues = intEnumShape.getEnumValues();
         List<String> names = new ArrayList<>(enumValues.keySet());

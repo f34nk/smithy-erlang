@@ -149,7 +149,7 @@ public final class EnumGenerator {
         String functionName = "encode_" + enumName;
         
         writer.writeComment("Encode " + enumShape.getId().getName() + " enum to JSON string");
-        writer.writeSpec(functionName, "(" + enumName + "()) -> binary()");
+        writer.writeSpec(functionName, enumName + "()", "binary()");
         
         // Generate function clauses for each enum value
         List<EnumDefinition> values = enumTrait.getValues();
@@ -179,7 +179,7 @@ public final class EnumGenerator {
         String functionName = "decode_" + enumName;
         
         writer.writeComment("Decode JSON string to " + enumShape.getId().getName() + " enum with validation");
-        writer.writeSpec(functionName, "(binary()) -> {ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
+        writer.writeSpec(functionName, "binary()", "{ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
         
         // Generate function clauses for each enum value
         List<EnumDefinition> values = enumTrait.getValues();

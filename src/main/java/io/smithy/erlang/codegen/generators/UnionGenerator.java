@@ -146,7 +146,7 @@ public final class UnionGenerator {
         String functionName = "encode_" + unionName;
         
         writer.writeComment("Encode " + union.getId().getName() + " union to JSON");
-        writer.writeSpec(functionName, "(" + unionName + "() | {unknown, term()}) -> map()");
+        writer.writeSpec(functionName, unionName + "() | {unknown, term()}", "map()");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
@@ -180,7 +180,7 @@ public final class UnionGenerator {
         String functionName = "decode_" + unionName;
         
         writer.writeComment("Decode JSON to " + union.getId().getName() + " union");
-        writer.writeSpec(functionName, "(map()) -> " + unionName + "() | {unknown, term()}");
+        writer.writeSpec(functionName, "map()", unionName + "() | {unknown, term()}");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());

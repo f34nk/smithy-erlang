@@ -1543,7 +1543,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         String functionName = "encode_" + unionName;
         
         writer.writeComment("Encode " + union.getId().getName() + " union to JSON");
-        writer.writeSpec(functionName, "(" + unionName + "() | {unknown, term()}) -> map()");
+        writer.writeSpec(functionName, unionName + "() | {unknown, term()}", "map()");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
@@ -1597,7 +1597,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         String functionName = "decode_" + unionName;
         
         writer.writeComment("Decode JSON to " + union.getId().getName() + " union");
-        writer.writeSpec(functionName, "(map()) -> " + unionName + "() | {unknown, term()}");
+        writer.writeSpec(functionName, "map()", unionName + "() | {unknown, term()}");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
@@ -1697,7 +1697,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
         
         writer.writeComment("Encode " + enumShape.getId().getName() + " enum to JSON string");
-        writer.writeSpec(functionName, "(" + enumName + "()) -> binary()");
+        writer.writeSpec(functionName, enumName + "()", "binary()");
         
         // Generate function clauses for each enum value
         List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
@@ -1734,7 +1734,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
         
         writer.writeComment("Decode JSON string to " + enumShape.getId().getName() + " enum with validation");
-        writer.writeSpec(functionName, "(binary()) -> {ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
+        writer.writeSpec(functionName, "binary()", "{ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
         
         // Generate function clauses for each enum value
         List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();

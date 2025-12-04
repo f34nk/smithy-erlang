@@ -161,7 +161,7 @@ public final class ErrorGenerator {
         String functionName = "parse_" + typeName;
         
         writer.writeComment("Parse error response to " + errorShape.getId().getName());
-        writer.writeSpec(functionName, "(map()) -> " + typeName + "()");
+        writer.writeSpec(functionName, "map()", typeName + "()");
         
         writer.write("$L(ErrorMap) ->", functionName);
         writer.indent();
