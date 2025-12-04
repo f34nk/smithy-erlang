@@ -55,6 +55,7 @@ public final class ErlangContext
     private final FileManifest fileManifest;
     private final WriterDelegator<ErlangWriter> writerDelegator;
     private final List<ErlangIntegration> integrations;
+    private final ServiceShape cachedService;
     
     private ErlangContext(Builder builder) {
         this.model = Objects.requireNonNull(builder.model, "model is required");
@@ -65,6 +66,7 @@ public final class ErlangContext
         this.integrations = builder.integrations != null 
                 ? Collections.unmodifiableList(new java.util.ArrayList<>(builder.integrations)) 
                 : Collections.emptyList();
+        this.cachedService = builder.service;
     }
     
     /**
@@ -142,14 +144,20 @@ public final class ErlangContext
     /**
      * Gets the service shape being generated.
      * 
-     * <p>This is a convenience method that looks up the service shape
-     * from the model using the service ID from settings.
+     * <p>If a service shape was explicitly set during construction, it is returned.
+     * Otherwise, this method looks up the service shape from the model using
+     * the service ID from settings.
      *
-     * @return The service shape
-     * @throws software.amazon.smithy.model.shapes.ShapeNotFoundException if service not found
+     * @return The service shape, or null if not found
      */
     public ServiceShape serviceShape() {
-        return model.expectShape(settings.service(), ServiceShape.class);
+        if (cachedService != null) {
+            return cachedService;
+        }
+        return model.getShape(settings.service())
+                .filter(shape -> shape instanceof ServiceShape)
+                .map(shape -> (ServiceShape) shape)
+                .orElse(null);
     }
     
     /**
@@ -182,6 +190,7 @@ public final class ErlangContext
         private FileManifest fileManifest;
         private WriterDelegator<ErlangWriter> writerDelegator;
         private List<ErlangIntegration> integrations;
+        private ServiceShape service;
         
         private Builder() {}
         
@@ -248,6 +257,21 @@ public final class ErlangContext
          */
         public Builder integrations(List<ErlangIntegration> integrations) {
             this.integrations = integrations;
+            return this;
+        }
+        
+        /**
+         * Sets the service shape.
+         * 
+         * <p>If set, this service shape will be used instead of looking up
+         * the service from the model. This is useful for testing or when
+         * the service shape is not in the model.
+         *
+         * @param service The service shape (optional)
+         * @return This builder
+         */
+        public Builder service(ServiceShape service) {
+            this.service = service;
             return this;
         }
         

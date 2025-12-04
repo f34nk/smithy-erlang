@@ -4,3 +4,4 @@
 # one per line. Integrations are executed in priority order (higher first).
 #
 io.smithy.erlang.codegen.integrations.AwsSigV4Integration
+io.smithy.erlang.codegen.integrations.AwsProtocolIntegration
