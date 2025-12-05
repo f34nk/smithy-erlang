@@ -178,44 +178,7 @@ See [ARCHITECTURE.md](https://github.com/f34nk/smithy-erlang/blob/main/ARCHITECT
 
 [Smithy traits](https://smithy.io/2.0/spec/model.html#traits) are declarative metadata that tell code generators how to generate code, without embedding that logic in the model itself. They separate "what the API looks like" from "how to implement it".
 
-smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries:
-
-| Trait | Status | Usage |
-|-------|--------|-------|
-| `@required` | ✅ | Generates validation in `validate_{operation}_input/1` |
-| `@httpLabel` | ✅ | Path parameter substitution in URLs |
-| `@httpHeader` | ✅ | Header extraction/injection |
-| `@httpQuery` | ✅ | Query string building |
-| `@httpPayload` | ✅ | Body handling (raw vs serialized) |
-| `@paginated` | ✅ | Pagination helper generation |
-| `@enum` / `@enumValue` | ✅ | Enum type generation |
-| `@error` | ✅ | Error type generation |
-| `@documentation` | ⚠️ Partial | Not yet extracted to EDoc |
-| AWS Protocol traits | ✅ | `@awsJson1_0`, `@restXml`, etc. |
-| `@aws.auth#sigv4` | ✅ | SigV4 signing integration |
-
-### Not Yet Implemented Traits
-
-| Trait | Status | Notes |
-|-------|--------|-------|
-| `@streaming` | ❌ | Enables streaming of large request/response payloads |
-| `@range` | ❌ | Constrains numeric values to a minimum and/or maximum |
-| `@length` | ❌ | Constrains length of strings, lists, or blobs |
-| `@pattern` | ❌ | Requires string values to match a regular expression |
-| `@waitable` | ❌ | Allows polling for resource state transitions |
-| `@requestCompression` | ❌ | Enables compressed request payloads (e.g. gzip) |
-| `@clientEndpointDiscovery` | ❌ | Supports dynamic endpoint lookup at runtime |
-
-### Custom Trait Definitions: NOT Supported
-
-Example **defining a custom trait**:
-
-```smithy
-@trait(selector: "structure")  // <-- This defines a NEW trait
-structure strictValidation {}
-```
-
-**smithy-erlang does NOT support custom trait definitions.** It reads traits from models but doesn't provide a framework for defining trait-driven code generation behavior.
+Smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries. Please check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md) with all Smithy traits and their support status in smithy-erlang.
 
 ## AWS SDK Feature Support
 
