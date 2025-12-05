@@ -364,6 +364,125 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    /**
+     * Writes a formatted httpc:request case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case
+     *     httpc:request(method, Request, [], [
+     *         {body_format, binary}
+     *     ])
+     * of
+     *     {ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->
+     *         ... successHandler ...
+     *     {ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->
+     *         ... errorHandler ...
+     *     {error, Reason} ->
+     *         {error, {http_error, Reason}}
+     * end;
+     * </pre>
+     *
+     * @param method The HTTP method expression (e.g., "post" or "binary_to_atom(string:lowercase(Method), utf8)")
+     * @param successHandler Runnable that writes the success clause body
+     * @param errorHandler Runnable that writes the error clause body
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeHttpcCase(String method, Runnable successHandler, Runnable errorHandler) {
+        write("case");
+        indent();
+        write("httpc:request($L, Request, [], [", method);
+        indent();
+        write("{body_format, binary}");
+        dedent();
+        write("])");
+        dedent();
+        write("of");
+        indent();
+        write("{ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->");
+        indent();
+        successHandler.run();
+        dedent();
+        write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
+        indent();
+        errorHandler.run();
+        dedent();
+        write("{error, Reason} ->");
+        indent();
+        write("{error, {http_error, Reason}}");
+        dedent();
+        dedent();
+        write("end;");
+        return this;
+    }
+    
+    /**
+     * Writes the sign-and-send block structure for AWS requests.
+     * 
+     * <p>This helper generates the complete structure for signing a request
+     * with SigV4 and sending it via httpc. It handles:
+     * <ul>
+     *   <li>Sign request with aws_sigv4</li>
+     *   <li>Convert headers to string format</li>
+     *   <li>Build the Request tuple</li>
+     *   <li>Make the httpc:request call</li>
+     *   <li>Handle success, error, and HTTP error responses</li>
+     *   <li>Handle signing errors</li>
+     * </ul>
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Sign and send request
+     * case aws_sigv4:sign_request(Method, Url, Headers, Body, Client) of
+     *     {ok, SignedHeaders} ->
+     *         ContentType = "...",
+     *         StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],
+     *         ... requestBuilder ...
+     *         
+     *         case httpc:request(...) of
+     *             ...
+     *         end;
+     *     {error, SignError} ->
+     *         {error, {signing_error, SignError}}
+     * end.
+     * </pre>
+     *
+     * @param contentType The Content-Type for the request (e.g., "application/xml")
+     * @param bodyVariable The name of the body variable (e.g., "Body" or "Payload")
+     * @param httpMethod The HTTP method expression (e.g., "post" or "binary_to_atom(string:lowercase(Method), utf8)")
+     * @param requestBuilder Runnable that writes the Request building code (e.g., "Request = {...}")
+     * @param successHandler Runnable that writes the success response handling code
+     * @param errorHandler Runnable that writes the error response handling code
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeSignAndSendBlock(
+            String contentType,
+            String bodyVariable,
+            String httpMethod,
+            Runnable requestBuilder,
+            Runnable successHandler,
+            Runnable errorHandler) {
+        
+        write("%% Sign and send request");
+        write("case aws_sigv4:sign_request(Method, Url, Headers, $L, Client) of", bodyVariable);
+        indent();
+        write("{ok, SignedHeaders} ->");
+        indent();
+        write("ContentType = \"$L\",", contentType);
+        write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
+        requestBuilder.run();
+        writeBlankLine();
+        writeHttpcCase(httpMethod, successHandler, errorHandler);
+        dedent();
+        write("{error, SignError} ->");
+        indent();
+        write("{error, {signing_error, SignError}}");
+        dedent();
+        dedent();
+        write("end.");
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**

@@ -390,52 +390,22 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
     }
     
     private void generateHttpRequest(OperationShape operation, Model model, String contentType, ErlangWriter writer) {
-        writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Body, Client) of");
-        writer.indent();
-        writer.write("{ok, SignedHeaders} ->");
-        writer.indent();
-        writer.write("ContentType = \"$L\",", contentType);
-        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
-        writer.write("Request = case Method of");
-        writer.indent();
-        writer.write("<<\"GET\">> -> {binary_to_list(Url), StringHeaders};");
-        writer.write("<<\"DELETE\">> -> {binary_to_list(Url), StringHeaders};");
-        writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
-        writer.dedent();
-        writer.write("end,");
-        writer.writeBlankLine();
-        writer.write("case");
-        writer.indent();
-        writer.write("httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [");
-        writer.indent();
-        writer.write("{body_format, binary}");
-        writer.dedent();
-        writer.write("])");
-        writer.dedent();
-        writer.write("of");
-        writer.indent();
-        writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
-        writer.indent();
-        generateResponseDeserializerInternal(operation, model, writer);
-        writer.dedent();
-        writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
-        writer.indent();
-        generateErrorParser(operation, writer, null);
-        writer.dedent();
-        writer.write("{error, Reason} ->");
-        writer.indent();
-        writer.write("{error, {http_error, Reason}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{error, SignError} ->");
-        writer.indent();
-        writer.write("{error, {signing_error, SignError}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeSignAndSendBlock(
+            contentType,
+            "Body",
+            "binary_to_atom(string:lowercase(Method), utf8)",
+            () -> {
+                writer.write("Request = case Method of");
+                writer.indent();
+                writer.write("<<\"GET\">> -> {binary_to_list(Url), StringHeaders};");
+                writer.write("<<\"DELETE\">> -> {binary_to_list(Url), StringHeaders};");
+                writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
+                writer.dedent();
+                writer.write("end,");
+            },
+            () -> generateResponseDeserializerInternal(operation, model, writer),
+            () -> generateErrorParser(operation, writer, null)
+        );
     }
     
     /**
