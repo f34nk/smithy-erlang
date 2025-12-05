@@ -137,8 +137,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         
         // Generate 2-arity wrapper
         writer.writeComment("Calls the " + operation.getId().getName() + " operation");
-        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
-                opName, inputType, outputType);
+        writer.writeSpec(opName, "Client :: map(), Input :: " + inputType, "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input) ->", opName);
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
@@ -152,8 +151,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.writeComment("  - max_retries: Maximum retry attempts (default: 3)");
         writer.writeComment("  - initial_backoff: Initial backoff in ms (default: 100)");
         writer.writeComment("  - max_backoff: Maximum backoff in ms (default: 20000)");
-        writer.write("-spec $L(Client :: map(), Input :: $L, Options :: map()) -> {ok, $L} | {error, term()}.",
-                opName, inputType, outputType);
+        writer.writeSpec(opName, "Client :: map(), Input :: " + inputType + ", Options :: map()", "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input, Options) when is_map(Input), is_map(Options) ->", opName);
         writer.indent();
         
@@ -193,8 +191,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         
         writer.writeComment("Internal function to make the " + operation.getId().getName() + " request");
-        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
-                internalFunctionName, inputType, outputType);
+        writer.writeSpec(internalFunctionName, "Client :: map(), Input :: " + inputType, "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input) when is_map(Input) ->", internalFunctionName);
         writer.indent();
         

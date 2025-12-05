@@ -229,10 +229,16 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
     
     // ========== Function Definition Methods ==========
     
+    /** Maximum line length before breaking spec onto multiple lines. */
+    private static final int MAX_SPEC_LINE_LENGTH = 100;
+    
     /**
      * Writes a function specification.
      * 
      * <p>Generates: {@code -spec functionName(argTypes) -> returnType.}
+     * 
+     * <p>If the spec line exceeds {@value #MAX_SPEC_LINE_LENGTH} characters,
+     * it will be broken across two lines with the return type indented.
      *
      * @param functionName The function name
      * @param argTypes The argument types (e.g., "binary(), integer()")
@@ -240,7 +246,13 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
      * @return This writer for method chaining
      */
     public ErlangWriter writeSpec(String functionName, String argTypes, String returnType) {
-        write("-spec $L($L) -> $L.", functionName, argTypes, returnType);
+        String specLine = String.format("-spec %s(%s) -> %s.", functionName, argTypes, returnType);
+        if (specLine.length() > MAX_SPEC_LINE_LENGTH) {
+            write("-spec $L($L) ->", functionName, argTypes);
+            write("    $L.", returnType);
+        } else {
+            write("-spec $L($L) -> $L.", functionName, argTypes, returnType);
+        }
         return this;
     }
     

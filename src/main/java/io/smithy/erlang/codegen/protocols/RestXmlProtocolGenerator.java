@@ -111,8 +111,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         
         // Generate 2-arity wrapper
         writer.writeComment("Calls the " + operation.getId().getName() + " operation");
-        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
-                opName, inputType, outputType);
+        writer.writeSpec(opName, "Client :: map(), Input :: " + inputType, "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input) ->", opName);
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
@@ -121,8 +120,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         
         // Generate 3-arity version with retry support
         writer.writeComment("Calls the " + operation.getId().getName() + " operation with options");
-        writer.write("-spec $L(Client :: map(), Input :: $L, Options :: map()) -> {ok, $L} | {error, term()}.",
-                opName, inputType, outputType);
+        writer.writeSpec(opName, "Client :: map(), Input :: " + inputType + ", Options :: map()", "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input, Options) when is_map(Input), is_map(Options) ->", opName);
         writer.indent();
         
@@ -153,8 +151,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         
         writer.writeComment("Internal function to make the " + operation.getId().getName() + " request");
-        writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
-                internalFunctionName, inputType, outputType);
+        writer.writeSpec(internalFunctionName, "Client :: map(), Input :: " + inputType, "{ok, " + outputType + "} | {error, term()}");
         writer.write("$L(Client, Input) when is_map(Input) ->", internalFunctionName);
         writer.indent();
         
