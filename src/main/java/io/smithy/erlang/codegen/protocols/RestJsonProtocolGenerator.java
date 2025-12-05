@@ -385,7 +385,15 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end,");
         writer.writeBlankLine();
-        writer.write("case httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [{body_format, binary}]) of");
+        writer.write("case");
+        writer.indent();
+        writer.write("httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [");
+        writer.indent();
+        writer.write("{body_format, binary}");
+        writer.dedent();
+        writer.write("])");
+        writer.dedent();
+        writer.write("of");
         writer.indent();
         writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->");
         writer.indent();

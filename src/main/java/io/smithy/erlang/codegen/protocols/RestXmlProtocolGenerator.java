@@ -413,7 +413,15 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end,");
         writer.writeBlankLine();
-        writer.write("case httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [{body_format, binary}]) of");
+        writer.write("case");
+        writer.indent();
+        writer.write("httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [");
+        writer.indent();
+        writer.write("{body_format, binary}");
+        writer.dedent();
+        writer.write("])");
+        writer.dedent();
+        writer.write("of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();

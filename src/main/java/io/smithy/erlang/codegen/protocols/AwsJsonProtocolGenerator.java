@@ -222,7 +222,15 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.write("ContentType = \"application/x-amz-json-" + version + "\",");
         writer.write("%% Convert binary headers to string format for httpc");
         writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
-        writer.write("case httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [{body_format, binary}]) of");
+        writer.write("case");
+        writer.indent();
+        writer.write("httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [");
+        writer.indent();
+        writer.write("{body_format, binary}");
+        writer.dedent();
+        writer.write("])");
+        writer.dedent();
+        writer.write("of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();
