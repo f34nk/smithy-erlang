@@ -196,7 +196,6 @@ public final class ServiceGenerator {
      */
     void writeModuleHeader(ErlangWriter writer, String moduleName) {
         writer.writeModuleHeader(moduleName);
-        writer.write("");
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
         writer.write("");
     }

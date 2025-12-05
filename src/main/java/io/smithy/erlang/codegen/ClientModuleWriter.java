@@ -105,7 +105,6 @@ public final class ClientModuleWriter {
         
         // Module declaration
         writer.writeModuleHeader(moduleName);
-        writer.write("");
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
         writer.write("");
         
