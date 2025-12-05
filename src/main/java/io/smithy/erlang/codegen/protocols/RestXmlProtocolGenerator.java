@@ -117,7 +117,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate 3-arity version with retry support
         writer.writeComment("Calls the " + operation.getId().getName() + " operation with options");
@@ -128,7 +128,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
-        writer.write("");
+        writer.writeBlankLine();
         writer.write("case maps:get(enable_retry, Options, true) of");
         writer.indent();
         writer.write("true -> aws_retry:with_retry(RequestFun, Options);");
@@ -136,7 +136,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate internal request function
         generateInternalRequestFunction(operation, writer, context, opName, inputType, outputType);
@@ -182,11 +182,11 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         if (!useS3Url) {
             writer.write("Endpoint = maps:get(endpoint, Client),");
         }
-        writer.write("");
+        writer.writeBlankLine();
         
         // Build query string
         generateQueryString(httpQueryMembers, writer);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate URL
         if (useS3Url) {
@@ -194,21 +194,21 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         } else {
             generateGenericUrl(uri, httpLabelMembers, writer);
         }
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate request body
         String contentType = generateRequestBody(operation, model, inputShape, writer);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate headers
         generateRequestHeaders(httpHeaderInputMembers, contentType, writer);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Make the request with SigV4 signing
         generateHttpRequest(operation, model, contentType, writer);
         
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateQueryString(List<MemberShape> httpQueryMembers, ErlangWriter writer) {
@@ -412,7 +412,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
         writer.dedent();
         writer.write("end,");
-        writer.write("");
+        writer.writeBlankLine();
         writer.write("case httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [{body_format, binary}]) of");
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");

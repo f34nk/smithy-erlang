@@ -99,7 +99,7 @@ public final class UnionGenerator {
     public void generateTypeDefinition(ErlangWriter writer) {
         String typeName = getTypeName();
         
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Union type for " + union.getId().getName());
         writer.writeComment("Represented as tagged tuples: {variant_name, variant_data}");
         
@@ -126,14 +126,14 @@ public final class UnionGenerator {
             writer.writeInline("{$L, $L}", variantName, variantType);
             
             if (i < members.size() - 1) {
-                writer.write("");
+                writer.writeBlankLine();
             }
         }
         
         // Add unknown variant for forward compatibility
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeInline("    | {unknown, term()}.");
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -167,7 +167,7 @@ public final class UnionGenerator {
         writer.write("#{<<\"unknown\">> => Data}.");
         writer.dedent();
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -202,7 +202,7 @@ public final class UnionGenerator {
         writer.write("{unknown, UnknownVariant}.");
         writer.dedent();
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**

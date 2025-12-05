@@ -101,7 +101,7 @@ public final class IntEnumGenerator {
     public void generateTypeDefinition(ErlangWriter writer) {
         String typeName = getTypeName();
         
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Integer enum type for " + intEnumShape.getId().getName());
         
         // Start type definition
@@ -122,7 +122,7 @@ public final class IntEnumGenerator {
             writer.writeInline("$L", values.get(i));
             
             if (i < values.size() - 1) {
-                writer.write("");
+                writer.writeBlankLine();
             }
         }
         
@@ -159,7 +159,7 @@ public final class IntEnumGenerator {
             }
         }
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -189,6 +189,6 @@ public final class IntEnumGenerator {
         writer.writeComment("Catch-all for invalid int enum values");
         writer.write("$L(Other) -> {error, {invalid_int_enum_value, Other}}.", functionName);
         
-        writer.write("");
+        writer.writeBlankLine();
     }
 }

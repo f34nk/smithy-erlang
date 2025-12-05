@@ -109,7 +109,7 @@ public final class EnumGenerator {
     public void generateTypeDefinition(ErlangWriter writer) {
         String typeName = getTypeName();
         
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Enum type for " + enumShape.getId().getName());
         
         // Start type definition
@@ -131,7 +131,7 @@ public final class EnumGenerator {
             writer.writeInline("$L", atomName);
             
             if (i < values.size() - 1) {
-                writer.write("");
+                writer.writeBlankLine();
             }
         }
         
@@ -166,7 +166,7 @@ public final class EnumGenerator {
             }
         }
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -194,7 +194,7 @@ public final class EnumGenerator {
         writer.writeComment("Catch-all for invalid enum values");
         writer.write("$L(Other) -> {error, {invalid_enum_value, Other}}.", functionName);
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**

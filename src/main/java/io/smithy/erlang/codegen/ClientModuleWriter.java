@@ -106,7 +106,7 @@ public final class ClientModuleWriter {
         // Module declaration
         writer.writeModuleHeader(moduleName);
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
-        writer.write("");
+        writer.writeBlankLine();
         
         // Sort structures topologically
         List<StructureShape> sortedStructures = topologicalSort(structuresToGenerate);
@@ -296,7 +296,7 @@ public final class ClientModuleWriter {
         }
         
         writer.writeExports(apiExports.toArray(new String[0]));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void writeTypeExports(ErlangWriter writer, List<StructureShape> sortedStructures) {
@@ -322,7 +322,7 @@ public final class ClientModuleWriter {
         }
         
         writer.writeExportTypes(typeExports.toArray(new String[0]));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void writeHelperExports(ErlangWriter writer) {
@@ -359,12 +359,12 @@ public final class ClientModuleWriter {
     }
     
     private void writeDialyzerSuppressions(ErlangWriter writer) {
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Suppress dialyzer warnings");
         writer.writeComment("For example:");
         writer.writeComment("\"The pattern ... can never match the type ...\".");
         writer.write("-dialyzer([no_contracts, no_match]).");
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     // ========== Type Definition Writers ==========
@@ -375,7 +375,7 @@ public final class ClientModuleWriter {
         }
         
         writer.writeComment("Type definitions");
-        writer.write("");
+        writer.writeBlankLine();
         
         for (StructureShape structure : sortedStructures) {
             generateStructure(structure, writer);
@@ -415,7 +415,7 @@ public final class ClientModuleWriter {
             writer.dedent();
             writer.write("}.");
         }
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateEnum(StringShape enumShape, ErlangWriter writer) {
@@ -432,7 +432,7 @@ public final class ClientModuleWriter {
                 .collect(Collectors.toList());
         
         writer.write("-type $L() :: $L.", enumName, String.join(" | ", values));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateUnion(UnionShape union, ErlangWriter writer) {
@@ -449,7 +449,7 @@ public final class ClientModuleWriter {
         variants.add("{unknown, term()}");
         
         writer.write("-type $L() :: $L.", unionName, String.join(" | ", variants));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     // ========== Function Writers ==========
@@ -463,9 +463,9 @@ public final class ClientModuleWriter {
     }
     
     private void writeUrlEncodeHelper(ErlangWriter writer) {
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("URL encode a value for use in URI path parameters");
-        writer.write("");
+        writer.writeBlankLine();
         writer.write("url_encode(Binary) when is_binary(Binary) ->");
         writer.indent();
         writer.write("url_encode(binary_to_list(Binary));");
@@ -474,17 +474,17 @@ public final class ClientModuleWriter {
         writer.indent();
         writer.write("list_to_binary(uri_string:quote(String)).");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         writer.writeComment("Convert a value to binary for use in URI substitution");
-        writer.write("");
+        writer.writeBlankLine();
         writer.write("ensure_binary(Bin) when is_binary(Bin) -> Bin;");
         writer.write("ensure_binary(List) when is_list(List) -> list_to_binary(List);");
         writer.write("ensure_binary(Int) when is_integer(Int) -> integer_to_binary(Int);");
         writer.write("ensure_binary(Float) when is_float(Float) -> float_to_binary(Float);");
         writer.write("ensure_binary(Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);");
         writer.write("ensure_binary(Other) -> list_to_binary(io_lib:format(\"~p\", [Other])).");
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateOperation(OperationShape operation, ErlangWriter writer) {
@@ -547,7 +547,7 @@ public final class ClientModuleWriter {
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate 3-arity version
         writer.writeSpec(opName, "Client :: map(), Input :: map(), Options :: map()", 
@@ -556,7 +556,7 @@ public final class ClientModuleWriter {
         writer.indent();
         writer.write("{error, not_implemented}.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generatePaginationHelper(OperationShape operation, PaginatedTrait trait, 
@@ -582,14 +582,14 @@ public final class ClientModuleWriter {
         writer.indent();
         writer.write("$L(Client, Input, #{}).", helperName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate 3-arity helper with recursive implementation
         writer.write("$L(Client, Input, Options) when is_map(Input), is_map(Options) ->", helperName);
         writer.indent();
         writer.write("$L_recursive(Client, Input, Options, []).", helperName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate recursive function
         writer.write("$L_recursive(Client, Input, Options, Acc) when is_map(Input), is_map(Options), is_list(Acc) ->", helperName);
@@ -638,7 +638,7 @@ public final class ClientModuleWriter {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     // ========== Helper Function Writers ==========
@@ -648,11 +648,11 @@ public final class ClientModuleWriter {
             return;
         }
         
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("===================================================================");
         writer.writeComment("Helper Functions");
         writer.writeComment("===================================================================");
-        writer.write("");
+        writer.writeBlankLine();
         
         for (UnionShape union : unionsToProcess) {
             generateUnionEncodingFunction(union, writer);
@@ -694,7 +694,7 @@ public final class ClientModuleWriter {
         writer.indent();
         writer.write("#{<<\"unknown\">> => Value}.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateUnionDecodingFunction(UnionShape union, ErlangWriter writer) {
@@ -731,7 +731,7 @@ public final class ClientModuleWriter {
         }
         writer.write(".");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateEnumEncodingFunction(StringShape enumShape, ErlangWriter writer) {
@@ -743,7 +743,7 @@ public final class ClientModuleWriter {
             writer.writeSpec(functionName, enumName + "() | {unknown, term()}", "binary()");
             writer.write("$L(Value) when is_atom(Value) -> atom_to_binary(Value, utf8);", functionName);
             writer.write("$L({unknown, Value}) -> Value.", functionName);
-            writer.write("");
+            writer.writeBlankLine();
             return;
         }
         
@@ -755,7 +755,7 @@ public final class ClientModuleWriter {
         }
         
         writer.write("$L({unknown, Value}) -> Value.", functionName);
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateEnumDecodingFunction(StringShape enumShape, ErlangWriter writer) {
@@ -766,7 +766,7 @@ public final class ClientModuleWriter {
         if (enumTrait.isEmpty()) {
             writer.writeSpec(functionName, "binary()", "{ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
             writer.write("$L(Value) -> {ok, Value}.", functionName);
-            writer.write("");
+            writer.writeBlankLine();
             return;
         }
         
@@ -778,7 +778,7 @@ public final class ClientModuleWriter {
         }
         
         writer.write("$L(Other) -> {error, {invalid_enum_value, Other}}.", functionName);
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     private void generateValidationFunction(StructureShape structure, ErlangWriter writer) {
@@ -802,7 +802,7 @@ public final class ClientModuleWriter {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     // ========== Utility Methods ==========

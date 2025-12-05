@@ -124,7 +124,7 @@ public final class ErrorGenerator {
     public void generateTypeDefinition(ErlangWriter writer) {
         String typeName = getTypeName();
         
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Error type for " + errorShape.getId().getName());
         writer.writeComment("Error category: " + getErrorCategory());
         
@@ -143,7 +143,7 @@ public final class ErrorGenerator {
             if (i < memberCount - 1) {
                 writer.write(",");
             } else {
-                writer.write("");
+                writer.writeBlankLine();
             }
             i++;
         }
@@ -179,7 +179,7 @@ public final class ErrorGenerator {
             if (i < memberCount - 1) {
                 writer.write(",");
             } else {
-                writer.write("");
+                writer.writeBlankLine();
             }
             i++;
         }
@@ -187,7 +187,7 @@ public final class ErrorGenerator {
         writer.write("}.");
         writer.dedent();
         
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**

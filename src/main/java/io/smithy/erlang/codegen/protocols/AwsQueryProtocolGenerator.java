@@ -117,7 +117,7 @@ public class AwsQueryProtocolGenerator implements ProtocolGenerator {
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate 3-arity version with retry support
         writer.writeComment("Calls the " + operation.getId().getName() + " operation with options");
@@ -127,7 +127,7 @@ public class AwsQueryProtocolGenerator implements ProtocolGenerator {
         
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
-        writer.write("");
+        writer.writeBlankLine();
         writer.write("case maps:get(enable_retry, Options, true) of");
         writer.indent();
         writer.write("true -> aws_retry:with_retry(RequestFun, Options);");
@@ -135,7 +135,7 @@ public class AwsQueryProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate internal request function
         generateInternalRequestFunction(operation, writer, context, opName, inputType, outputType);
@@ -159,21 +159,21 @@ public class AwsQueryProtocolGenerator implements ProtocolGenerator {
         writer.write("Endpoint = maps:get(endpoint, Client),");
         writer.write("Path = <<\"/\">>,");
         writer.write("Url = <<Endpoint/binary, Path/binary>>,");
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate headers
         generateHeaders(operation, context.serviceShape(), writer, context);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate request body
         generateRequestSerializer(operation, writer, context);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Make the request with SigV4 signing
         generateHttpRequest(operation, writer, context);
         
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     @Override

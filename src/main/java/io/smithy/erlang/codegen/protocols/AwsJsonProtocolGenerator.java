@@ -143,7 +143,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.indent();
         writer.write("$L(Client, Input, #{}).", opName);
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate 3-arity version with retry support
         writer.writeComment("Calls the " + operation.getId().getName() + " operation with options");
@@ -160,7 +160,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         // Create the request function
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Check if retry is enabled
         writer.write("case maps:get(enable_retry, Options, true) of");
@@ -178,7 +178,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate internal request function
         generateInternalRequestFunction(operation, writer, context, opName, inputType, outputType);
@@ -203,15 +203,15 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.write("Endpoint = maps:get(endpoint, Client),");
         writer.write("Path = <<\"/\">>,");
         writer.write("Url = <<Endpoint/binary, Path/binary>>,");
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate headers
         generateHeaders(operation, context.serviceShape(), writer, context);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Generate request body
         generateRequestSerializer(operation, writer, context);
-        writer.write("");
+        writer.writeBlankLine();
         
         // Make the request with SigV4 signing
         writer.write("%% Sign and send request");
@@ -249,7 +249,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.dedent();
         writer.write("end.");
         writer.dedent();
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     @Override

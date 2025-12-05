@@ -197,7 +197,7 @@ public final class ServiceGenerator {
     void writeModuleHeader(ErlangWriter writer, String moduleName) {
         writer.writeModuleHeader(moduleName);
         writer.writeComment("Generated Smithy client for " + service.getId().getName());
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -220,7 +220,7 @@ public final class ServiceGenerator {
         }
         
         writer.writeExports(apiExports.toArray(new String[0]));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -252,7 +252,7 @@ public final class ServiceGenerator {
         }
         
         writer.writeExportTypes(typeExports.toArray(new String[0]));
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -298,12 +298,12 @@ public final class ServiceGenerator {
      * Writes dialyzer suppression directives.
      */
     void writeDialyzerSuppressions(ErlangWriter writer) {
-        writer.write("");
+        writer.writeBlankLine();
         writer.writeComment("Suppress dialyzer warnings");
         writer.writeComment("For example:");
         writer.writeComment("\"The pattern ... can never match the type ...\".");
         writer.write("-dialyzer([no_contracts, no_match]).");
-        writer.write("");
+        writer.writeBlankLine();
     }
     
     /**
@@ -315,7 +315,7 @@ public final class ServiceGenerator {
         }
         
         writer.writeComment("Type definitions");
-        writer.write("");
+        writer.writeBlankLine();
         
         // Type generation is handled by ClientModuleWriter
     }

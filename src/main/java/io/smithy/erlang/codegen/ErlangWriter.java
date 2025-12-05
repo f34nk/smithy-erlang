@@ -25,7 +25,7 @@ import java.util.function.BiFunction;
  * 
  * writer.writeModuleHeader()
  *       .writeExports("foo/1", "bar/2")
- *       .write("")
+ *       .writeBlankLine()
  *       .writeSpec("foo", "binary()", "{ok, term()}")
  *       .openFunction("foo", "Input")
  *       .write("{ok, Input}.")
@@ -72,6 +72,24 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
     // ========== Module Structure Methods ==========
     
     /**
+     * Writes a blank line without any indentation.
+     * 
+     * <p>This should be used instead of {@code write("")} when a truly
+     * blank line is needed, as {@code write("")} would include the
+     * current indentation level, causing trailing whitespace.
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeBlankLine() {
+        // Use dedent/indent to temporarily remove indentation for a clean blank line
+        int currentIndent = getIndentLevel();
+        dedent(currentIndent);
+        write("");
+        indent(currentIndent);
+        return this;
+    }
+    
+    /**
      * Writes the module header declaration.
      * 
      * <p>Generates: {@code -module(module_name).}
@@ -80,7 +98,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
      */
     public ErlangWriter writeModuleHeader() {
         write("-module($L).", moduleName);
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -94,7 +112,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
      */
     public ErlangWriter writeModuleHeader(String customModuleName) {
         write("-module($L).", customModuleName);
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -126,7 +144,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         }
         dedent();
         write("]).");
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -285,7 +303,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
      */
     public ErlangWriter closeFunction() {
         dedent();
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -305,7 +323,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         indent();
         body.run();
         dedent();
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -332,7 +350,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         fieldWriter.run();
         dedent();
         write("}).");
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -407,7 +425,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         write("%% ==========================================================");
         write("%% $L", title);
         write("%% ==========================================================");
-        write("");
+        writeBlankLine();
         return this;
     }
     
@@ -424,7 +442,7 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         ErlangImportContainer imports = getImportContainer();
         if (imports.hasIncludes()) {
             writeWithNoFormatting(imports.toString());
-            write("");
+            writeBlankLine();
         }
         return this;
     }
