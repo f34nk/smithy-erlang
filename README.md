@@ -148,9 +148,8 @@ public class CustomIntegration implements ErlangIntegration {
     public String name() { return "CustomIntegration"; }
     
     @Override
-    public Model preprocessModel(Model model, ErlangSettings settings) {
-        // Modify model or copy files before generation
-        return model;
+    public void preprocessModel(ErlangContext context) {
+        // Copy runtime modules or perform setup before generation
     }
     
     @Override
@@ -173,34 +172,60 @@ com.example.CustomIntegration
 | `AwsProtocolIntegration` | Copies protocol-specific runtime modules |
 | `AwsRetryIntegration` | Copies retry logic module |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+See [ARCHITECTURE.md](https://github.com/f34nk/smithy-erlang/blob/main/ARCHITECTURE.md) for detailed architecture documentation.
 
-## AWS SDK Support Status
+## AWS SDK Feature Support
 
-### Implemented Features
-- AWS SigV4 request signing (canonical request, string-to-sign, signature calculation)
-- Credential provider chain (environment variables, credential files, provider chain)
-- Region configuration from environment and config files
-- Retry logic with exponential backoff and configurable jitter
-- Pagination with automatic helper function generation
-- HTTP protocol bindings (@httpLabel, @httpHeader, @httpQuery, @httpPayload)
-- URI template parameter substitution
-- Field validation for @required trait
-- Union types as tagged tuples
-- Enum types as atoms with validation
+### ✅ Fully Implemented
 
-### Missing AWS Features
-- Streaming support for large payloads
-- Waiters for long-running operations
-- Presigned URL generation
-- S3 multipart upload
-- Advanced field validation (@range, @length, @pattern)
-- AWS-specific traits (endpoint discovery, account ID routing)
-- Cross-region request routing
-- Request compression
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **AWS Protocols** | awsJson1.0, awsJson1.1, awsQuery, ec2Query, restXml, restJson1 | ✅ Complete |
+| **SigV4 Signing** | Canonical request, string-to-sign, signature calculation | ✅ Complete |
+| **Credentials** | Environment variables, `~/.aws/credentials`, provider chain | ✅ Complete |
+| **Retry Logic** | Exponential backoff with jitter, configurable attempts | ✅ Complete |
+| **Pagination** | Automatic helper function generation for paginated operations | ✅ Complete |
+| **HTTP Bindings** | `@httpLabel`, `@httpHeader`, `@httpQuery`, `@httpPayload` | ✅ Complete |
+| **Endpoint Resolution** | Static endpoints via `endpoints.json`, region support | ✅ Complete |
+| **Basic Validation** | `@required` trait validation | ✅ Complete |
+
+### ⚠️ Partially Implemented / Limitations
+
+| Feature | Current State | Limitation |
+|---------|---------------|------------|
+| **Service Trait Extraction** | Uses hardcoded trait detection | Does not dynamically extract `@aws.api#service` trait metadata |
+| **Error Handling** | Basic error parsing | Service-specific error types not fully modeled |
+| **Documentation** | Function specs only | `@documentation` trait not yet extracted to EDoc |
+
+### ❌ Not Yet Implemented
+
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Streaming** | High | `@streaming` trait for large payload uploads/downloads |
+| **Presigned URLs** | High | Generate shareable URLs without exposing credentials |
+| **Waiters** | Medium | `@waitable` trait for polling long-running operations |
+| **S3 Multipart** | Medium | Large file uploads (>5GB) with concurrent parts |
+| **Advanced Validation** | Medium | `@range`, `@length`, `@pattern` constraint traits |
+| **Request Compression** | Low | `@requestCompression` trait for gzip encoding |
+| **Endpoint Discovery** | Low | `@clientEndpointDiscovery` dynamic endpoint lookup |
+| **Account ID Routing** | Low | `@accountIdEndpointMode` account-scoped endpoints |
+| **Cross-Region Routing** | Low | S3 access points, bucket region detection |
 
 ### Type System Trade-offs
-The generator uses type aliases in function specs for documentation while using maps at runtime. This provides:
+
+The generator uses type aliases in function specs for documentation while using maps at runtime:
+
+```erlang
+-type get_object_input() :: #{
+    <<"Bucket">> := binary(),
+    <<"Key">> := binary()
+}.
+
+-spec get_object(Client :: map(), Input :: get_object_input()) -> 
+    {ok, get_object_output()} | {error, term()}.
+```
+
+This provides:
 - Clear documentation via type names
 - Zero runtime overhead (no record conversion)
 - Dialyzer warnings suppressed where specs intentionally differ from implementation
