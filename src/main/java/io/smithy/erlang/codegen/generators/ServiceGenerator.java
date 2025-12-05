@@ -252,19 +252,7 @@ public final class ServiceGenerator {
             typeExports.add(unionName + "/0");
         }
         
-        writer.write("-export_type([");
-        for (int i = 0; i < typeExports.size(); i++) {
-            if (i > 0) {
-                writer.writeInline("             ");
-            }
-            writer.writeInline(typeExports.get(i));
-            if (i < typeExports.size() - 1) {
-                writer.write(",");
-            } else {
-                writer.write("");
-            }
-        }
-        writer.write("        ]).");
+        writer.writeExportTypes(typeExports.toArray(new String[0]));
         writer.write("");
     }
     
@@ -304,20 +292,7 @@ public final class ServiceGenerator {
             helperExports.add("validate_" + structureName + "/1");
         }
         
-        writer.write("-export([");
-        for (int i = 0; i < helperExports.size(); i++) {
-            if (i > 0) {
-                writer.writeInline("         ");
-            }
-            writer.writeInline(helperExports.get(i));
-            if (i < helperExports.size() - 1) {
-                writer.write(",");
-            } else {
-                writer.write("");
-            }
-        }
-        writer.write("        ]).");
-        writer.write("");
+        writer.writeExports(helperExports.toArray(new String[0]));
     }
     
     /**
