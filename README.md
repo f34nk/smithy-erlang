@@ -95,7 +95,7 @@ Create `smithy-build.json`:
     "repositories": [{"url": "file://${user.home}/.m2/repository"}]
   },
   "plugins": {
-    "erlang-client-codegen": {
+    "erlang-codegen": {
       "service": "com.example#MyClient",
       "module": "my_client",
       "outputDir": "src/generated"
@@ -112,13 +112,68 @@ smithy build
 
 Generated files in `src/generated/`:
 - `my_client.erl` - A single module with types, records, and operation functions (generated from the smithy model)
+- `aws_config.erl` - AWS configuration management
 - `aws_sigv4.erl` - AWS Signature V4 request signing
 - `aws_credentials.erl` - Credential provider chain
 - `aws_retry.erl` - Retry logic with exponential backoff
-- `aws_config.erl` - AWS configuration management
 - `aws_xml.erl` - XML parsing for REST-XML protocol
 - `aws_query.erl` - AWS Query protocol support
 - `aws_s3.erl` - S3-specific URL routing utilities
+- `aws_endpoints.erl` - Endpoint resolution and AWS region support
+
+## Architecture
+
+The generator follows Smithy's recommended `DirectedCodegen` pattern for extensibility and maintainability.
+
+Reference: [Creating a Code Generator](https://smithy.io/2.0/guides/building-codegen/index.html)
+
+### Core Components
+
+| Component | Description |
+|-----------|-------------|
+| `ErlangCodegenPlugin` | Main Smithy Build plugin entry point |
+| `ErlangGenerator` | DirectedCodegen implementation for shape-by-shape generation |
+| `ErlangContext` | Centralized access to model, settings, and dependencies |
+| `ErlangSettings` | Immutable configuration from smithy-build.json |
+| `ErlangWriter` | SymbolWriter extension for Erlang code output |
+| `EnhancedErlangSymbolProvider` | Smithy-to-Erlang type mapping |
+
+### Extension System
+
+The generator supports custom integrations via Java SPI (Service Provider Interface):
+
+```java
+public class CustomIntegration implements ErlangIntegration {
+    @Override
+    public String name() { return "CustomIntegration"; }
+    
+    @Override
+    public Model preprocessModel(Model model, ErlangSettings settings) {
+        // Modify model or copy files before generation
+        return model;
+    }
+    
+    @Override
+    public void postprocessGeneration(ErlangContext context) {
+        // Run after generation completes
+    }
+}
+```
+
+Register in `META-INF/services/io.smithy.erlang.codegen.ErlangIntegration`:
+```
+com.example.CustomIntegration
+```
+
+### Built-in Integrations
+
+| Integration | Purpose |
+|-------------|---------|
+| `AwsSigV4Integration` | Copies AWS SigV4 signing modules |
+| `AwsProtocolIntegration` | Copies protocol-specific runtime modules |
+| `AwsRetryIntegration` | Copies retry logic module |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 
 ## AWS SDK Support Status
 
