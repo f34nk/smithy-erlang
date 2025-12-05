@@ -38,11 +38,6 @@ https://smithy.io/2.0/index.html
 - Pagination with automatic helper function generation
 - Region configuration support
 
-### Testing and Quality
-- Comprehensive test coverage with meck for HTTP mocking
-- Dialyzer static analysis with managed suppressions
-- GitHub CI/CD workflow
-
 ## Prerequisites
 
 - Java 11+
@@ -180,44 +175,11 @@ See [ARCHITECTURE.md](https://github.com/f34nk/smithy-erlang/blob/main/ARCHITECT
 
 Smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries. Please check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md) with all Smithy traits and their support status in smithy-erlang.
 
-## AWS SDK Feature Support
+## AWS SDK Support
 
-### ✅ Fully Implemented
+Please check out [AWS_SDK_SUPPORT.md](https://github.com/f34nk/smithy-erlang/blob/main/AWS_SDK_SUPPORT.md) with a full list of AWS SDK features and their support status in smithy-erlang.
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **AWS Protocols** | awsJson1.0, awsJson1.1, awsQuery, ec2Query, restXml, restJson1 | ✅ Complete |
-| **SigV4 Signing** | Canonical request, string-to-sign, signature calculation | ✅ Complete |
-| **Credentials** | Environment variables, `~/.aws/credentials`, provider chain | ✅ Complete |
-| **Retry Logic** | Exponential backoff with jitter, configurable attempts | ✅ Complete |
-| **Pagination** | Automatic helper function generation for paginated operations | ✅ Complete |
-| **HTTP Bindings** | `@httpLabel`, `@httpHeader`, `@httpQuery`, `@httpPayload` | ✅ Complete |
-| **Endpoint Resolution** | Static endpoints via `endpoints.json`, region support | ✅ Complete |
-| **Basic Validation** | `@required` trait validation | ✅ Complete |
-
-### ⚠️ Partially Implemented / Limitations
-
-| Feature | Current State | Limitation |
-|---------|---------------|------------|
-| **Service Trait Extraction** | Uses hardcoded trait detection | Does not dynamically extract `@aws.api#service` trait metadata |
-| **Error Handling** | Basic error parsing | Service-specific error types not fully modeled |
-| **Documentation** | Function specs only | `@documentation` trait not yet extracted to EDoc |
-
-### ❌ Not Yet Implemented
-
-| Feature | Priority | Description |
-|---------|----------|-------------|
-| **Streaming** | High | `@streaming` trait for large payload uploads/downloads |
-| **Presigned URLs** | High | Generate shareable URLs without exposing credentials |
-| **Waiters** | Medium | `@waitable` trait for polling long-running operations |
-| **S3 Multipart** | Medium | Large file uploads (>5GB) with concurrent parts |
-| **Advanced Validation** | Medium | `@range`, `@length`, `@pattern` constraint traits |
-| **Request Compression** | Low | `@requestCompression` trait for gzip encoding |
-| **Endpoint Discovery** | Low | `@clientEndpointDiscovery` dynamic endpoint lookup |
-| **Account ID Routing** | Low | `@accountIdEndpointMode` account-scoped endpoints |
-| **Cross-Region Routing** | Low | S3 access points, bucket region detection |
-
-### Type System Trade-offs
+## Type System Trade-offs
 
 The generator uses type aliases in function specs for documentation while using maps at runtime:
 
