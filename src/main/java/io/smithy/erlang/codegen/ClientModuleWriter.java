@@ -857,6 +857,9 @@ public final class ClientModuleWriter {
         Path outputPath;
         boolean useCustomDir = outputDir != null && !outputDir.isEmpty();
         
+        // Normalize output: trim trailing whitespace but ensure single trailing newline
+        String content = writer.toString().stripTrailing() + "\n";
+        
         if (useCustomDir) {
             Path baseDir = fileManifest.getBaseDir();
             Path projectRoot = baseDir;
@@ -876,16 +879,16 @@ public final class ClientModuleWriter {
                 if (outputPath.getParent() != null) {
                     Files.createDirectories(outputPath.getParent());
                 }
-                Files.writeString(outputPath, writer.toString());
+                Files.writeString(outputPath, content);
                 LOGGER.info("Generated client module: " + outputPath);
             } catch (java.nio.file.FileSystemException e) {
                 LOGGER.warning("Cannot write to custom directory, using FileManifest: " + e.getMessage());
                 outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
-                fileManifest.writeFile(outputPath, writer.toString());
+                fileManifest.writeFile(outputPath, content);
             }
         } else {
             outputPath = fileManifest.getBaseDir().resolve("src/" + moduleName + ".erl");
-            fileManifest.writeFile(outputPath, writer.toString());
+            fileManifest.writeFile(outputPath, content);
         }
     }
     
