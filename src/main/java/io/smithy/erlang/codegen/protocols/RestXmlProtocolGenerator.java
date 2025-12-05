@@ -442,20 +442,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         // Check for empty response (PutObject, DeleteObject, etc.)
         // These operations may return 200 with empty body
         writer.write("%% Decode XML response (or handle empty)");
-        writer.write("case ResponseBody of");
-        writer.indent();
-        writer.write("<<>> -> {ok, #{}};");
-        writer.write("_ ->");
-        writer.indent();
-        writer.write("case aws_xml:decode(ResponseBody) of");
-        writer.indent();
-        writer.write("{ok, XmlMap} -> {ok, XmlMap};");
-        writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
-        writer.dedent();
-        writer.write("end");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
+        writer.writeXmlDecodeWithEmptyCheck(";");
     }
     
     @Override
@@ -478,12 +465,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         } else {
             // Fallback for standalone calls - simple XML decode
             writer.write("%% Decode XML response");
-            writer.write("case aws_xml:decode(ResponseBody) of");
-            writer.indent();
-            writer.write("{ok, XmlMap} -> {ok, XmlMap};");
-            writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
-            writer.dedent();
-            writer.write("end;");
+            writer.writeXmlDecodeCase(";");
         }
     }
     

@@ -483,6 +483,99 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    /**
+     * Writes a standard XML decode case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case aws_xml:decode(ResponseBody) of
+     *     {ok, XmlMap} -> {ok, XmlMap};
+     *     {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeCase() {
+        return writeXmlDecodeCase("");
+    }
+    
+    /**
+     * Writes a standard XML decode case expression with a suffix.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case aws_xml:decode(ResponseBody) of
+     *     {ok, XmlMap} -> {ok, XmlMap};
+     *     {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     * end{suffix}
+     * </pre>
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeCase(String suffix) {
+        write("case aws_xml:decode(ResponseBody) of");
+        indent();
+        write("{ok, XmlMap} -> {ok, XmlMap};");
+        write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes XML decode with empty body handling.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     _ ->
+     *         case aws_xml:decode(ResponseBody) of
+     *             {ok, XmlMap} -> {ok, XmlMap};
+     *             {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     *         end
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeWithEmptyCheck() {
+        return writeXmlDecodeWithEmptyCheck("");
+    }
+    
+    /**
+     * Writes XML decode with empty body handling and a suffix.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     _ ->
+     *         case aws_xml:decode(ResponseBody) of
+     *             {ok, XmlMap} -> {ok, XmlMap};
+     *             {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     *         end
+     * end{suffix}
+     * </pre>
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeWithEmptyCheck(String suffix) {
+        write("case ResponseBody of");
+        indent();
+        write("<<>> -> {ok, #{}};");
+        write("_ ->");
+        indent();
+        writeXmlDecodeCase();
+        dedent();
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**
