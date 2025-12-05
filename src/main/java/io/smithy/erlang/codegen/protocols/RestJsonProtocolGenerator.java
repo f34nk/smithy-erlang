@@ -60,7 +60,6 @@ import java.util.Optional;
  * </ul>
  * 
  * @see ProtocolGenerator
- * @see RestJsonProtocol (legacy implementation)
  */
 public class RestJsonProtocolGenerator implements ProtocolGenerator {
     

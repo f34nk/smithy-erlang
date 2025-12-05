@@ -12,8 +12,7 @@ import java.util.logging.Logger;
  * Smithy Build plugin for generating Erlang client code using DirectedCodegen.
  * 
  * <p>This plugin uses Smithy's {@link CodegenDirector} pattern for structured
- * code generation. It replaces the legacy {@link ErlangClientPlugin} with a
- * modern architecture that supports:
+ * code generation with a modern architecture that supports:
  * <ul>
  *   <li>Extensibility via {@link ErlangIntegration}</li>
  *   <li>Shape-specific generators</li>
