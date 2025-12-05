@@ -202,42 +202,20 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
     }
     
     private void generateQueryString(List<MemberShape> httpQueryMembers, ErlangWriter writer) {
-        if (httpQueryMembers.isEmpty()) {
-            writer.write("%% No query parameters");
-            writer.write("QueryString = <<\"\">>,");
-        } else {
-            writer.write("%% Build query string from @httpQuery parameters");
-            writer.write("QueryPairs0 = [],");
-            
-            for (int i = 0; i < httpQueryMembers.size(); i++) {
-                MemberShape member = httpQueryMembers.get(i);
+        // Convert MemberShapes to QueryParamMappings
+        java.util.List<ErlangWriter.QueryParamMapping> queryParams = httpQueryMembers.stream()
+            .map(member -> {
                 String memberName = member.getMemberName();
                 String erlangFieldName = EnhancedErlangSymbolProvider.toErlangName(memberName);
                 String queryName = member.expectTrait(software.amazon.smithy.model.traits.HttpQueryTrait.class).getValue();
                 if (queryName == null || queryName.isEmpty()) {
                     queryName = memberName;
                 }
-                
-                String currentPairsVar = "QueryPairs" + i;
-                String nextPairsVar = "QueryPairs" + (i + 1);
-                
-                writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextPairsVar, memberName);
-                writer.indent();
-                writer.write("undefined -> $L;", currentPairsVar);
-                writer.write("$LVal -> [{<<\"$L\">>, ensure_binary($LVal)} | $L]",
-                        capitalize(erlangFieldName), queryName, capitalize(erlangFieldName), currentPairsVar);
-                writer.dedent();
-                writer.write("end,");
-            }
-            
-            String finalPairsVar = "QueryPairs" + httpQueryMembers.size();
-            writer.write("QueryString = case $L of", finalPairsVar);
-            writer.indent();
-            writer.write("[] -> <<\"\">>;");
-            writer.write("Pairs -> Encoded = uri_string:compose_query(Pairs), <<\"?\", Encoded/binary>>");
-            writer.dedent();
-            writer.write("end,");
-        }
+                return new ErlangWriter.QueryParamMapping(memberName, queryName, capitalize(erlangFieldName));
+            })
+            .toList();
+        
+        writer.writeQueryStringBuilder(queryParams);
     }
     
     private void generateUrl(String uri, List<MemberShape> httpLabelMembers, ErlangWriter writer) {

@@ -775,6 +775,106 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    // ========== HTTP Query String Building Methods ==========
+    
+    /**
+     * Represents a mapping from a Smithy member to an HTTP query parameter.
+     */
+    public static final class QueryParamMapping {
+        private final String memberName;
+        private final String queryName;
+        private final String varName;
+        
+        /**
+         * Creates a new QueryParamMapping.
+         *
+         * @param memberName The Smithy member name (e.g., "Delimiter")
+         * @param queryName The HTTP query parameter name (e.g., "delimiter")
+         * @param varName The Erlang variable name prefix (e.g., "Delimiter")
+         */
+        public QueryParamMapping(String memberName, String queryName, String varName) {
+            this.memberName = memberName;
+            this.queryName = queryName;
+            this.varName = varName;
+        }
+        
+        /**
+         * Creates a QueryParamMapping with the member name used as the variable name.
+         */
+        public static QueryParamMapping of(String memberName, String queryName) {
+            return new QueryParamMapping(memberName, queryName, capitalize(memberName));
+        }
+        
+        public String memberName() { return memberName; }
+        public String queryName() { return queryName; }
+        public String varName() { return varName; }
+        
+        private static String capitalize(String s) {
+            if (s == null || s.isEmpty()) return s;
+            return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+    }
+    
+    /**
+     * Writes query string building code for HTTP query parameters.
+     * 
+     * <p>For empty query params, generates:
+     * <pre>
+     * %% No query parameters
+     * QueryString = <<"">>,
+     * </pre>
+     * 
+     * <p>For query params, generates:
+     * <pre>
+     * %% Build query string from @httpQuery parameters
+     * QueryPairs0 = [],
+     * QueryPairs1 = case maps:get(<<"Delimiter">>, Input, undefined) of
+     *     undefined -> QueryPairs0;
+     *     DelimiterVal -> [{<<"delimiter">>, ensure_binary(DelimiterVal)} | QueryPairs0]
+     * end,
+     * QueryString = case QueryPairs1 of
+     *     [] -> <<"">>;
+     *     Pairs -> Encoded = uri_string:compose_query(Pairs), <<"?", Encoded/binary>>
+     * end,
+     * </pre>
+     *
+     * @param queryParams List of query parameter mappings
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeQueryStringBuilder(java.util.List<QueryParamMapping> queryParams) {
+        if (queryParams.isEmpty()) {
+            write("%% No query parameters");
+            write("QueryString = <<\"\">>,");
+            return this;
+        }
+        
+        write("%% Build query string from @httpQuery parameters");
+        write("QueryPairs0 = [],");
+        
+        for (int i = 0; i < queryParams.size(); i++) {
+            QueryParamMapping param = queryParams.get(i);
+            String currentPairsVar = "QueryPairs" + i;
+            String nextPairsVar = "QueryPairs" + (i + 1);
+            
+            write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextPairsVar, param.memberName());
+            indent();
+            write("undefined -> $L;", currentPairsVar);
+            write("$LVal -> [{<<\"$L\">>, ensure_binary($LVal)} | $L]",
+                    param.varName(), param.queryName(), param.varName(), currentPairsVar);
+            dedent();
+            write("end,");
+        }
+        
+        String finalPairsVar = "QueryPairs" + queryParams.size();
+        write("QueryString = case $L of", finalPairsVar);
+        indent();
+        write("[] -> <<\"\">>;");
+        write("Pairs -> Encoded = uri_string:compose_query(Pairs), <<\"?\", Encoded/binary>>");
+        dedent();
+        write("end,");
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**
