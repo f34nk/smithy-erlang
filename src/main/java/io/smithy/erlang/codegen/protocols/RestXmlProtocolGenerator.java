@@ -418,7 +418,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.indent();
         writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
         writer.indent();
-        generateResponseDeserializer(operation, writer, null);
+        generateResponseDeserializerInternal(operation, model, writer);
         writer.dedent();
         writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
         writer.indent();
@@ -439,6 +439,56 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         writer.write("end.");
     }
     
+    /**
+     * Internal helper for response deserialization that takes model directly.
+     */
+    private void generateResponseDeserializerInternal(OperationShape operation, Model model, ErlangWriter writer) {
+        // Check if output has @httpPayload pointing to blob/string
+        Optional<StructureShape> outputShape = operation.getOutput()
+                .map(id -> model.expectShape(id, StructureShape.class));
+        
+        if (outputShape.isPresent()) {
+            Optional<MemberShape> payloadMember = ProtocolUtils.getPayloadMember(outputShape.get());
+            if (payloadMember.isPresent()) {
+                Shape targetShape = model.expectShape(payloadMember.get().getTarget());
+                if (targetShape.isBlobShape() || targetShape.isStringShape()) {
+                    // Return raw body for blob/string payloads
+                    String memberName = payloadMember.get().getMemberName();
+                    writer.write("%% Return raw body as payload");
+                    writer.write("{ok, #{<<\"$L\">> => ResponseBody}};", memberName);
+                    return;
+                }
+            }
+            
+            // Check if there are any body members (excluding header members)
+            List<MemberShape> bodyMembers = ProtocolUtils.getBodyMembers(outputShape.get());
+            if (bodyMembers.isEmpty()) {
+                // No body members - return empty map or just headers
+                writer.write("%% No body content expected");
+                writer.write("{ok, #{}};");
+                return;
+            }
+        }
+        
+        // Check for empty response (PutObject, DeleteObject, etc.)
+        // These operations may return 200 with empty body
+        writer.write("%% Decode XML response (or handle empty)");
+        writer.write("case ResponseBody of");
+        writer.indent();
+        writer.write("<<>> -> {ok, #{}};");
+        writer.write("_ ->");
+        writer.indent();
+        writer.write("case aws_xml:decode(ResponseBody) of");
+        writer.indent();
+        writer.write("{ok, XmlMap} -> {ok, XmlMap};");
+        writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
+        writer.dedent();
+        writer.write("end");
+        writer.dedent();
+        writer.dedent();
+        writer.write("end;");
+    }
+    
     @Override
     public void generateHeaders(OperationShape operation, ServiceShape service,
             ErlangWriter writer, ErlangContext context) {
@@ -454,13 +504,18 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateResponseDeserializer(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.write("%% Decode XML response");
-        writer.write("case aws_xml:decode(ResponseBody) of");
-        writer.indent();
-        writer.write("{ok, XmlMap} -> {ok, XmlMap};");
-        writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
-        writer.dedent();
-        writer.write("end;");
+        if (context != null) {
+            generateResponseDeserializerInternal(operation, context.model(), writer);
+        } else {
+            // Fallback for standalone calls - simple XML decode
+            writer.write("%% Decode XML response");
+            writer.write("case aws_xml:decode(ResponseBody) of");
+            writer.indent();
+            writer.write("{ok, XmlMap} -> {ok, XmlMap};");
+            writer.write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
+            writer.dedent();
+            writer.write("end;");
+        }
     }
     
     @Override

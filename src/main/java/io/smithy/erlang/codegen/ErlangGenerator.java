@@ -114,9 +114,8 @@ public final class ErlangGenerator
      * Generates code for a service shape.
      * 
      * <p>This is the main entry point for client code generation.
-     * Currently, service generation is handled by the existing
-     * {@code ErlangClientPlugin}. This method will be expanded
-     * in future phases to use dedicated generators.
+     * It uses {@link ClientModuleWriter} to generate the complete
+     * Erlang client module including types, operations, and helpers.
      *
      * @param directive The directive containing service shape and context
      */
@@ -125,11 +124,18 @@ public final class ErlangGenerator
         ServiceShape service = directive.shape();
         ErlangContext context = directive.context();
         
-        LOGGER.fine("Generating service: " + service.getId());
+        LOGGER.info("Generating service: " + service.getId());
         
-        // Note: Full service generation is handled by ErlangClientPlugin
-        // This will be refactored to use ServiceGenerator
-        // For now, we just log that the shape was encountered
+        try {
+            // Generate the client module
+            ClientModuleWriter writer = ClientModuleWriter.fromContext(context);
+            writer.generate();
+            writer.copyRuntimeModules();
+            
+            LOGGER.info("Service generation completed: " + service.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate service: " + service.getId(), e);
+        }
     }
     
     /**
