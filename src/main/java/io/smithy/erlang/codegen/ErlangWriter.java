@@ -339,6 +339,31 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    // ========== Common Code Pattern Methods ==========
+    
+    /**
+     * Writes the standard retry case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case maps:get(enable_retry, Options, true) of
+     *     true -> aws_retry:with_retry(RequestFun, Options);
+     *     false -> RequestFun()
+     * end.
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRetryCase() {
+        write("case maps:get(enable_retry, Options, true) of");
+        indent();
+        write("true -> aws_retry:with_retry(RequestFun, Options);");
+        write("false -> RequestFun()");
+        dedent();
+        write("end.");
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**

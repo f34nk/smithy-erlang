@@ -127,12 +127,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
         writer.writeBlankLine();
-        writer.write("case maps:get(enable_retry, Options, true) of");
-        writer.indent();
-        writer.write("true -> aws_retry:with_retry(RequestFun, Options);");
-        writer.write("false -> RequestFun()");
-        writer.dedent();
-        writer.write("end.");
+        writer.writeRetryCase();
         writer.dedent();
         writer.writeBlankLine();
         

@@ -159,22 +159,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
         writer.writeBlankLine();
-        
-        // Check if retry is enabled
-        writer.write("case maps:get(enable_retry, Options, true) of");
-        writer.indent();
-        writer.write("true ->");
-        writer.indent();
-        writer.write("%% Retry enabled - wrap with retry logic");
-        writer.write("aws_retry:with_retry(RequestFun, Options);");
-        writer.dedent();
-        writer.write("false ->");
-        writer.indent();
-        writer.write("%% Retry disabled - call directly");
-        writer.write("RequestFun()");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeRetryCase();
         writer.dedent();
         writer.writeBlankLine();
         
