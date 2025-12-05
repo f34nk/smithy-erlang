@@ -672,6 +672,109 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    // ========== HTTP Header Building Methods ==========
+    
+    /**
+     * Represents a mapping from a Smithy member to an HTTP header.
+     */
+    public static final class HeaderMapping {
+        private final String memberName;
+        private final String headerName;
+        private final String varName;
+        private final boolean required;
+        
+        /**
+         * Creates a new HeaderMapping.
+         *
+         * @param memberName The Smithy member name (e.g., "IfMatch")
+         * @param headerName The HTTP header name (e.g., "If-Match")
+         * @param varName The Erlang variable name prefix (e.g., "IfMatch")
+         * @param required Whether the header is required
+         */
+        public HeaderMapping(String memberName, String headerName, String varName, boolean required) {
+            this.memberName = memberName;
+            this.headerName = headerName;
+            this.varName = varName;
+            this.required = required;
+        }
+        
+        /**
+         * Creates a HeaderMapping with the member name used as the variable name.
+         */
+        public static HeaderMapping of(String memberName, String headerName, boolean required) {
+            return new HeaderMapping(memberName, headerName, capitalize(memberName), required);
+        }
+        
+        public String memberName() { return memberName; }
+        public String headerName() { return headerName; }
+        public String varName() { return varName; }
+        public boolean required() { return required; }
+        
+        private static String capitalize(String s) {
+            if (s == null || s.isEmpty()) return s;
+            return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+    }
+    
+    /**
+     * Writes a header building chain for HTTP headers.
+     * 
+     * <p>For empty headers, generates:
+     * <pre>
+     * %% Headers
+     * Headers = [{<<"Content-Type">>, <<"application/xml">>}],
+     * </pre>
+     * 
+     * <p>For headers with members, generates:
+     * <pre>
+     * %% Build headers with @httpHeader members
+     * Headers0 = [{<<"Content-Type">>, <<"application/xml">>}],
+     * Headers1 = case maps:get(<<"IfMatch">>, Input, undefined) of
+     *     undefined -> Headers0;
+     *     IfMatchValue -> [{<<"If-Match">>, ensure_binary(IfMatchValue)} | Headers0]
+     * end,
+     * Headers = Headers1,
+     * </pre>
+     *
+     * @param contentType The Content-Type header value (e.g., "application/xml")
+     * @param headers List of header mappings
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeHeaderBuildingChain(String contentType, java.util.List<HeaderMapping> headers) {
+        if (headers.isEmpty()) {
+            write("%% Headers");
+            write("Headers = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
+            return this;
+        }
+        
+        write("%% Build headers with @httpHeader members");
+        write("Headers0 = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
+        
+        for (int i = 0; i < headers.size(); i++) {
+            HeaderMapping header = headers.get(i);
+            String currentHeadersVar = "Headers" + i;
+            String nextHeadersVar = "Headers" + (i + 1);
+            
+            if (header.required()) {
+                write("$LValue = ensure_binary(maps:get(<<\"$L\">>, Input)),",
+                        header.varName(), header.memberName());
+                write("$L = [{<<\"$L\">>, $LValue} | $L],",
+                        nextHeadersVar, header.headerName(), header.varName(), currentHeadersVar);
+            } else {
+                write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextHeadersVar, header.memberName());
+                indent();
+                write("undefined -> $L;", currentHeadersVar);
+                write("$LValue -> [{<<\"$L\">>, ensure_binary($LValue)} | $L]",
+                        header.varName(), header.headerName(), header.varName(), currentHeadersVar);
+                dedent();
+                write("end,");
+            }
+        }
+        
+        write("Headers = $L,", "Headers" + headers.size());
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**

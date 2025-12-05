@@ -349,15 +349,9 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
     }
     
     private void generateRequestHeaders(List<MemberShape> httpHeaderMembers, String contentType, ErlangWriter writer) {
-        if (httpHeaderMembers.isEmpty()) {
-            writer.write("%% Headers");
-            writer.write("Headers = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
-        } else {
-            writer.write("%% Build headers with @httpHeader members");
-            writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
-            
-            for (int i = 0; i < httpHeaderMembers.size(); i++) {
-                MemberShape member = httpHeaderMembers.get(i);
+        // Convert MemberShapes to HeaderMappings
+        java.util.List<ErlangWriter.HeaderMapping> headers = httpHeaderMembers.stream()
+            .map(member -> {
                 String memberName = member.getMemberName();
                 String erlangFieldName = EnhancedErlangSymbolProvider.toErlangName(memberName);
                 HttpHeaderTrait headerTrait = member.expectTrait(HttpHeaderTrait.class);
@@ -366,27 +360,11 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
                     headerName = memberName;
                 }
                 boolean isRequired = member.hasTrait(RequiredTrait.class);
-                String currentHeadersVar = "Headers" + i;
-                String nextHeadersVar = "Headers" + (i + 1);
-                
-                if (isRequired) {
-                    writer.write("$LValue = ensure_binary(maps:get(<<\"$L\">>, Input)),",
-                            capitalize(erlangFieldName), memberName);
-                    writer.write("$L = [{<<\"$L\">>, $LValue} | $L],",
-                            nextHeadersVar, headerName, capitalize(erlangFieldName), currentHeadersVar);
-                } else {
-                    writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextHeadersVar, memberName);
-                    writer.indent();
-                    writer.write("undefined -> $L;", currentHeadersVar);
-                    writer.write("$LValue -> [{<<\"$L\">>, ensure_binary($LValue)} | $L]",
-                            capitalize(erlangFieldName), headerName, capitalize(erlangFieldName), currentHeadersVar);
-                    writer.dedent();
-                    writer.write("end,");
-                }
-            }
-            
-            writer.write("Headers = $L,", "Headers" + httpHeaderMembers.size());
-        }
+                return new ErlangWriter.HeaderMapping(memberName, headerName, capitalize(erlangFieldName), isRequired);
+            })
+            .toList();
+        
+        writer.writeHeaderBuildingChain(contentType, headers);
     }
     
     private void generateHttpRequest(OperationShape operation, Model model, String contentType, ErlangWriter writer) {
