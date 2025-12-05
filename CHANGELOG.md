@@ -1,5 +1,78 @@
 # Changelog
 
+## [Unreleased] - Documentation
+
+### Added
+- `TRAITS.md` - Comprehensive Smithy trait support status with links to documentation
+- `AWS_SDK_SUPPORT.md` - AWS SDK feature support status
+
+---
+
+## [Unreleased] - Deprecated Code Removal
+
+### Removed
+- `ErlangClientPlugin` - Replaced by `ErlangCodegenPlugin`
+- `ErlangClientSettings` - Replaced by `ErlangSettings`
+- `ErlangSymbolProvider` - Replaced by `EnhancedErlangSymbolProvider`
+- Legacy `Protocol` interface and implementations (`AwsJsonProtocol`, `RestXmlProtocol`, etc.)
+- `ProtocolFactory` and `ProtocolContext`
+- Legacy test files for removed classes
+
+---
+
+## [Unreleased] - Architecture Migration
+
+### Added
+- `ErlangCodegenPlugin` using Smithy's `CodegenDirector` pattern
+- `ErlangGenerator` implementing `DirectedCodegen` interface
+- `ErlangSettings` for immutable code generator configuration
+- `ErlangContext` implementing `CodegenContext` interface
+- `ErlangIntegration` extending `SmithyIntegration` for extensibility
+- `EnhancedErlangSymbolProvider` implementing Smithy's `SymbolProvider`
+- `ErlangReservedWords` for Erlang keyword escaping
+- `ErlangImportContainer` for managing include directives
+- Java SPI-based integration discovery
+
+### Changed
+- `ErlangWriter` now extends `SymbolWriter` with custom formatters (`$T`, `$N`)
+- Plugin renamed from `erlang-client-codegen` to `erlang-codegen`
+
+---
+
+## [Unreleased] - Protocol Generator Refactoring
+
+### Added
+- `ProtocolGenerator` interface for protocol-specific code generation
+- `AwsJsonProtocolGenerator` for AWS JSON 1.0/1.1 protocols
+- `RestXmlProtocolGenerator` for REST-XML protocol (S3, CloudFront)
+- `AwsQueryProtocolGenerator` for AWS Query protocol (SQS, SNS)
+- `Ec2QueryProtocolGenerator` for EC2 Query protocol
+- `RestJsonProtocolGenerator` for REST-JSON protocol (API Gateway)
+
+---
+
+## [Unreleased] - Shape Generators
+
+### Added
+- `ServiceGenerator` for client module generation
+- `ClientModuleWriter` for core client code generation logic
+- `UnionGenerator` for tagged tuple union types
+- `EnumGenerator` for string enum types
+- `IntEnumGenerator` for integer enum types
+- `ErrorGenerator` for error shape types
+- `RuntimeModuleGenerator` for copying runtime support modules
+
+---
+
+## [Unreleased] - Integrations System
+
+### Added
+- `AwsSigV4Integration` - Copies SigV4 runtime modules when `@aws.auth#sigv4` detected
+- `AwsProtocolIntegration` - Copies protocol-specific runtime modules (aws_xml, aws_query, aws_s3)
+- `AwsRetryIntegration` - Copies retry runtime module
+
+---
+
 ## [Unreleased] - AWS Protocol Support Complete
 
 ### Added
