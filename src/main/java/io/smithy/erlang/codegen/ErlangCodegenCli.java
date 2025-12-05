@@ -80,7 +80,7 @@ public class ErlangCodegenCli {
         System.out.println("Generating code to: " + absoluteOutput);
         
         // Run the plugin manually
-        ErlangClientPlugin plugin = new ErlangClientPlugin();
+        ErlangCodegenPlugin plugin = new ErlangCodegenPlugin();
         
         // Create a minimal plugin context
         software.amazon.smithy.build.PluginContext context = 
@@ -96,7 +96,6 @@ public class ErlangCodegenCli {
         
         System.out.println("Generated files:");
         System.out.println("  - " + outputDir.resolve(config.module + ".erl"));
-        System.out.println("  - " + outputDir.resolve(config.module + "_types.erl"));
     }
     
     /**

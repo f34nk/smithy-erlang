@@ -13,7 +13,7 @@
     ]
   },
   "plugins": {
-    "erlang-client-codegen": {
+    "erlang-codegen": {
       "service": "com.example.pagination#PaginatedTestService",
       "module": "paginated_service",
       "outputDir": "src/generated"

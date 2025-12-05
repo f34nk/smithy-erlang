@@ -57,14 +57,9 @@ tasks.register("generatePluginDescriptor") {
         val servicesDir = file("$buildDir/resources/main/META-INF/services")
         servicesDir.mkdirs()
         
-        // Register both plugins:
-        // - erlang-client-codegen: Legacy plugin (for backward compatibility)
-        // - erlang-codegen: New plugin using DirectedCodegen
+        // Register the DirectedCodegen-based plugin
         file("$servicesDir/software.amazon.smithy.build.SmithyBuildPlugin").writeText(
-            """
-            io.smithy.erlang.codegen.ErlangClientPlugin
-            io.smithy.erlang.codegen.ErlangCodegenPlugin
-            """.trimIndent()
+            "io.smithy.erlang.codegen.ErlangCodegenPlugin"
         )
     }
 }

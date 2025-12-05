@@ -64,7 +64,6 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * 
  * @see ProtocolGenerator
  * @see AwsQueryProtocolGenerator
- * @see Ec2QueryProtocol (legacy implementation)
  */
 public class Ec2QueryProtocolGenerator implements ProtocolGenerator {
     

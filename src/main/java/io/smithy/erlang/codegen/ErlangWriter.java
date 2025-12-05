@@ -44,20 +44,6 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
     private final String moduleName;
     
     /**
-     * Creates a new ErlangWriter with a default module name.
-     * 
-     * <p>This constructor is provided for backward compatibility with code
-     * that doesn't specify a module name upfront. The module name can be
-     * set later using {@link #writeModuleHeader(String)}.
-     * 
-     * @deprecated Use {@link #ErlangWriter(String)} to specify module name upfront
-     */
-    @Deprecated
-    public ErlangWriter() {
-        this("generated");
-    }
-    
-    /**
      * Creates a new ErlangWriter for the specified module.
      *
      * @param moduleName The Erlang module name (without .erl extension)
@@ -113,21 +99,6 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
     }
     
     /**
-     * Writes a module header with a custom module name (backward compatibility).
-     * 
-     * <p>Generates: {@code -module(custom_name).}
-     *
-     * @param customModuleName The module name to use
-     * @return This writer for method chaining
-     * @deprecated Use {@link #writeModuleHeader(String)} instead
-     */
-    @Deprecated
-    public ErlangWriter writeModule(String customModuleName) {
-        write("-module($L).", customModuleName);
-        return this;
-    }
-    
-    /**
      * Writes function exports.
      * 
      * <p>Example output:
@@ -156,34 +127,6 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         dedent();
         write("]).");
         write("");
-        return this;
-    }
-    
-    /**
-     * Writes function exports (backward compatibility).
-     * 
-     * <p>Uses the old formatting style with fixed alignment.
-     *
-     * @param functions Function signatures (e.g., "foo/1", "bar/2")
-     * @return This writer for method chaining
-     * @deprecated Use {@link #writeExports(String...)} instead
-     */
-    @Deprecated
-    public ErlangWriter writeExport(String... functions) {
-        if (functions.length == 0) {
-            write("-export([]).");
-            return this;
-        }
-        
-        write("-export([" + functions[0] + ",");
-        for (int i = 1; i < functions.length; i++) {
-            if (i < functions.length - 1) {
-                write("         " + functions[i] + ",");
-            } else {
-                write("         " + functions[i]);
-            }
-        }
-        write("        ]).");
         return this;
     }
     

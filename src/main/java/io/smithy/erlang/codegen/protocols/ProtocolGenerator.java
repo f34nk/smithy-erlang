@@ -53,12 +53,10 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * }
  * </pre>
  * 
- * <h2>Migration Notes</h2>
- * <p>This interface is part of the Phase 6 architecture migration. Existing
- * protocol classes (e.g., {@code AwsJsonProtocol}, {@code RestXmlProtocol})
- * should be migrated to implement this interface.
+ * <h2>Implementation Notes</h2>
+ * <p>All AWS protocols have dedicated implementations:
+ * {@link AwsJsonProtocolGenerator}, {@link RestXmlProtocolGenerator}, etc.
  * 
- * @see Protocol (legacy interface)
  * @see ErlangContext
  * @see io.smithy.erlang.codegen.integrations.AwsProtocolIntegration
  */

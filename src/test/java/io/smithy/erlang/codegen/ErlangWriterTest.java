@@ -26,14 +26,6 @@ class ErlangWriterTest {
         }
         
         @Test
-        @DisplayName("Creates writer with default module name (deprecated)")
-        @SuppressWarnings("deprecation")
-        void testDefaultConstructor() {
-            ErlangWriter writer = new ErlangWriter();
-            assertEquals("generated", writer.getModuleName());
-        }
-        
-        @Test
         @DisplayName("Writer has import container")
         void testHasImportContainer() {
             ErlangWriter writer = new ErlangWriter("test");
@@ -69,17 +61,6 @@ class ErlangWriterTest {
         }
         
         @Test
-        @DisplayName("Writes module (deprecated)")
-        @SuppressWarnings("deprecation")
-        void testWriteModule() {
-            ErlangWriter writer = new ErlangWriter("my_module");
-            writer.writeModule("test_module");
-            
-            String output = writer.toString();
-            assertTrue(output.contains("-module(test_module)."));
-        }
-        
-        @Test
         @DisplayName("Writes exports")
         void testWriteExports() {
             ErlangWriter writer = new ErlangWriter("my_module");
@@ -103,17 +84,6 @@ class ErlangWriterTest {
             assertTrue(output.contains("-export([])."));
         }
         
-        @Test
-        @DisplayName("Writes export (deprecated)")
-        @SuppressWarnings("deprecation")
-        void testWriteExport() {
-            ErlangWriter writer = new ErlangWriter("my_module");
-            writer.writeExport("foo/1", "bar/2");
-            
-            String output = writer.toString();
-            assertTrue(output.contains("-export([foo/1,"));
-            assertTrue(output.contains("bar/2"));
-        }
     }
     
     // ========== Type Definition Tests ==========

@@ -24,28 +24,18 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Regression tests comparing old vs new architecture output.
+ * Regression tests for code generation consistency.
  * 
- * <p>These tests ensure that the new DirectedCodegen-based architecture
- * produces equivalent output to the original ErlangClientPlugin implementation.
+ * <p>These tests ensure that the DirectedCodegen-based architecture
+ * produces consistent and correct output.
  * 
  * <h2>Test Strategy</h2>
  * <ul>
- *   <li>Generate code using current ErlangClientPlugin (baseline)</li>
+ *   <li>Generate code using ErlangCodegenPlugin</li>
  *   <li>Extract key components (exports, specs, functions)</li>
- *   <li>Verify structural equivalence</li>
- *   <li>Document intentional differences</li>
+ *   <li>Verify structural correctness</li>
  * </ul>
  * 
- * <h2>Intentional Differences</h2>
- * <p>The following differences are expected and acceptable:
- * <ul>
- *   <li>Whitespace and formatting variations</li>
- *   <li>Comment ordering</li>
- *   <li>Runtime module copy order</li>
- * </ul>
- * 
- * @see ErlangClientPlugin
  * @see ErlangCodegenPlugin
  */
 class RegressionTest {
@@ -53,11 +43,11 @@ class RegressionTest {
     @TempDir
     Path outputDir;
     
-    private ErlangClientPlugin plugin;
+    private ErlangCodegenPlugin plugin;
     
     @BeforeEach
     void setUp() {
-        plugin = new ErlangClientPlugin();
+        plugin = new ErlangCodegenPlugin();
     }
     
     @Nested

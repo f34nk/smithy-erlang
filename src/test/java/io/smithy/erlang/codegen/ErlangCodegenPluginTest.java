@@ -78,12 +78,6 @@ class ErlangCodegenPluginTest {
             assertEquals("erlang-codegen", plugin.getName());
         }
         
-        @Test
-        @DisplayName("Plugin name differs from legacy plugin")
-        void testDifferentFromLegacy() {
-            ErlangClientPlugin legacyPlugin = new ErlangClientPlugin();
-            assertNotEquals(plugin.getName(), legacyPlugin.getName());
-        }
     }
     
     // ========== Plugin Instantiation Tests ==========
@@ -173,20 +167,4 @@ class ErlangCodegenPluginTest {
         }
     }
     
-    // ========== Comparison with Legacy Plugin ==========
-    
-    @Nested
-    @DisplayName("Legacy Plugin Comparison")
-    class LegacyComparisonTests {
-        
-        @Test
-        @DisplayName("ErlangCodegenPlugin uses different name than legacy")
-        void testDifferentPluginName() {
-            ErlangCodegenPlugin newPlugin = new ErlangCodegenPlugin();
-            ErlangClientPlugin legacyPlugin = new ErlangClientPlugin();
-            
-            assertEquals("erlang-codegen", newPlugin.getName());
-            assertEquals("erlang-client-codegen", legacyPlugin.getName());
-        }
-    }
 }
