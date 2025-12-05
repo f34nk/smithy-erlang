@@ -50,11 +50,11 @@ class IntegrationTest {
     @TempDir
     Path outputDir;
     
-    private ErlangClientPlugin plugin;
+    private ErlangCodegenPlugin plugin;
     
     @BeforeEach
     void setUp() {
-        plugin = new ErlangClientPlugin();
+        plugin = new ErlangCodegenPlugin();
     }
     
     @Nested
