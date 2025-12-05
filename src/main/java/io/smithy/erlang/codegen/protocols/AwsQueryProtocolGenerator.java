@@ -53,7 +53,6 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * </ul>
  * 
  * @see ProtocolGenerator
- * @see AwsQueryProtocol (legacy implementation)
  */
 public class AwsQueryProtocolGenerator implements ProtocolGenerator {
     

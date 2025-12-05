@@ -20,9 +20,8 @@ import software.amazon.smithy.model.traits.*;
 /**
  * Core client module code generation logic.
  * 
- * <p>This class contains the actual Erlang client code generation logic,
- * extracted from ErlangClientPlugin to be reusable by both the legacy
- * plugin and the new DirectedCodegen architecture.
+ * <p>This class contains the actual Erlang client code generation logic
+ * used by the DirectedCodegen architecture via ErlangGenerator.
  * 
  * <p>The generated module includes:
  * <ul>

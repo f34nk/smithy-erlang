@@ -253,8 +253,7 @@ public final class ErlangGenerator
             integration.preprocessModel(directive.context());
         }
         
-        // Note: Runtime module copying is still handled by ErlangClientPlugin
-        // Will be moved here in future refactoring phases
+        // Runtime modules are copied by ClientModuleWriter.copyRuntimeModules()
     }
     
     /**

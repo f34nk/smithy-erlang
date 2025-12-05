@@ -49,7 +49,6 @@ import java.util.Optional;
  * </ul>
  * 
  * @see ProtocolGenerator
- * @see RestXmlProtocol (legacy implementation)
  */
 public class RestXmlProtocolGenerator implements ProtocolGenerator {
     

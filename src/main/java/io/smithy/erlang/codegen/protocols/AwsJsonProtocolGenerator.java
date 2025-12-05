@@ -49,7 +49,6 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * </pre>
  * 
  * @see ProtocolGenerator
- * @see AwsJsonProtocol (legacy implementation)
  */
 public class AwsJsonProtocolGenerator implements ProtocolGenerator {
     
