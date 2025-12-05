@@ -18,29 +18,34 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * - AWS SigV4 signing
  * 
  * Request format:
- *   Action=OperationName&Version=2016-11-15&Param1=Value1&Param2=Value2
+ *   Action=OperationName&amp;Version=2016-11-15&amp;Param1=Value1&amp;Param2=Value2
  * 
  * Response format:
- *   <OperationNameResponse>
- *       <OperationNameResult>
+ *   &lt;OperationNameResponse&gt;
+ *       &lt;OperationNameResult&gt;
  *           ...
- *       </OperationNameResult>
- *       <ResponseMetadata>
- *           <RequestId>...</RequestId>
- *       </ResponseMetadata>
- *   </OperationNameResponse>
+ *       &lt;/OperationNameResult&gt;
+ *       &lt;ResponseMetadata&gt;
+ *           &lt;RequestId&gt;...&lt;/RequestId&gt;
+ *       &lt;/ResponseMetadata&gt;
+ *   &lt;/OperationNameResponse&gt;
  * 
  * Error format (EC2-specific):
- *   <Response>
- *       <Errors>
- *           <Error>
- *               <Code>InvalidParameterValue</Code>
- *               <Message>...</Message>
- *           </Error>
- *       </Errors>
- *       <RequestId>...</RequestId>
- *   </Response>
+ *   &lt;Response&gt;
+ *       &lt;Errors&gt;
+ *           &lt;Error&gt;
+ *               &lt;Code&gt;InvalidParameterValue&lt;/Code&gt;
+ *               &lt;Message&gt;...&lt;/Message&gt;
+ *           &lt;/Error&gt;
+ *       &lt;/Errors&gt;
+ *       &lt;RequestId&gt;...&lt;/RequestId&gt;
+ *   &lt;/Response&gt;
+ * 
+ * @deprecated Use {@link Ec2QueryProtocolGenerator} instead. This class is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see Ec2QueryProtocolGenerator
  */
+@Deprecated
 public class Ec2QueryProtocol implements Protocol {
     
     /**

@@ -1,40 +1,96 @@
 package io.smithy.erlang.codegen.protocols;
 
-import io.smithy.erlang.codegen.ErlangSymbolProvider;
+import io.smithy.erlang.codegen.ErlangContext;
 import io.smithy.erlang.codegen.ErlangWriter;
+import io.smithy.erlang.codegen.symbol.EnhancedErlangSymbolProvider;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.ShapeId;
 
 /**
- * AWS JSON Protocol implementation for DynamoDB, Lambda, Kinesis, and other JSON-based AWS services.
+ * Protocol generator for AWS JSON 1.0 and 1.1 protocols.
  * 
- * Supports both awsJson1.0 and awsJson1.1 protocols.
+ * <p>This generator handles code generation for services using the AWS JSON
+ * protocol, which is used by DynamoDB, Lambda, Kinesis, SNS, and other
+ * JSON-based AWS services.
  * 
- * Key characteristics:
- * - POST requests to "/"
- * - X-Amz-Target header: {ServiceName}_{Version}.{OperationName}
- * - Content-Type: application/x-amz-json-1.0 or application/x-amz-json-1.1
- * - JSON body encoding/decoding with jsx
- * - AWS SigV4 signing
+ * <h2>Protocol Characteristics</h2>
+ * <ul>
+ *   <li>HTTP Method: Always POST</li>
+ *   <li>URI Path: Always "/"</li>
+ *   <li>Content-Type: {@code application/x-amz-json-1.0} or {@code 1.1}</li>
+ *   <li>Request Body: JSON encoded with {@code jsx:encode/1}</li>
+ *   <li>Response Body: JSON decoded with {@code jsx:decode/2}</li>
+ *   <li>Target Header: {@code X-Amz-Target: {ServiceName}_{Version}.{OperationName}}</li>
+ *   <li>Authentication: AWS SigV4</li>
+ * </ul>
  * 
- * @deprecated Use {@link AwsJsonProtocolGenerator} instead. This class is maintained
- *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
- * @see AwsJsonProtocolGenerator
+ * <h2>Services Using AWS JSON</h2>
+ * <ul>
+ *   <li>DynamoDB (JSON 1.0)</li>
+ *   <li>Lambda (JSON 1.1)</li>
+ *   <li>Kinesis (JSON 1.1)</li>
+ *   <li>SNS (JSON 1.1)</li>
+ *   <li>SWF (JSON 1.0)</li>
+ * </ul>
+ * 
+ * <h2>Example Generated Code</h2>
+ * <pre>
+ * put_item(Client, Input) ->
+ *     put_item(Client, Input, #{}).
+ * 
+ * put_item(Client, Input, Options) when is_map(Input), is_map(Options) ->
+ *     RequestFun = fun() -> make_put_item_request(Client, Input) end,
+ *     case maps:get(enable_retry, Options, true) of
+ *         true -> aws_retry:with_retry(RequestFun, Options);
+ *         false -> RequestFun()
+ *     end.
+ * </pre>
+ * 
+ * @see ProtocolGenerator
+ * @see AwsJsonProtocol (legacy implementation)
  */
-@Deprecated
-public class AwsJsonProtocol implements Protocol {
+public class AwsJsonProtocolGenerator implements ProtocolGenerator {
     
-    private final String version; // "1.0" or "1.1"
+    /** Protocol trait ID for AWS JSON 1.0 */
+    public static final ShapeId AWS_JSON_1_0 = ShapeId.from("aws.protocols#awsJson1_0");
+    
+    /** Protocol trait ID for AWS JSON 1.1 */
+    public static final ShapeId AWS_JSON_1_1 = ShapeId.from("aws.protocols#awsJson1_1");
+    
+    private final ShapeId protocolId;
+    private final String version;
     
     /**
-     * Creates an AWS JSON protocol handler.
-     * 
-     * @param version The AWS JSON version ("1.0" or "1.1")
+     * Creates an AWS JSON 1.0 protocol generator.
      */
-    public AwsJsonProtocol(String version) {
-        this.version = version;
+    public AwsJsonProtocolGenerator() {
+        this(AWS_JSON_1_0);
+    }
+    
+    /**
+     * Creates an AWS JSON protocol generator for the specified version.
+     *
+     * @param protocolId The protocol trait ID (awsJson1_0 or awsJson1_1)
+     */
+    public AwsJsonProtocolGenerator(ShapeId protocolId) {
+        this.protocolId = protocolId;
+        this.version = protocolId.equals(AWS_JSON_1_0) ? "1.0" : "1.1";
+    }
+    
+    /**
+     * Creates an AWS JSON 1.1 protocol generator.
+     *
+     * @return A new generator for AWS JSON 1.1
+     */
+    public static AwsJsonProtocolGenerator awsJson11() {
+        return new AwsJsonProtocolGenerator(AWS_JSON_1_1);
+    }
+    
+    @Override
+    public ShapeId getProtocol() {
+        return protocolId;
     }
     
     @Override
@@ -58,14 +114,11 @@ public class AwsJsonProtocol implements Protocol {
     }
     
     @Override
-    public void generateOperation(
-            OperationShape operation,
-            ServiceShape service,
-            Model model,
-            ErlangSymbolProvider symbolProvider,
-            ErlangWriter writer) {
+    public void generateOperation(OperationShape operation, ErlangWriter writer, ErlangContext context) {
+        Model model = context.model();
+        ServiceShape service = context.serviceShape();
         
-        String opName = ErlangSymbolProvider.toErlangName(operation.getId().getName());
+        String opName = EnhancedErlangSymbolProvider.toErlangName(operation.getId().getName());
         
         // Determine input and output types
         String inputType = "map()";
@@ -73,13 +126,13 @@ public class AwsJsonProtocol implements Protocol {
         
         if (operation.getInput().isPresent()) {
             ShapeId inputId = operation.getInput().get();
-            String inputRecordName = ErlangSymbolProvider.toErlangName(inputId.getName());
+            String inputRecordName = EnhancedErlangSymbolProvider.toErlangName(inputId.getName());
             inputType = inputRecordName + "()";
         }
         
         if (operation.getOutput().isPresent()) {
             ShapeId outputId = operation.getOutput().get();
-            String outputRecordName = ErlangSymbolProvider.toErlangName(outputId.getName());
+            String outputRecordName = EnhancedErlangSymbolProvider.toErlangName(outputId.getName());
             outputType = outputRecordName + "()";
         }
         
@@ -129,6 +182,17 @@ public class AwsJsonProtocol implements Protocol {
         writer.write("");
         
         // Generate internal request function
+        generateInternalRequestFunction(operation, writer, context, opName, inputType, outputType);
+    }
+    
+    /**
+     * Generates the internal request function that performs the actual HTTP call.
+     */
+    private void generateInternalRequestFunction(OperationShape operation, ErlangWriter writer, 
+            ErlangContext context, String opName, String inputType, String outputType) {
+        
+        String internalFunctionName = "make_" + opName + "_request";
+        
         writer.writeComment("Internal function to make the " + operation.getId().getName() + " request");
         writer.write("-spec $L(Client :: map(), Input :: $L) -> {ok, $L} | {error, term()}.",
                 internalFunctionName, inputType, outputType);
@@ -143,11 +207,11 @@ public class AwsJsonProtocol implements Protocol {
         writer.write("");
         
         // Generate headers
-        generateHeaders(operation, service, writer);
+        generateHeaders(operation, context.serviceShape(), writer, context);
         writer.write("");
         
         // Generate request body
-        generateRequestBody(operation, model, writer);
+        generateRequestSerializer(operation, writer, context);
         writer.write("");
         
         // Make the request with SigV4 signing
@@ -165,12 +229,12 @@ public class AwsJsonProtocol implements Protocol {
         writer.indent();
         
         // Generate response decoding
-        generateResponseDecoding(operation, model, writer);
+        generateResponseDeserializer(operation, writer, context);
         
         writer.dedent();
         writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
         writer.indent();
-        writer.write("{error, {http_error, StatusCode, ErrorBody}};");
+        generateErrorParser(operation, writer, context);
         writer.dedent();
         writer.write("{error, Reason} ->");
         writer.indent();
@@ -190,10 +254,8 @@ public class AwsJsonProtocol implements Protocol {
     }
     
     @Override
-    public void generateHeaders(
-            OperationShape operation,
-            ServiceShape service,
-            ErlangWriter writer) {
+    public void generateHeaders(OperationShape operation, ServiceShape service, 
+            ErlangWriter writer, ErlangContext context) {
         
         writer.writeComment("AWS JSON protocol headers");
         
@@ -214,11 +276,7 @@ public class AwsJsonProtocol implements Protocol {
     }
     
     @Override
-    public void generateRequestBody(
-            OperationShape operation,
-            Model model,
-            ErlangWriter writer) {
-        
+    public void generateRequestSerializer(OperationShape operation, ErlangWriter writer, ErlangContext context) {
         writer.writeComment("Encode request body as JSON");
         
         if (operation.getInput().isPresent()) {
@@ -229,11 +287,7 @@ public class AwsJsonProtocol implements Protocol {
     }
     
     @Override
-    public void generateResponseDecoding(
-            OperationShape operation,
-            Model model,
-            ErlangWriter writer) {
-        
+    public void generateResponseDeserializer(OperationShape operation, ErlangWriter writer, ErlangContext context) {
         writer.writeComment("Decode JSON response");
         
         if (operation.getOutput().isPresent()) {
@@ -243,5 +297,24 @@ public class AwsJsonProtocol implements Protocol {
             writer.write("%% No output structure, return empty map");
             writer.write("{ok, #{}};");
         }
+    }
+    
+    @Override
+    public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
+        writer.writeComment("Parse AWS JSON error response");
+        writer.write("%% AWS JSON errors have __type field with error code");
+        writer.write("try");
+        writer.indent();
+        writer.write("ErrorMap = jsx:decode(ErrorBody, [return_maps]),");
+        writer.write("ErrorType = maps:get(<<\"__type\">>, ErrorMap, <<\"Unknown\">>),");
+        writer.write("Message = maps:get(<<\"message\">>, ErrorMap, ");
+        writer.write("          maps:get(<<\"Message\">>, ErrorMap, <<\"\">>)),");
+        writer.write("{error, {aws_error, StatusCode, ErrorType, Message}}");
+        writer.dedent();
+        writer.write("catch");
+        writer.indent();
+        writer.write("_:_ -> {error, {http_error, StatusCode, ErrorBody}}");
+        writer.dedent();
+        writer.write("end;");
     }
 }

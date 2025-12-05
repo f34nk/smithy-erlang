@@ -6,7 +6,12 @@ import software.amazon.smithy.model.traits.EnumTrait;
 
 /**
  * Simple symbol provider for mapping Smithy shapes to Erlang names and types.
+ * 
+ * @deprecated Use {@link io.smithy.erlang.codegen.symbol.EnhancedErlangSymbolProvider} instead.
+ *             This class is maintained for backward compatibility with {@link ErlangClientPlugin}.
+ * @see io.smithy.erlang.codegen.symbol.EnhancedErlangSymbolProvider
  */
+@Deprecated
 public final class ErlangSymbolProvider {
     
     private final Model model;

@@ -43,7 +43,12 @@ import java.util.stream.Collectors;
  * 
  * Error response format:
  *   - JSON body with "message" and "__type" or "code" fields
+ * 
+ * @deprecated Use {@link RestJsonProtocolGenerator} instead. This class is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see RestJsonProtocolGenerator
  */
+@Deprecated
 public class RestJsonProtocol implements Protocol {
     
     /**

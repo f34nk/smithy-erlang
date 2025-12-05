@@ -40,7 +40,12 @@ import java.util.stream.Collectors;
  * Response format:
  *   - XML body decoded to map
  *   - Headers extracted from @httpHeader members in output
+ * 
+ * @deprecated Use {@link RestXmlProtocolGenerator} instead. This class is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see RestXmlProtocolGenerator
  */
+@Deprecated
 public class RestXmlProtocol implements Protocol {
     
     /**

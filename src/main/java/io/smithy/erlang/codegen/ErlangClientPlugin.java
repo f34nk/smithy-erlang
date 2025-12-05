@@ -39,7 +39,13 @@ import software.amazon.smithy.model.traits.PaginatedTrait;
 
 /**
  * Simple Smithy Build plugin for generating Erlang client code.
+ * 
+ * @deprecated Use {@link ErlangCodegenPlugin} instead, which uses the DirectedCodegen
+ *             architecture for better modularity and extensibility. This plugin is
+ *             maintained for backward compatibility during the migration period.
+ * @see ErlangCodegenPlugin
  */
+@Deprecated
 public final class ErlangClientPlugin implements SmithyBuildPlugin {
     
     private static final Logger LOGGER = Logger.getLogger(ErlangClientPlugin.class.getName());
@@ -341,7 +347,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
 
         // Generate new/1 function
         writer.writeComment("Creates a new client with the given configuration");
-        writer.writeSpec("new", "(Config :: map()) -> {ok, map()}");
+        writer.writeSpec("new", "Config :: map()", "{ok, map()}");
         writer.writeFunction("new", "Config", () -> {
             writer.write("{ok, Config}.");
         });
@@ -1543,7 +1549,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         String functionName = "encode_" + unionName;
         
         writer.writeComment("Encode " + union.getId().getName() + " union to JSON");
-        writer.writeSpec(functionName, "(" + unionName + "() | {unknown, term()}) -> map()");
+        writer.writeSpec(functionName, unionName + "() | {unknown, term()}", "map()");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
@@ -1597,7 +1603,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         String functionName = "decode_" + unionName;
         
         writer.writeComment("Decode JSON to " + union.getId().getName() + " union");
-        writer.writeSpec(functionName, "(map()) -> " + unionName + "() | {unknown, term()}");
+        writer.writeSpec(functionName, "map()", unionName + "() | {unknown, term()}");
         
         // Generate function clauses for each variant
         List<MemberShape> members = new ArrayList<>(union.getAllMembers().values());
@@ -1697,7 +1703,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
         
         writer.writeComment("Encode " + enumShape.getId().getName() + " enum to JSON string");
-        writer.writeSpec(functionName, "(" + enumName + "()) -> binary()");
+        writer.writeSpec(functionName, enumName + "()", "binary()");
         
         // Generate function clauses for each enum value
         List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
@@ -1734,7 +1740,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         EnumTrait enumTrait = enumShape.expectTrait(EnumTrait.class);
         
         writer.writeComment("Decode JSON string to " + enumShape.getId().getName() + " enum with validation");
-        writer.writeSpec(functionName, "(binary()) -> {ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
+        writer.writeSpec(functionName, "binary()", "{ok, " + enumName + "()} | {error, {invalid_enum_value, binary()}}");
         
         // Generate function clauses for each enum value
         List<software.amazon.smithy.model.traits.EnumDefinition> values = enumTrait.getValues();
@@ -1781,7 +1787,7 @@ public final class ErlangClientPlugin implements SmithyBuildPlugin {
         }
         
         writer.writeComment("Validate required fields for " + structure.getId().getName());
-        writer.writeSpec(functionName, "(map()) -> ok | {error, {missing_required_fields, [binary()]}}");
+        writer.writeSpec(functionName, "map()", "ok | {error, {missing_required_fields, [binary()]}}");
         writer.write("$L(Input) when is_map(Input) ->", functionName);
         writer.indent();
         

@@ -6,7 +6,17 @@ import io.smithy.erlang.codegen.aws.AwsProtocol;
  * Factory for creating Protocol instances from AwsProtocol enum values.
  * 
  * This factory maps the AwsProtocol enum to concrete Protocol implementation instances.
+ * 
+ * @deprecated Use the new {@link ProtocolGenerator} implementations directly.
+ *             This factory is maintained for backward compatibility with
+ *             {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see AwsJsonProtocolGenerator
+ * @see AwsQueryProtocolGenerator
+ * @see Ec2QueryProtocolGenerator
+ * @see RestXmlProtocolGenerator
+ * @see RestJsonProtocolGenerator
  */
+@Deprecated
 public final class ProtocolFactory {
     
     private ProtocolFactory() {
