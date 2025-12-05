@@ -39,7 +39,13 @@ import software.amazon.smithy.model.traits.PaginatedTrait;
 
 /**
  * Simple Smithy Build plugin for generating Erlang client code.
+ * 
+ * @deprecated Use {@link ErlangCodegenPlugin} instead, which uses the DirectedCodegen
+ *             architecture for better modularity and extensibility. This plugin is
+ *             maintained for backward compatibility during the migration period.
+ * @see ErlangCodegenPlugin
  */
+@Deprecated
 public final class ErlangClientPlugin implements SmithyBuildPlugin {
     
     private static final Logger LOGGER = Logger.getLogger(ErlangClientPlugin.class.getName());

@@ -17,7 +17,12 @@ import software.amazon.smithy.model.shapes.ServiceShape;
  * - Request/response serialization format (JSON, XML, Query)
  * - Content-Type headers
  * - Error response parsing
+ * 
+ * @deprecated Use {@link ProtocolGenerator} instead. This interface is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see ProtocolGenerator
  */
+@Deprecated
 public interface Protocol {
     
     /**

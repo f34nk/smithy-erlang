@@ -12,7 +12,12 @@ import java.util.Optional;
 /**
  * Settings for the Erlang client code generator.
  * These settings are configured in smithy-build.json under the plugin configuration.
+ * 
+ * @deprecated Use {@link ErlangSettings} instead. This class is maintained for
+ *             backward compatibility with {@link ErlangClientPlugin}.
+ * @see ErlangSettings
  */
+@Deprecated
 public final class ErlangClientSettings {
     
     private static final String SERVICE = "service";

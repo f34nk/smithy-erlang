@@ -18,7 +18,12 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * - Content-Type: application/x-amz-json-1.0 or application/x-amz-json-1.1
  * - JSON body encoding/decoding with jsx
  * - AWS SigV4 signing
+ * 
+ * @deprecated Use {@link AwsJsonProtocolGenerator} instead. This class is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see AwsJsonProtocolGenerator
  */
+@Deprecated
 public class AwsJsonProtocol implements Protocol {
     
     private final String version; // "1.0" or "1.1"

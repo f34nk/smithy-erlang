@@ -21,15 +21,20 @@ import software.amazon.smithy.model.shapes.ShapeId;
  *   Action=OperationName&Version=2012-11-05&Param1=Value1&Param2=Value2
  * 
  * Response format:
- *   <OperationNameResponse>
- *       <OperationNameResult>
+ *   &lt;OperationNameResponse&gt;
+ *       &lt;OperationNameResult&gt;
  *           ...
- *       </OperationNameResult>
- *       <ResponseMetadata>
- *           <RequestId>...</RequestId>
- *       </ResponseMetadata>
- *   </OperationNameResponse>
+ *       &lt;/OperationNameResult&gt;
+ *       &lt;ResponseMetadata&gt;
+ *           &lt;RequestId&gt;...&lt;/RequestId&gt;
+ *       &lt;/ResponseMetadata&gt;
+ *   &lt;/OperationNameResponse&gt;
+ * 
+ * @deprecated Use {@link AwsQueryProtocolGenerator} instead. This class is maintained
+ *             for backward compatibility with {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see AwsQueryProtocolGenerator
  */
+@Deprecated
 public class AwsQueryProtocol implements Protocol {
     
     /**

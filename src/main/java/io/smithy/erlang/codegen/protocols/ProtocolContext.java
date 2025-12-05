@@ -12,7 +12,13 @@ import software.amazon.smithy.model.shapes.ServiceShape;
  * This class encapsulates all the context information needed during
  * protocol-specific code generation, making it easier to pass around
  * and reducing method parameter lists.
+ * 
+ * @deprecated Use {@link io.smithy.erlang.codegen.ErlangContext} instead.
+ *             This class is maintained for backward compatibility with
+ *             {@link io.smithy.erlang.codegen.ErlangClientPlugin}.
+ * @see io.smithy.erlang.codegen.ErlangContext
  */
+@Deprecated
 public final class ProtocolContext {
     
     private final Model model;
