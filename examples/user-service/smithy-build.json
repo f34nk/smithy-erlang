@@ -13,7 +13,7 @@
     ]
   },
   "plugins": {
-    "erlang-client-codegen": {
+    "erlang-codegen": {
       "service": "com.example.user#UserService",
       "module": "user_client",
       "outputDir": "src/generated"

@@ -13,7 +13,7 @@
     ]
   },
   "plugins": {
-    "erlang-client-codegen": {
+    "erlang-codegen": {
       "service": "com.example.storage#StorageService",
       "module": "storage_client",
       "outputDir": "src/generated"

@@ -13,7 +13,7 @@
     ]
   },
   "plugins": {
-    "erlang-client-codegen": {
+    "erlang-codegen": {
       "service": "com.example.s3.test#S3Client",
       "module": "s3_client",
       "outputDir": "src/generated"
