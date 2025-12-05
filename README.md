@@ -122,6 +122,8 @@ The generator follows Smithy's recommended `DirectedCodegen` pattern for extensi
 
 Reference: [Creating a Code Generator](https://smithy.io/2.0/guides/building-codegen/index.html)
 
+See [ARCHITECTURE.md](https://github.com/f34nk/smithy-erlang/blob/main/ARCHITECTURE.md) for detailed architecture documentation.
+
 ### Core Components
 
 | Component | Description |
@@ -167,17 +169,17 @@ com.example.CustomIntegration
 | `AwsProtocolIntegration` | Copies protocol-specific runtime modules |
 | `AwsRetryIntegration` | Copies retry logic module |
 
-See [ARCHITECTURE.md](https://github.com/f34nk/smithy-erlang/blob/main/ARCHITECTURE.md) for detailed architecture documentation.
-
 ## Smithy Traits
 
 [Smithy traits](https://smithy.io/2.0/spec/model.html#traits) are declarative metadata that tell code generators how to generate code, without embedding that logic in the model itself. They separate "what the API looks like" from "how to implement it".
 
-Smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries. Please check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md) with all Smithy traits and their support status in smithy-erlang.
+Smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries. 
+
+Check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md) with all Smithy traits and their support status in smithy-erlang.
 
 ## AWS SDK Support
 
-Please check out [AWS_SDK_SUPPORT.md](https://github.com/f34nk/smithy-erlang/blob/main/AWS_SDK_SUPPORT.md) with a full list of AWS SDK features and their support status in smithy-erlang.
+Check out [AWS_SDK_SUPPORT.md](https://github.com/f34nk/smithy-erlang/blob/main/AWS_SDK_SUPPORT.md) with a full list of AWS SDK features and their support status in smithy-erlang.
 
 ## Type System Trade-offs
 
