@@ -159,22 +159,7 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
         writer.writeBlankLine();
-        
-        // Check if retry is enabled
-        writer.write("case maps:get(enable_retry, Options, true) of");
-        writer.indent();
-        writer.write("true ->");
-        writer.indent();
-        writer.write("%% Retry enabled - wrap with retry logic");
-        writer.write("aws_retry:with_retry(RequestFun, Options);");
-        writer.dedent();
-        writer.write("false ->");
-        writer.indent();
-        writer.write("%% Retry disabled - call directly");
-        writer.write("RequestFun()");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeRetryCase();
         writer.dedent();
         writer.writeBlankLine();
         
@@ -211,48 +196,14 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         writer.writeBlankLine();
         
         // Make the request with SigV4 signing
-        writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Payload, Client) of");
-        writer.indent();
-        writer.write("{ok, SignedHeaders} ->");
-        writer.indent();
-        writer.write("ContentType = \"application/x-amz-json-" + version + "\",");
-        writer.write("%% Convert binary headers to string format for httpc");
-        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
-        writer.write("case");
-        writer.indent();
-        writer.write("httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [");
-        writer.indent();
-        writer.write("{body_format, binary}");
-        writer.dedent();
-        writer.write("])");
-        writer.dedent();
-        writer.write("of");
-        writer.indent();
-        writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
-        writer.indent();
-        
-        // Generate response decoding
-        generateResponseDeserializer(operation, writer, context);
-        
-        writer.dedent();
-        writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
-        writer.indent();
-        generateErrorParser(operation, writer, context);
-        writer.dedent();
-        writer.write("{error, Reason} ->");
-        writer.indent();
-        writer.write("{error, {http_error, Reason}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{error, SignError} ->");
-        writer.indent();
-        writer.write("{error, {signing_error, SignError}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeSignAndSendBlock(
+            "application/x-amz-json-" + version,
+            "Payload",
+            "post",
+            () -> writer.write("Request = {binary_to_list(Url), StringHeaders, ContentType, Payload},"),
+            () -> generateResponseDeserializer(operation, writer, context),
+            () -> generateErrorParser(operation, writer, context)
+        );
         writer.dedent();
         writer.writeBlankLine();
     }
@@ -305,20 +256,6 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.writeComment("Parse AWS JSON error response");
-        writer.write("%% AWS JSON errors have __type field with error code");
-        writer.write("try");
-        writer.indent();
-        writer.write("ErrorMap = jsx:decode(ErrorBody, [return_maps]),");
-        writer.write("ErrorType = maps:get(<<\"__type\">>, ErrorMap, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"message\">>, ErrorMap, ");
-        writer.write("          maps:get(<<\"Message\">>, ErrorMap, <<\"\">>)),");
-        writer.write("{error, {aws_error, StatusCode, ErrorType, Message}}");
-        writer.dedent();
-        writer.write("catch");
-        writer.indent();
-        writer.write("_:_ -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
+        writer.writeAwsJsonErrorParser(";");
     }
 }

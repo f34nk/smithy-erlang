@@ -339,6 +339,751 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    // ========== Common Code Pattern Methods ==========
+    
+    /**
+     * Writes the standard retry case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case maps:get(enable_retry, Options, true) of
+     *     true -> aws_retry:with_retry(RequestFun, Options);
+     *     false -> RequestFun()
+     * end.
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRetryCase() {
+        write("case maps:get(enable_retry, Options, true) of");
+        indent();
+        write("true -> aws_retry:with_retry(RequestFun, Options);");
+        write("false -> RequestFun()");
+        dedent();
+        write("end.");
+        return this;
+    }
+    
+    /**
+     * Writes a formatted httpc:request case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case
+     *     httpc:request(method, Request, [], [
+     *         {body_format, binary}
+     *     ])
+     * of
+     *     {ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->
+     *         ... successHandler ...
+     *     {ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->
+     *         ... errorHandler ...
+     *     {error, Reason} ->
+     *         {error, {http_error, Reason}}
+     * end;
+     * </pre>
+     *
+     * @param method The HTTP method expression (e.g., "post" or "binary_to_atom(string:lowercase(Method), utf8)")
+     * @param successHandler Runnable that writes the success clause body
+     * @param errorHandler Runnable that writes the error clause body
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeHttpcCase(String method, Runnable successHandler, Runnable errorHandler) {
+        write("case");
+        indent();
+        write("httpc:request($L, Request, [], [", method);
+        indent();
+        write("{body_format, binary}");
+        dedent();
+        write("])");
+        dedent();
+        write("of");
+        indent();
+        write("{ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->");
+        indent();
+        successHandler.run();
+        dedent();
+        write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
+        indent();
+        errorHandler.run();
+        dedent();
+        write("{error, Reason} ->");
+        indent();
+        write("{error, {http_error, Reason}}");
+        dedent();
+        dedent();
+        write("end;");
+        return this;
+    }
+    
+    /**
+     * Writes the sign-and-send block structure for AWS requests.
+     * 
+     * <p>This helper generates the complete structure for signing a request
+     * with SigV4 and sending it via httpc. It handles:
+     * <ul>
+     *   <li>Sign request with aws_sigv4</li>
+     *   <li>Convert headers to string format</li>
+     *   <li>Build the Request tuple</li>
+     *   <li>Make the httpc:request call</li>
+     *   <li>Handle success, error, and HTTP error responses</li>
+     *   <li>Handle signing errors</li>
+     * </ul>
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Sign and send request
+     * case aws_sigv4:sign_request(Method, Url, Headers, Body, Client) of
+     *     {ok, SignedHeaders} ->
+     *         ContentType = "...",
+     *         StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],
+     *         ... requestBuilder ...
+     *         
+     *         case httpc:request(...) of
+     *             ...
+     *         end;
+     *     {error, SignError} ->
+     *         {error, {signing_error, SignError}}
+     * end.
+     * </pre>
+     *
+     * @param contentType The Content-Type for the request (e.g., "application/xml")
+     * @param bodyVariable The name of the body variable (e.g., "Body" or "Payload")
+     * @param httpMethod The HTTP method expression (e.g., "post" or "binary_to_atom(string:lowercase(Method), utf8)")
+     * @param requestBuilder Runnable that writes the Request building code (e.g., "Request = {...}")
+     * @param successHandler Runnable that writes the success response handling code
+     * @param errorHandler Runnable that writes the error response handling code
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeSignAndSendBlock(
+            String contentType,
+            String bodyVariable,
+            String httpMethod,
+            Runnable requestBuilder,
+            Runnable successHandler,
+            Runnable errorHandler) {
+        
+        write("%% Sign and send request");
+        write("case aws_sigv4:sign_request(Method, Url, Headers, $L, Client) of", bodyVariable);
+        indent();
+        write("{ok, SignedHeaders} ->");
+        indent();
+        write("ContentType = \"$L\",", contentType);
+        write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
+        requestBuilder.run();
+        writeBlankLine();
+        writeHttpcCase(httpMethod, successHandler, errorHandler);
+        dedent();
+        write("{error, SignError} ->");
+        indent();
+        write("{error, {signing_error, SignError}}");
+        dedent();
+        dedent();
+        write("end.");
+        return this;
+    }
+    
+    /**
+     * Writes a standard XML decode case expression.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case aws_xml:decode(ResponseBody) of
+     *     {ok, XmlMap} -> {ok, XmlMap};
+     *     {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeCase() {
+        return writeXmlDecodeCase("");
+    }
+    
+    /**
+     * Writes a standard XML decode case expression with a suffix.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case aws_xml:decode(ResponseBody) of
+     *     {ok, XmlMap} -> {ok, XmlMap};
+     *     {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     * end{suffix}
+     * </pre>
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeCase(String suffix) {
+        write("case aws_xml:decode(ResponseBody) of");
+        indent();
+        write("{ok, XmlMap} -> {ok, XmlMap};");
+        write("{error, DecodeError} -> {error, {xml_decode_error, DecodeError}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes XML decode with empty body handling.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     _ ->
+     *         case aws_xml:decode(ResponseBody) of
+     *             {ok, XmlMap} -> {ok, XmlMap};
+     *             {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     *         end
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeWithEmptyCheck() {
+        return writeXmlDecodeWithEmptyCheck("");
+    }
+    
+    /**
+     * Writes XML decode with empty body handling and a suffix.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     _ ->
+     *         case aws_xml:decode(ResponseBody) of
+     *             {ok, XmlMap} -> {ok, XmlMap};
+     *             {error, DecodeError} -> {error, {xml_decode_error, DecodeError}}
+     *         end
+     * end{suffix}
+     * </pre>
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeXmlDecodeWithEmptyCheck(String suffix) {
+        write("case ResponseBody of");
+        indent();
+        write("<<>> -> {ok, #{}};");
+        write("_ ->");
+        indent();
+        writeXmlDecodeCase();
+        dedent();
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes JSON decode using try/catch for exception safety.
+     * 
+     * <p>This is the preferred method for JSON decoding as {@code jsx:decode/2}
+     * throws exceptions on malformed input rather than returning error tuples.
+     * 
+     * <p>Generates:
+     * <pre>
+     * try jsx:decode(ResponseBody, [return_maps]) of
+     *     DecodedBody -> {ok, DecodedBody}
+     * catch
+     *     _:DecodeError -> {error, {json_decode_error, DecodeError}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTry() {
+        return writeJsonDecodeTry("");
+    }
+    
+    /**
+     * Writes JSON decode using try/catch with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTry(String suffix) {
+        write("try jsx:decode(ResponseBody, [return_maps]) of");
+        indent();
+        write("DecodedBody -> {ok, DecodedBody}");
+        dedent();
+        write("catch");
+        indent();
+        write("_:DecodeError -> {error, {json_decode_error, DecodeError}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes JSON decode with empty body handling using try/catch.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     <<"{}"\>> -> {ok, #{}};
+     *     _ ->
+     *         try jsx:decode(ResponseBody, [return_maps]) of
+     *             DecodedBody -> {ok, DecodedBody}
+     *         catch
+     *             _:DecodeError -> {error, {json_decode_error, DecodeError}}
+     *         end
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTryWithEmptyCheck() {
+        return writeJsonDecodeTryWithEmptyCheck("");
+    }
+    
+    /**
+     * Writes JSON decode with empty body handling using try/catch and a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTryWithEmptyCheck(String suffix) {
+        write("case ResponseBody of");
+        indent();
+        write("<<>> -> {ok, #{}};");
+        write("<<\"{}\">> -> {ok, #{}};");
+        write("_ ->");
+        indent();
+        writeJsonDecodeTry();
+        dedent();
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    // ========== HTTP Header Building Methods ==========
+    
+    /**
+     * Represents a mapping from a Smithy member to an HTTP header.
+     */
+    public static final class HeaderMapping {
+        private final String memberName;
+        private final String headerName;
+        private final String varName;
+        private final boolean required;
+        
+        /**
+         * Creates a new HeaderMapping.
+         *
+         * @param memberName The Smithy member name (e.g., "IfMatch")
+         * @param headerName The HTTP header name (e.g., "If-Match")
+         * @param varName The Erlang variable name prefix (e.g., "IfMatch")
+         * @param required Whether the header is required
+         */
+        public HeaderMapping(String memberName, String headerName, String varName, boolean required) {
+            this.memberName = memberName;
+            this.headerName = headerName;
+            this.varName = varName;
+            this.required = required;
+        }
+        
+        /**
+         * Creates a HeaderMapping with the member name used as the variable name.
+         */
+        public static HeaderMapping of(String memberName, String headerName, boolean required) {
+            return new HeaderMapping(memberName, headerName, capitalize(memberName), required);
+        }
+        
+        public String memberName() { return memberName; }
+        public String headerName() { return headerName; }
+        public String varName() { return varName; }
+        public boolean required() { return required; }
+        
+        private static String capitalize(String s) {
+            if (s == null || s.isEmpty()) return s;
+            return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+    }
+    
+    /**
+     * Writes a header building chain for HTTP headers.
+     * 
+     * <p>For empty headers, generates:
+     * <pre>
+     * %% Headers
+     * Headers = [{<<"Content-Type">>, <<"application/xml">>}],
+     * </pre>
+     * 
+     * <p>For headers with members, generates:
+     * <pre>
+     * %% Build headers with @httpHeader members
+     * Headers0 = [{<<"Content-Type">>, <<"application/xml">>}],
+     * Headers1 = case maps:get(<<"IfMatch">>, Input, undefined) of
+     *     undefined -> Headers0;
+     *     IfMatchValue -> [{<<"If-Match">>, ensure_binary(IfMatchValue)} | Headers0]
+     * end,
+     * Headers = Headers1,
+     * </pre>
+     *
+     * @param contentType The Content-Type header value (e.g., "application/xml")
+     * @param headers List of header mappings
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeHeaderBuildingChain(String contentType, java.util.List<HeaderMapping> headers) {
+        if (headers.isEmpty()) {
+            write("%% Headers");
+            write("Headers = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
+            return this;
+        }
+        
+        write("%% Build headers with @httpHeader members");
+        write("Headers0 = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
+        
+        for (int i = 0; i < headers.size(); i++) {
+            HeaderMapping header = headers.get(i);
+            String currentHeadersVar = "Headers" + i;
+            String nextHeadersVar = "Headers" + (i + 1);
+            
+            if (header.required()) {
+                write("$LValue = ensure_binary(maps:get(<<\"$L\">>, Input)),",
+                        header.varName(), header.memberName());
+                write("$L = [{<<\"$L\">>, $LValue} | $L],",
+                        nextHeadersVar, header.headerName(), header.varName(), currentHeadersVar);
+            } else {
+                write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextHeadersVar, header.memberName());
+                indent();
+                write("undefined -> $L;", currentHeadersVar);
+                write("$LValue -> [{<<\"$L\">>, ensure_binary($LValue)} | $L]",
+                        header.varName(), header.headerName(), header.varName(), currentHeadersVar);
+                dedent();
+                write("end,");
+            }
+        }
+        
+        write("Headers = $L,", "Headers" + headers.size());
+        return this;
+    }
+    
+    // ========== HTTP Query String Building Methods ==========
+    
+    /**
+     * Represents a mapping from a Smithy member to an HTTP query parameter.
+     */
+    public static final class QueryParamMapping {
+        private final String memberName;
+        private final String queryName;
+        private final String varName;
+        
+        /**
+         * Creates a new QueryParamMapping.
+         *
+         * @param memberName The Smithy member name (e.g., "Delimiter")
+         * @param queryName The HTTP query parameter name (e.g., "delimiter")
+         * @param varName The Erlang variable name prefix (e.g., "Delimiter")
+         */
+        public QueryParamMapping(String memberName, String queryName, String varName) {
+            this.memberName = memberName;
+            this.queryName = queryName;
+            this.varName = varName;
+        }
+        
+        /**
+         * Creates a QueryParamMapping with the member name used as the variable name.
+         */
+        public static QueryParamMapping of(String memberName, String queryName) {
+            return new QueryParamMapping(memberName, queryName, capitalize(memberName));
+        }
+        
+        public String memberName() { return memberName; }
+        public String queryName() { return queryName; }
+        public String varName() { return varName; }
+        
+        private static String capitalize(String s) {
+            if (s == null || s.isEmpty()) return s;
+            return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+    }
+    
+    /**
+     * Writes query string building code for HTTP query parameters.
+     * 
+     * <p>For empty query params, generates:
+     * <pre>
+     * %% No query parameters
+     * QueryString = <<"">>,
+     * </pre>
+     * 
+     * <p>For query params, generates:
+     * <pre>
+     * %% Build query string from @httpQuery parameters
+     * QueryPairs0 = [],
+     * QueryPairs1 = case maps:get(<<"Delimiter">>, Input, undefined) of
+     *     undefined -> QueryPairs0;
+     *     DelimiterVal -> [{<<"delimiter">>, ensure_binary(DelimiterVal)} | QueryPairs0]
+     * end,
+     * QueryString = case QueryPairs1 of
+     *     [] -> <<"">>;
+     *     Pairs -> Encoded = uri_string:compose_query(Pairs), <<"?", Encoded/binary>>
+     * end,
+     * </pre>
+     *
+     * @param queryParams List of query parameter mappings
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeQueryStringBuilder(java.util.List<QueryParamMapping> queryParams) {
+        if (queryParams.isEmpty()) {
+            write("%% No query parameters");
+            write("QueryString = <<\"\">>,");
+            return this;
+        }
+        
+        write("%% Build query string from @httpQuery parameters");
+        write("QueryPairs0 = [],");
+        
+        for (int i = 0; i < queryParams.size(); i++) {
+            QueryParamMapping param = queryParams.get(i);
+            String currentPairsVar = "QueryPairs" + i;
+            String nextPairsVar = "QueryPairs" + (i + 1);
+            
+            write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextPairsVar, param.memberName());
+            indent();
+            write("undefined -> $L;", currentPairsVar);
+            write("$LVal -> [{<<\"$L\">>, ensure_binary($LVal)} | $L]",
+                    param.varName(), param.queryName(), param.varName(), currentPairsVar);
+            dedent();
+            write("end,");
+        }
+        
+        String finalPairsVar = "QueryPairs" + queryParams.size();
+        write("QueryString = case $L of", finalPairsVar);
+        indent();
+        write("[] -> <<\"\">>;");
+        write("Pairs -> Encoded = uri_string:compose_query(Pairs), <<\"?\", Encoded/binary>>");
+        dedent();
+        write("end,");
+        return this;
+    }
+    
+    // ========== Protocol-Specific Error Parser Methods ==========
+    
+    /**
+     * Writes REST-XML error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse REST-XML error response
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"Error">> := Error}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRestXmlErrorParser() {
+        return writeRestXmlErrorParser("");
+    }
+    
+    /**
+     * Writes REST-XML error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRestXmlErrorParser(String suffix) {
+        write("%% Parse REST-XML error response");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"Error\">> := Error}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes AWS Query error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse AWS Query error response (XML)
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"ErrorResponse">> := #{<<"Error">> := Error}}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, #{<<"Error">> := Error}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsQueryErrorParser() {
+        return writeAwsQueryErrorParser("");
+    }
+    
+    /**
+     * Writes AWS Query error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsQueryErrorParser(String suffix) {
+        write("%% Parse AWS Query error response (XML)");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"ErrorResponse\">> := #{<<\"Error\">> := Error}}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, #{<<\"Error\">> := Error}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes EC2 Query error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse EC2 Query error response (XML)
+     * %% EC2 error format: &lt;Response>&lt;Errors>&lt;Error>...&lt;/Error>&lt;/Errors>&lt;/Response>
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"Response">> := #{<<"Errors">> := Errors}}} ->
+     *         case Errors of
+     *             #{<<"Error">> := Error} when is_map(Error) ->
+     *                 Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *                 Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *                 {error, {aws_error, StatusCode, Code, Message}};
+     *             #{<<"Error">> := ErrorList} when is_list(ErrorList) ->
+     *                 FirstError = lists:nth(1, ErrorList),
+     *                 Code = maps:get(<<"Code">>, FirstError, <<"Unknown">>),
+     *                 Message = maps:get(<<"Message">>, FirstError, <<"Unknown error">>),
+     *                 {error, {aws_error, StatusCode, Code, Message}};
+     *             _ -> {error, {http_error, StatusCode, ErrorBody}}
+     *         end;
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeEc2QueryErrorParser() {
+        return writeEc2QueryErrorParser("");
+    }
+    
+    /**
+     * Writes EC2 Query error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeEc2QueryErrorParser(String suffix) {
+        write("%% Parse EC2 Query error response (XML)");
+        write("%% EC2 error format: <Response><Errors><Error>...</Error></Errors></Response>");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"Response\">> := #{<<\"Errors\">> := Errors}}} ->");
+        indent();
+        write("case Errors of");
+        indent();
+        write("#{<<\"Error\">> := Error} when is_map(Error) ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("#{<<\"Error\">> := ErrorList} when is_list(ErrorList) ->");
+        indent();
+        write("FirstError = lists:nth(1, ErrorList),");
+        write("Code = maps:get(<<\"Code\">>, FirstError, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, FirstError, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("_ -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end;");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes AWS JSON error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse AWS JSON error response
+     * %% AWS JSON errors have __type field with error code
+     * try
+     *     ErrorMap = jsx:decode(ErrorBody, [return_maps]),
+     *     ErrorType = maps:get(<<"__type">>, ErrorMap, <<"Unknown">>),
+     *     Message = maps:get(<<"message">>, ErrorMap,
+     *               maps:get(<<"Message">>, ErrorMap, <<"">>)),
+     *     {error, {aws_error, StatusCode, ErrorType, Message}}
+     * catch
+     *     _:_ -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsJsonErrorParser() {
+        return writeAwsJsonErrorParser("");
+    }
+    
+    /**
+     * Writes AWS JSON error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsJsonErrorParser(String suffix) {
+        writeComment("Parse AWS JSON error response");
+        write("%% AWS JSON errors have __type field with error code");
+        write("try");
+        indent();
+        write("ErrorMap = jsx:decode(ErrorBody, [return_maps]),");
+        write("ErrorType = maps:get(<<\"__type\">>, ErrorMap, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"message\">>, ErrorMap, ");
+        write("          maps:get(<<\"Message\">>, ErrorMap, <<\"\">>)),");
+        write("{error, {aws_error, StatusCode, ErrorType, Message}}");
+        dedent();
+        write("catch");
+        indent();
+        write("_:_ -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**

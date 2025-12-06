@@ -136,12 +136,7 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
         writer.writeBlankLine();
-        writer.write("case maps:get(enable_retry, Options, true) of");
-        writer.indent();
-        writer.write("true -> aws_retry:with_retry(RequestFun, Options);");
-        writer.write("false -> RequestFun()");
-        writer.dedent();
-        writer.write("end.");
+        writer.writeRetryCase();
         writer.dedent();
         writer.writeBlankLine();
         
@@ -207,42 +202,20 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
     }
     
     private void generateQueryString(List<MemberShape> httpQueryMembers, ErlangWriter writer) {
-        if (httpQueryMembers.isEmpty()) {
-            writer.write("%% No query parameters");
-            writer.write("QueryString = <<\"\">>,");
-        } else {
-            writer.write("%% Build query string from @httpQuery parameters");
-            writer.write("QueryPairs0 = [],");
-            
-            for (int i = 0; i < httpQueryMembers.size(); i++) {
-                MemberShape member = httpQueryMembers.get(i);
+        // Convert MemberShapes to QueryParamMappings
+        java.util.List<ErlangWriter.QueryParamMapping> queryParams = httpQueryMembers.stream()
+            .map(member -> {
                 String memberName = member.getMemberName();
                 String erlangFieldName = EnhancedErlangSymbolProvider.toErlangName(memberName);
                 String queryName = member.expectTrait(software.amazon.smithy.model.traits.HttpQueryTrait.class).getValue();
                 if (queryName == null || queryName.isEmpty()) {
                     queryName = memberName;
                 }
-                
-                String currentPairsVar = "QueryPairs" + i;
-                String nextPairsVar = "QueryPairs" + (i + 1);
-                
-                writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextPairsVar, memberName);
-                writer.indent();
-                writer.write("undefined -> $L;", currentPairsVar);
-                writer.write("$LVal -> [{<<\"$L\">>, ensure_binary($LVal)} | $L]",
-                        capitalize(erlangFieldName), queryName, capitalize(erlangFieldName), currentPairsVar);
-                writer.dedent();
-                writer.write("end,");
-            }
-            
-            String finalPairsVar = "QueryPairs" + httpQueryMembers.size();
-            writer.write("QueryString = case $L of", finalPairsVar);
-            writer.indent();
-            writer.write("[] -> <<\"\">>;");
-            writer.write("Pairs -> Encoded = uri_string:compose_query(Pairs), <<\"?\", Encoded/binary>>");
-            writer.dedent();
-            writer.write("end,");
-        }
+                return new ErlangWriter.QueryParamMapping(memberName, queryName, capitalize(erlangFieldName));
+            })
+            .toList();
+        
+        writer.writeQueryStringBuilder(queryParams);
     }
     
     private void generateUrl(String uri, List<MemberShape> httpLabelMembers, ErlangWriter writer) {
@@ -328,15 +301,9 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
     }
     
     private void generateRequestHeaders(List<MemberShape> httpHeaderMembers, String contentType, ErlangWriter writer) {
-        if (httpHeaderMembers.isEmpty()) {
-            writer.write("%% Headers");
-            writer.write("Headers = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
-        } else {
-            writer.write("%% Build headers with @httpHeader members");
-            writer.write("Headers0 = [{<<\"Content-Type\">>, <<\"$L\">>}],", contentType);
-            
-            for (int i = 0; i < httpHeaderMembers.size(); i++) {
-                MemberShape member = httpHeaderMembers.get(i);
+        // Convert MemberShapes to HeaderMappings
+        java.util.List<ErlangWriter.HeaderMapping> headers = httpHeaderMembers.stream()
+            .map(member -> {
                 String memberName = member.getMemberName();
                 String erlangFieldName = EnhancedErlangSymbolProvider.toErlangName(memberName);
                 HttpHeaderTrait headerTrait = member.expectTrait(HttpHeaderTrait.class);
@@ -345,77 +312,31 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
                     headerName = memberName;
                 }
                 boolean isRequired = member.hasTrait(RequiredTrait.class);
-                String currentHeadersVar = "Headers" + i;
-                String nextHeadersVar = "Headers" + (i + 1);
-                
-                if (isRequired) {
-                    writer.write("$LValue = ensure_binary(maps:get(<<\"$L\">>, Input)),",
-                            capitalize(erlangFieldName), memberName);
-                    writer.write("$L = [{<<\"$L\">>, $LValue} | $L],",
-                            nextHeadersVar, headerName, capitalize(erlangFieldName), currentHeadersVar);
-                } else {
-                    writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextHeadersVar, memberName);
-                    writer.indent();
-                    writer.write("undefined -> $L;", currentHeadersVar);
-                    writer.write("$LValue -> [{<<\"$L\">>, ensure_binary($LValue)} | $L]",
-                            capitalize(erlangFieldName), headerName, capitalize(erlangFieldName), currentHeadersVar);
-                    writer.dedent();
-                    writer.write("end,");
-                }
-            }
-            
-            writer.write("Headers = $L,", "Headers" + httpHeaderMembers.size());
-        }
+                return new ErlangWriter.HeaderMapping(memberName, headerName, capitalize(erlangFieldName), isRequired);
+            })
+            .toList();
+        
+        writer.writeHeaderBuildingChain(contentType, headers);
     }
     
     private void generateHttpRequest(OperationShape operation, Model model, String contentType, ErlangWriter writer) {
-        writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Body, Client) of");
-        writer.indent();
-        writer.write("{ok, SignedHeaders} ->");
-        writer.indent();
-        writer.write("ContentType = \"$L\",", contentType);
-        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
-        writer.write("Request = case Method of");
-        writer.indent();
-        writer.write("<<\"GET\">> -> {binary_to_list(Url), StringHeaders};");
-        writer.write("<<\"DELETE\">> -> {binary_to_list(Url), StringHeaders};");
-        writer.write("<<\"HEAD\">> -> {binary_to_list(Url), StringHeaders};");
-        writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
-        writer.dedent();
-        writer.write("end,");
-        writer.writeBlankLine();
-        writer.write("case");
-        writer.indent();
-        writer.write("httpc:request(binary_to_atom(string:lowercase(Method), utf8), Request, [], [");
-        writer.indent();
-        writer.write("{body_format, binary}");
-        writer.dedent();
-        writer.write("])");
-        writer.dedent();
-        writer.write("of");
-        writer.indent();
-        writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ResponseBody}} when StatusCode >= 200, StatusCode < 300 ->");
-        writer.indent();
-        generateResponseDeserializer(operation, writer, null);
-        writer.dedent();
-        writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
-        writer.indent();
-        generateErrorParser(operation, writer, null);
-        writer.dedent();
-        writer.write("{error, Reason} ->");
-        writer.indent();
-        writer.write("{error, {http_error, Reason}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{error, SignError} ->");
-        writer.indent();
-        writer.write("{error, {signing_error, SignError}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeSignAndSendBlock(
+            contentType,
+            "Body",
+            "binary_to_atom(string:lowercase(Method), utf8)",
+            () -> {
+                writer.write("Request = case Method of");
+                writer.indent();
+                writer.write("<<\"GET\">> -> {binary_to_list(Url), StringHeaders};");
+                writer.write("<<\"DELETE\">> -> {binary_to_list(Url), StringHeaders};");
+                writer.write("<<\"HEAD\">> -> {binary_to_list(Url), StringHeaders};");
+                writer.write("_ -> {binary_to_list(Url), StringHeaders, ContentType, Body}");
+                writer.dedent();
+                writer.write("end,");
+            },
+            () -> generateResponseDeserializer(operation, writer, null),
+            () -> generateErrorParser(operation, writer, null)
+        );
     }
     
     @Override
@@ -434,24 +355,7 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
     @Override
     public void generateResponseDeserializer(OperationShape operation, ErlangWriter writer, ErlangContext context) {
         writer.write("%% Decode JSON response");
-        writer.write("case ResponseBody of");
-        writer.indent();
-        writer.write("<<>> -> {ok, #{}};");
-        writer.write("<<\"{}\">> -> {ok, #{}};");
-        writer.write("_ ->");
-        writer.indent();
-        writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
-        writer.indent();
-        writer.write("DecodedBody -> {ok, DecodedBody}");
-        writer.dedent();
-        writer.write("catch");
-        writer.indent();
-        writer.write("_:DecodeError -> {error, {json_decode_error, DecodeError}}");
-        writer.dedent();
-        writer.write("end");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
+        writer.writeJsonDecodeTryWithEmptyCheck(";");
     }
     
     @Override

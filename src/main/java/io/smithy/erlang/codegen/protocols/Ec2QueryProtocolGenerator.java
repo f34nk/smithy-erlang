@@ -139,12 +139,7 @@ public class Ec2QueryProtocolGenerator implements ProtocolGenerator {
         String internalFunctionName = "make_" + opName + "_request";
         writer.write("RequestFun = fun() -> $L(Client, Input) end,", internalFunctionName);
         writer.writeBlankLine();
-        writer.write("case maps:get(enable_retry, Options, true) of");
-        writer.indent();
-        writer.write("true -> aws_retry:with_retry(RequestFun, Options);");
-        writer.write("false -> RequestFun()");
-        writer.dedent();
-        writer.write("end.");
+        writer.writeRetryCase();
         writer.dedent();
         writer.writeBlankLine();
         
@@ -244,78 +239,20 @@ public class Ec2QueryProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.write("%% Parse EC2 Query error response (XML)");
-        writer.write("%% EC2 error format: <Response><Errors><Error>...</Error></Errors></Response>");
-        writer.write("case aws_xml:decode(ErrorBody) of");
-        writer.indent();
-        writer.write("{ok, #{<<\"Response\">> := #{<<\"Errors\">> := Errors}}} ->");
-        writer.indent();
-        writer.write("case Errors of");
-        writer.indent();
-        writer.write("#{<<\"Error\">> := Error} when is_map(Error) ->");
-        writer.indent();
-        writer.write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
-        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
-        writer.dedent();
-        writer.write("#{<<\"Error\">> := ErrorList} when is_list(ErrorList) ->");
-        writer.indent();
-        writer.write("FirstError = lists:nth(1, ErrorList),");
-        writer.write("Code = maps:get(<<\"Code\">>, FirstError, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"Message\">>, FirstError, <<\"Unknown error\">>),");
-        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
-        writer.dedent();
-        writer.write("_ -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
-        writer.write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
+        writer.writeEc2QueryErrorParser(";");
     }
     
     /**
      * Generates the HTTP request handling code.
      */
     private void generateHttpRequest(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.write("%% Sign and send request");
-        writer.write("case aws_sigv4:sign_request(Method, Url, Headers, Payload, Client) of");
-        writer.indent();
-        writer.write("{ok, SignedHeaders} ->");
-        writer.indent();
-        writer.write("ContentType = \"application/x-www-form-urlencoded\",");
-        writer.write("StringHeaders = [{binary_to_list(K), binary_to_list(V)} || {K, V} <- SignedHeaders],");
-        writer.write("case");
-        writer.indent();
-        writer.write("httpc:request(post, {binary_to_list(Url), StringHeaders, ContentType, Payload}, [], [");
-        writer.indent();
-        writer.write("{body_format, binary}");
-        writer.dedent();
-        writer.write("])");
-        writer.dedent();
-        writer.write("of");
-        writer.indent();
-        writer.write("{ok, {{_, 200, _}, _RespHeaders, ResponseBody}} ->");
-        writer.indent();
-        generateResponseDeserializer(operation, writer, context);
-        writer.dedent();
-        writer.write("{ok, {{_, StatusCode, _}, _RespHeaders, ErrorBody}} ->");
-        writer.indent();
-        generateErrorParser(operation, writer, context);
-        writer.dedent();
-        writer.write("{error, Reason} ->");
-        writer.indent();
-        writer.write("{error, {http_error, Reason}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{error, SignError} ->");
-        writer.indent();
-        writer.write("{error, {signing_error, SignError}}");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end.");
+        writer.writeSignAndSendBlock(
+            "application/x-www-form-urlencoded",
+            "Payload",
+            "post",
+            () -> writer.write("Request = {binary_to_list(Url), StringHeaders, ContentType, Payload},"),
+            () -> generateResponseDeserializer(operation, writer, context),
+            () -> generateErrorParser(operation, writer, context)
+        );
     }
 }
