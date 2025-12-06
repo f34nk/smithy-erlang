@@ -875,6 +875,53 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    // ========== Protocol-Specific Error Parser Methods ==========
+    
+    /**
+     * Writes REST-XML error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse REST-XML error response
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"Error">> := Error}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRestXmlErrorParser() {
+        return writeRestXmlErrorParser("");
+    }
+    
+    /**
+     * Writes REST-XML error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeRestXmlErrorParser(String suffix) {
+        write("%% Parse REST-XML error response");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"Error\">> := Error}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**

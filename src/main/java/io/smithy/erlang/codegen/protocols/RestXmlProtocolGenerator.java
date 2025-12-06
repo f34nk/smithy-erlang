@@ -427,19 +427,7 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.write("%% Parse REST-XML error response");
-        writer.write("case aws_xml:decode(ErrorBody) of");
-        writer.indent();
-        writer.write("{ok, #{<<\"Error\">> := Error}} ->");
-        writer.indent();
-        writer.write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
-        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
-        writer.dedent();
-        writer.write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
-        writer.write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
+        writer.writeRestXmlErrorParser(";");
     }
     
     private String capitalize(String str) {
