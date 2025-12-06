@@ -922,6 +922,61 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    /**
+     * Writes AWS Query error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse AWS Query error response (XML)
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"ErrorResponse">> := #{<<"Error">> := Error}}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, #{<<"Error">> := Error}} ->
+     *         Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *         Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *         {error, {aws_error, StatusCode, Code, Message}};
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsQueryErrorParser() {
+        return writeAwsQueryErrorParser("");
+    }
+    
+    /**
+     * Writes AWS Query error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsQueryErrorParser(String suffix) {
+        write("%% Parse AWS Query error response (XML)");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"ErrorResponse\">> := #{<<\"Error\">> := Error}}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, #{<<\"Error\">> := Error}} ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**
