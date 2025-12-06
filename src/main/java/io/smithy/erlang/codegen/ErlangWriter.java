@@ -672,6 +672,89 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    /**
+     * Writes JSON decode using try/catch for exception safety.
+     * 
+     * <p>This is the preferred method for JSON decoding as {@code jsx:decode/2}
+     * throws exceptions on malformed input rather than returning error tuples.
+     * 
+     * <p>Generates:
+     * <pre>
+     * try jsx:decode(ResponseBody, [return_maps]) of
+     *     DecodedBody -> {ok, DecodedBody}
+     * catch
+     *     _:DecodeError -> {error, {json_decode_error, DecodeError}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTry() {
+        return writeJsonDecodeTry("");
+    }
+    
+    /**
+     * Writes JSON decode using try/catch with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTry(String suffix) {
+        write("try jsx:decode(ResponseBody, [return_maps]) of");
+        indent();
+        write("DecodedBody -> {ok, DecodedBody}");
+        dedent();
+        write("catch");
+        indent();
+        write("_:DecodeError -> {error, {json_decode_error, DecodeError}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes JSON decode with empty body handling using try/catch.
+     * 
+     * <p>Generates:
+     * <pre>
+     * case ResponseBody of
+     *     <<>> -> {ok, #{}};
+     *     <<"{}"\>> -> {ok, #{}};
+     *     _ ->
+     *         try jsx:decode(ResponseBody, [return_maps]) of
+     *             DecodedBody -> {ok, DecodedBody}
+     *         catch
+     *             _:DecodeError -> {error, {json_decode_error, DecodeError}}
+     *         end
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTryWithEmptyCheck() {
+        return writeJsonDecodeTryWithEmptyCheck("");
+    }
+    
+    /**
+     * Writes JSON decode with empty body handling using try/catch and a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeJsonDecodeTryWithEmptyCheck(String suffix) {
+        write("case ResponseBody of");
+        indent();
+        write("<<>> -> {ok, #{}};");
+        write("<<\"{}\">> -> {ok, #{}};");
+        write("_ ->");
+        indent();
+        writeJsonDecodeTry();
+        dedent();
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== HTTP Header Building Methods ==========
     
     /**
@@ -1043,6 +1126,55 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         dedent();
         write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
         write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
+    /**
+     * Writes AWS JSON error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse AWS JSON error response
+     * %% AWS JSON errors have __type field with error code
+     * try
+     *     ErrorMap = jsx:decode(ErrorBody, [return_maps]),
+     *     ErrorType = maps:get(<<"__type">>, ErrorMap, <<"Unknown">>),
+     *     Message = maps:get(<<"message">>, ErrorMap,
+     *               maps:get(<<"Message">>, ErrorMap, <<"">>)),
+     *     {error, {aws_error, StatusCode, ErrorType, Message}}
+     * catch
+     *     _:_ -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsJsonErrorParser() {
+        return writeAwsJsonErrorParser("");
+    }
+    
+    /**
+     * Writes AWS JSON error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeAwsJsonErrorParser(String suffix) {
+        writeComment("Parse AWS JSON error response");
+        write("%% AWS JSON errors have __type field with error code");
+        write("try");
+        indent();
+        write("ErrorMap = jsx:decode(ErrorBody, [return_maps]),");
+        write("ErrorType = maps:get(<<\"__type\">>, ErrorMap, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"message\">>, ErrorMap, ");
+        write("          maps:get(<<\"Message\">>, ErrorMap, <<\"\">>)),");
+        write("{error, {aws_error, StatusCode, ErrorType, Message}}");
+        dedent();
+        write("catch");
+        indent();
+        write("_:_ -> {error, {http_error, StatusCode, ErrorBody}}");
         dedent();
         write("end$L", suffix);
         return this;

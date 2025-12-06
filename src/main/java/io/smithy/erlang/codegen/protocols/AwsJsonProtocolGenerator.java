@@ -256,20 +256,6 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.writeComment("Parse AWS JSON error response");
-        writer.write("%% AWS JSON errors have __type field with error code");
-        writer.write("try");
-        writer.indent();
-        writer.write("ErrorMap = jsx:decode(ErrorBody, [return_maps]),");
-        writer.write("ErrorType = maps:get(<<\"__type\">>, ErrorMap, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"message\">>, ErrorMap, ");
-        writer.write("          maps:get(<<\"Message\">>, ErrorMap, <<\"\">>)),");
-        writer.write("{error, {aws_error, StatusCode, ErrorType, Message}}");
-        writer.dedent();
-        writer.write("catch");
-        writer.indent();
-        writer.write("_:_ -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
+        writer.writeAwsJsonErrorParser(";");
     }
 }

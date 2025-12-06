@@ -355,24 +355,7 @@ public class RestJsonProtocolGenerator implements ProtocolGenerator {
     @Override
     public void generateResponseDeserializer(OperationShape operation, ErlangWriter writer, ErlangContext context) {
         writer.write("%% Decode JSON response");
-        writer.write("case ResponseBody of");
-        writer.indent();
-        writer.write("<<>> -> {ok, #{}};");
-        writer.write("<<\"{}\">> -> {ok, #{}};");
-        writer.write("_ ->");
-        writer.indent();
-        writer.write("try jsx:decode(ResponseBody, [return_maps]) of");
-        writer.indent();
-        writer.write("DecodedBody -> {ok, DecodedBody}");
-        writer.dedent();
-        writer.write("catch");
-        writer.indent();
-        writer.write("_:DecodeError -> {error, {json_decode_error, DecodeError}}");
-        writer.dedent();
-        writer.write("end");
-        writer.dedent();
-        writer.dedent();
-        writer.write("end;");
+        writer.writeJsonDecodeTryWithEmptyCheck(";");
     }
     
     @Override
