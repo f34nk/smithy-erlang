@@ -239,35 +239,7 @@ public class Ec2QueryProtocolGenerator implements ProtocolGenerator {
     
     @Override
     public void generateErrorParser(OperationShape operation, ErlangWriter writer, ErlangContext context) {
-        writer.write("%% Parse EC2 Query error response (XML)");
-        writer.write("%% EC2 error format: <Response><Errors><Error>...</Error></Errors></Response>");
-        writer.write("case aws_xml:decode(ErrorBody) of");
-        writer.indent();
-        writer.write("{ok, #{<<\"Response\">> := #{<<\"Errors\">> := Errors}}} ->");
-        writer.indent();
-        writer.write("case Errors of");
-        writer.indent();
-        writer.write("#{<<\"Error\">> := Error} when is_map(Error) ->");
-        writer.indent();
-        writer.write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
-        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
-        writer.dedent();
-        writer.write("#{<<\"Error\">> := ErrorList} when is_list(ErrorList) ->");
-        writer.indent();
-        writer.write("FirstError = lists:nth(1, ErrorList),");
-        writer.write("Code = maps:get(<<\"Code\">>, FirstError, <<\"Unknown\">>),");
-        writer.write("Message = maps:get(<<\"Message\">>, FirstError, <<\"Unknown error\">>),");
-        writer.write("{error, {aws_error, StatusCode, Code, Message}};");
-        writer.dedent();
-        writer.write("_ -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
-        writer.dedent();
-        writer.write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
-        writer.write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
-        writer.dedent();
-        writer.write("end;");
+        writer.writeEc2QueryErrorParser(";");
     }
     
     /**

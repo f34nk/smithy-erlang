@@ -977,6 +977,77 @@ public final class ErlangWriter extends SymbolWriter<ErlangWriter, ErlangImportC
         return this;
     }
     
+    /**
+     * Writes EC2 Query error parsing code.
+     * 
+     * <p>Generates:
+     * <pre>
+     * %% Parse EC2 Query error response (XML)
+     * %% EC2 error format: &lt;Response>&lt;Errors>&lt;Error>...&lt;/Error>&lt;/Errors>&lt;/Response>
+     * case aws_xml:decode(ErrorBody) of
+     *     {ok, #{<<"Response">> := #{<<"Errors">> := Errors}}} ->
+     *         case Errors of
+     *             #{<<"Error">> := Error} when is_map(Error) ->
+     *                 Code = maps:get(<<"Code">>, Error, <<"Unknown">>),
+     *                 Message = maps:get(<<"Message">>, Error, <<"Unknown error">>),
+     *                 {error, {aws_error, StatusCode, Code, Message}};
+     *             #{<<"Error">> := ErrorList} when is_list(ErrorList) ->
+     *                 FirstError = lists:nth(1, ErrorList),
+     *                 Code = maps:get(<<"Code">>, FirstError, <<"Unknown">>),
+     *                 Message = maps:get(<<"Message">>, FirstError, <<"Unknown error">>),
+     *                 {error, {aws_error, StatusCode, Code, Message}};
+     *             _ -> {error, {http_error, StatusCode, ErrorBody}}
+     *         end;
+     *     {ok, _} -> {error, {http_error, StatusCode, ErrorBody}};
+     *     {error, _} -> {error, {http_error, StatusCode, ErrorBody}}
+     * end
+     * </pre>
+     *
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeEc2QueryErrorParser() {
+        return writeEc2QueryErrorParser("");
+    }
+    
+    /**
+     * Writes EC2 Query error parsing code with a suffix.
+     *
+     * @param suffix The suffix to append after "end" (e.g., ";" or "")
+     * @return This writer for method chaining
+     */
+    public ErlangWriter writeEc2QueryErrorParser(String suffix) {
+        write("%% Parse EC2 Query error response (XML)");
+        write("%% EC2 error format: <Response><Errors><Error>...</Error></Errors></Response>");
+        write("case aws_xml:decode(ErrorBody) of");
+        indent();
+        write("{ok, #{<<\"Response\">> := #{<<\"Errors\">> := Errors}}} ->");
+        indent();
+        write("case Errors of");
+        indent();
+        write("#{<<\"Error\">> := Error} when is_map(Error) ->");
+        indent();
+        write("Code = maps:get(<<\"Code\">>, Error, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, Error, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("#{<<\"Error\">> := ErrorList} when is_list(ErrorList) ->");
+        indent();
+        write("FirstError = lists:nth(1, ErrorList),");
+        write("Code = maps:get(<<\"Code\">>, FirstError, <<\"Unknown\">>),");
+        write("Message = maps:get(<<\"Message\">>, FirstError, <<\"Unknown error\">>),");
+        write("{error, {aws_error, StatusCode, Code, Message}};");
+        dedent();
+        write("_ -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end;");
+        dedent();
+        write("{ok, _} -> {error, {http_error, StatusCode, ErrorBody}};");
+        write("{error, _} -> {error, {http_error, StatusCode, ErrorBody}}");
+        dedent();
+        write("end$L", suffix);
+        return this;
+    }
+    
     // ========== Record Methods ==========
     
     /**
