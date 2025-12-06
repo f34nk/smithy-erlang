@@ -6,7 +6,7 @@
 
 Generates Erlang client code from Smithy service models. Produces client modules, type definitions, and HTTP request/response handling for service operations.
 
-https://smithy.io/2.0/index.html
+Reference: https://smithy.io/2.0/index.html
 
 ## Features
 
@@ -37,6 +37,8 @@ https://smithy.io/2.0/index.html
 - Retry logic with exponential backoff and jitter
 - Pagination with automatic helper function generation
 - Region configuration support
+
+Check out [AWS_SDK_SUPPORT.md](https://github.com/f34nk/smithy-erlang/blob/main/AWS_SDK_SUPPORT.md) with a full list of AWS SDK features and their support status in smithy-erlang.
 
 ## Prerequisites
 
@@ -176,10 +178,6 @@ com.example.CustomIntegration
 Smithy-erlang **reads and uses** built-in traits via Java's Smithy libraries. 
 
 Check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md) with all Smithy traits and their support status in smithy-erlang.
-
-## AWS SDK Support
-
-Check out [AWS_SDK_SUPPORT.md](https://github.com/f34nk/smithy-erlang/blob/main/AWS_SDK_SUPPORT.md) with a full list of AWS SDK features and their support status in smithy-erlang.
 
 ## Type System Trade-offs
 
