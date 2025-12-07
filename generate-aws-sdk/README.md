@@ -1,48 +1,36 @@
-# Generate AWS SDK for Erlang
+# AWS SDK Generator
 
-Generate Erlang client code from official AWS API Smithy models.
+Generates Erlang AWS SDKs from official AWS Smithy models using smithy-erlang.
 
 ## Prerequisites
 
-- [Smithy CLI](https://smithy.io/2.0/guides/smithy-cli/index.html)
-- `jq` for JSON parsing
-- `smithy-erlang` published to local Maven repository (`../gradlew publishToMavenLocal`)
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv) (Python package manager)
+- [Smithy CLI](https://smithy.io/2.0/guides/smithy-cli/cli_installation.html)
+- smithy-erlang installed to local Maven repository (`~/.m2/repository`)
 
-## Quick Start
+## Setup
+
+Build smithy-erlang to local Maven:
 
 ```bash
-# Setup projects (clones AWS models, creates build configs)
-make setup SDKS=s3
+cd .. && make build
+```
 
-# or
-make setup SDKS=s3,dynamodb,lambda
+## Usage
 
-# Build all SDKs
+Generate SDKs:
+
+```bash
 make build
-
-# Build a specific SDK
-make output/s3
 ```
 
-## How It Works
+Output is written to `output/<service>/src/`.
 
-1. **setup.sh** clones [aws/api-models-aws](https://github.com/aws/api-models-aws)
-2. For each selected SDK (currently `s3`):
-   - Parses the Smithy JSON model to extract service metadata
-   - Creates `output/<sdk-id>/` with model files and `smithy-build.json`
-3. **make build** runs `smithy build` for each SDK project
-4. Generated Erlang code lands in `output/<sdk-id>/src/`
+## Configuration
 
-## Directory Structure
+Edit `generate.py` to customize which services to generate:
 
-```
-generate-aws-sdk/
-├── api-models-aws/     # Cloned AWS models (git ignored)
-├── output/             # Generated SDK projects
-│   └── s3/
-│       ├── model/      # Copied Smithy JSON
-│       ├── smithy-build.json
-│       └── src/  # Generated Erlang code
-├── setup.sh            # Project setup script
-└── Makefile            # Build orchestration
+```python
+sdks = ["s3", "dynamodb", "ec2"]  # Add or remove services
 ```
