@@ -6,14 +6,17 @@ YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-INPUT_PATH=api-models-aws/models
+INPUT_PATH=api-models-aws-main/models
 OUTPUT_PATH=./output
 
 SELECTED_SDK_IDS="s3"
 
 if [ ! -d $INPUT_PATH ]; then
-    echo -e "${CYAN}Clone AWS models from:${NC} https://github.com/aws/api-models-aws"
-    git clone git@github.com:aws/api-models-aws.git
+    echo -e "${CYAN}Download AWS models from:${NC} https://github.com/aws/api-models-aws"
+    wget https://github.com/aws/api-models-aws/archive/refs/heads/main.zip -O api-models-aws.zip
+    unzip -q api-models-aws.zip
+    rm api-models-aws.zip
+    echo "OK"
 fi
 
 function setup_project() {
@@ -57,10 +60,13 @@ function setup_project() {
   "sources": ["${model_dirname}"],
   "maven": {
     "dependencies": [
-      "software.amazon.smithy:smithy-aws-traits:1.51.0",
+      "software.amazon.smithy:smithy-aws-traits:1.64.0",
       "io.smithy.erlang:smithy-erlang:0.1.0"
     ],
     "repositories": [
+      {
+        "url": "https://repo1.maven.org/maven2"
+      },
       {
         "url": "file://\${user.home}/.m2/repository"
       }
@@ -81,10 +87,8 @@ EOT
     tree $output_dir
 }
 
-
-
-
 for sdk_id in $SELECTED_SDK_IDS; do
+    echo
     echo -e "${CYAN}Processing:${NC} $sdk_id"
 
     PATH_FILTER=*/${sdk_id}/service/*
