@@ -61,6 +61,7 @@ function setup_project() {
   "maven": {
     "dependencies": [
       "software.amazon.smithy:smithy-aws-traits:1.64.0",
+      "software.amazon.smithy:smithy-aws-endpoints:1.64.0",
       "io.smithy.erlang:smithy-erlang:0.1.0"
     ],
     "repositories": [
