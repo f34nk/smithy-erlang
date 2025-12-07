@@ -13,15 +13,15 @@ repositories {
 
 dependencies {
     // Smithy core dependencies
-    implementation("software.amazon.smithy:smithy-codegen-core:1.51.0")
-    implementation("software.amazon.smithy:smithy-model:1.51.0")
-    implementation("software.amazon.smithy:smithy-build:1.51.0")
-    implementation("software.amazon.smithy:smithy-utils:1.51.0")
-    implementation("software.amazon.smithy:smithy-aws-traits:1.51.0")
-    implementation("software.amazon.smithy:smithy-protocol-traits:1.51.0")
-    implementation("software.amazon.smithy:smithy-rules-engine:1.51.0")
-    implementation("software.amazon.smithy:smithy-waiters:1.51.0")
-    implementation("software.amazon.smithy:smithy-smoke-test-traits:1.51.0")
+    implementation("software.amazon.smithy:smithy-codegen-core:1.64.0")
+    implementation("software.amazon.smithy:smithy-model:1.64.0")
+    implementation("software.amazon.smithy:smithy-build:1.64.0")
+    implementation("software.amazon.smithy:smithy-utils:1.64.0")
+    implementation("software.amazon.smithy:smithy-aws-traits:1.64.0")
+    implementation("software.amazon.smithy:smithy-protocol-traits:1.64.0")
+    implementation("software.amazon.smithy:smithy-rules-engine:1.64.0")
+    implementation("software.amazon.smithy:smithy-waiters:1.64.0")
+    implementation("software.amazon.smithy:smithy-smoke-test-traits:1.64.0")
     
     // Testing
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
@@ -30,7 +30,7 @@ dependencies {
     testImplementation("org.hamcrest:hamcrest:2.2")
     
     // AWS traits for test models
-    testImplementation("software.amazon.smithy:smithy-aws-traits:1.51.0")
+    testImplementation("software.amazon.smithy:smithy-aws-traits:1.64.0")
 }
 
 java {
