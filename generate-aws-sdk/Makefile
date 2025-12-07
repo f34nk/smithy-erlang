@@ -58,3 +58,11 @@ build/clean:
 		rm -rf build; \
 		cd - ; \
 	done
+
+.PHONY: list-sdks
+list-sdks:
+	#
+	# List all SDK IDs
+	#
+	find api-models-aws-main/models -maxdepth 1 -type d|awk -F'/' '{print $$NF}'|sort > sdks.txt
+	wc -l sdks.txt
