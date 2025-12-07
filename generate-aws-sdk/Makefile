@@ -1,9 +1,11 @@
-
 X:=$(shell find output -type d -not -name output -maxdepth 1 -exec basename {} \;)
 SDKS:=$(foreach x,$(X),output/$(x)/)
 
 .PHONY: all
-all: clean setup build
+all:
+	@echo "Usage:"
+	@echo "  make setup SDKS=s3,dynamodb,lambda"
+	@echo "  make build"
 
 .PHONY: clean
 clean:
@@ -17,7 +19,7 @@ setup:
 	#
 	# Setup projects
 	#
-	./setup.sh
+	SDKS=$(SDKS) ./setup.sh
 
 .PHONY: build
 build: build/clean
@@ -42,9 +44,10 @@ output/%: $(SDKS)
 	#
 	cd $@ && \
 	rm -f smithy-build.log && \
-	smithy build 2>smithy-build.log
+	smithy build > smithy-build.log 2>&1
 	[ -s smithy-build.log ] || rm -rf smithy-build.log
-	grep SUCCESS output/s3/*.log || false
+	grep SUCCESS $@/*.log || false
+
 
 .PHONY: build/clean
 build/clean:

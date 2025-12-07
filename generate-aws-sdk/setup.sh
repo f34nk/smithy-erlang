@@ -9,7 +9,12 @@ NC='\033[0m'
 INPUT_PATH=api-models-aws-main/models
 OUTPUT_PATH=./output
 
-SELECTED_SDK_IDS="s3"
+if [ -z "$SDKS" ]; then
+    echo "SDKS is not set"
+    exit 1
+fi
+
+SDKS=$(echo $SDKS|sed 's/,/\n/g')
 
 if [ ! -d $INPUT_PATH ]; then
     echo -e "${CYAN}Download AWS models from:${NC} https://github.com/aws/api-models-aws"
@@ -46,7 +51,9 @@ function setup_project() {
 
     # setup project
     mkdir -p $output_dir/$model_dirname
+    rm -rf $output_dir/$model_dirname/*
     mkdir -p $output_dir/$generated_dirname
+    rm -rf $output_dir/$generated_dirname/*
 
     # copy model file to model directory
     cp $MODEL_FILE $output_dir/model/
@@ -88,7 +95,7 @@ EOT
     tree $output_dir
 }
 
-for sdk_id in $SELECTED_SDK_IDS; do
+for sdk_id in $SDKS; do
     echo
     echo -e "${CYAN}Processing:${NC} $sdk_id"
 

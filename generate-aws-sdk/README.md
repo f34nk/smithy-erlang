@@ -12,7 +12,10 @@ Generate Erlang client code from official AWS API Smithy models.
 
 ```bash
 # Setup projects (clones AWS models, creates build configs)
-make setup
+make setup SDKS=s3
+
+# or
+make setup SDKS=s3,dynamodb,lambda
 
 # Build all SDKs
 make build
@@ -28,7 +31,7 @@ make output/s3
    - Parses the Smithy JSON model to extract service metadata
    - Creates `output/<sdk-id>/` with model files and `smithy-build.json`
 3. **make build** runs `smithy build` for each SDK project
-4. Generated Erlang code lands in `output/<sdk-id>/src/generated/`
+4. Generated Erlang code lands in `output/<sdk-id>/src/`
 
 ## Directory Structure
 
@@ -39,17 +42,7 @@ generate-aws-sdk/
 │   └── s3/
 │       ├── model/      # Copied Smithy JSON
 │       ├── smithy-build.json
-│       └── src/generated/  # Generated Erlang code
+│       └── src/  # Generated Erlang code
 ├── setup.sh            # Project setup script
 └── Makefile            # Build orchestration
 ```
-
-## Adding More SDKs
-
-Edit `SELECTED_SDK_IDS` in `setup.sh`:
-
-```bash
-SELECTED_SDK_IDS="s3 dynamodb lambda"
-```
-
-Then run `make all`.
