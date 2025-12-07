@@ -21,6 +21,10 @@ General SDK features not specific to AWS traits.
 | Pagination Helpers | ✅ | Auto-generated `{operation}_all/2,3` functions |
 | Retry with Exponential Backoff | ✅ | Configurable retry with jitter |
 | Error Handling | ⚠️ | Basic error parsing; service-specific errors not fully modeled |
+| HTTP Prefix Headers | ❌ | `@httpPrefixHeaders` trait not implemented (used for S3 metadata) |
+| Idempotency Token | ❌ | `@idempotencyToken` trait not implemented |
+| Host Label | ❌ | `@hostLabel` trait not implemented |
+| Endpoint Override | ❌ | `@endpoint` trait not implemented |
 | Request Compression | ❌ | `@requestCompression` trait not implemented |
 | Streaming | ❌ | `@streaming` trait not implemented |
 | Waiters | ❌ | `@waitable` trait not implemented |
@@ -39,6 +43,19 @@ Protocol implementations for AWS services.
 | [AWS Query protocol](https://smithy.io/2.0/aws/protocols/aws-query-protocol.html) | ✅ | Full implementation for SQS, SNS, RDS, etc. |
 | [AWS restJson1 protocol](https://smithy.io/2.0/aws/protocols/aws-restjson1-protocol.html) | ✅ | Full implementation for API Gateway, Step Functions, etc. |
 | [AWS restXml protocol](https://smithy.io/2.0/aws/protocols/aws-restxml-protocol.html) | ✅ | Full implementation for S3, CloudFront, Route 53, etc. |
+
+---
+
+## XML Binding Traits
+
+XML serialization traits for REST-XML and other XML-based protocols.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| [`@xmlName`](https://smithy.io/2.0/spec/protocol-traits.html#xmlname-trait) | ❌ | XML element name override not implemented |
+| [`@xmlFlattened`](https://smithy.io/2.0/spec/protocol-traits.html#xmlflattened-trait) | ❌ | List/map flattening not implemented |
+| [`@xmlNamespace`](https://smithy.io/2.0/spec/protocol-traits.html#xmlnamespace-trait) | ❌ | XML namespace declarations not implemented |
+| [`@xmlAttribute`](https://smithy.io/2.0/spec/protocol-traits.html#xmlattribute-trait) | ❌ | XML attributes not implemented |
 
 ---
 
@@ -122,10 +139,14 @@ Endpoint rules engine for dynamic endpoint resolution.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
+| [Rules Engine Specification](https://smithy.io/2.0/aws/rules-engine/index.html) | ❌ | Uses static endpoints.json instead |
+| [`@endpointRuleSet`](https://smithy.io/2.0/additional-specs/rules-engine/specification.html) | ❌ | Endpoint rule set trait not processed |
+| [`@contextParam`](https://smithy.io/2.0/additional-specs/rules-engine/specification.html) | ❌ | Context parameter bindings not implemented |
+| [`@staticContextParams`](https://smithy.io/2.0/additional-specs/rules-engine/specification.html) | ❌ | Static context parameters not implemented |
+| [`@clientContextParams`](https://smithy.io/2.0/additional-specs/rules-engine/specification.html) | ❌ | Client context parameters not implemented |
 | [Authentication Scheme Validators](https://smithy.io/2.0/aws/rules-engine/auth-schemes.html) | ❌ | Auth scheme validation not implemented |
 | [AWS Rules Engine Built-ins](https://smithy.io/2.0/aws/rules-engine/built-ins.html) | ❌ | Built-in functions not implemented |
-| [AWS Rules Engine Library Functions](https://smithy.io/2.0/aws/rules-engine/library-functions.html) | ❌ | Library functions not implemented |
-| [Rules Engine Specification](https://smithy.io/2.0/aws/rules-engine/index.html) | ❌ | Uses static endpoints.json instead |
+| [AWS Rules Engine Library Functions](https://smithy.io/2.0/aws/rules-engine/library-functions.html) | ❌ | Library functions (`aws.partition`, `aws.parseArn`, etc.) not implemented |
 
 ---
 
