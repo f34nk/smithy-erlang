@@ -297,10 +297,11 @@ public class RestXmlProtocolGenerator implements ProtocolGenerator {
                 String memberName = member.getMemberName();
                 String currentMapVar = "BodyMap" + i;
                 String nextMapVar = "BodyMap" + (i + 1);
+                String valVar = "XVal" + i;  // Unique variable name for each case
                 writer.write("$L = case maps:get(<<\"$L\">>, Input, undefined) of", nextMapVar, memberName);
                 writer.indent();
                 writer.write("undefined -> $L;", currentMapVar);
-                writer.write("Val -> $L#{<<\"$L\">> => Val}", currentMapVar, memberName);
+                writer.write("$L -> $L#{<<\"$L\">> => $L}", valVar, currentMapVar, memberName, valVar);
                 writer.dedent();
                 writer.write("end,");
             }

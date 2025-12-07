@@ -50,6 +50,7 @@ public final class ClientModuleWriter {
     private final List<UnionShape> unionsToProcess = new ArrayList<>();
     private final Set<ShapeId> allEnums = new HashSet<>();
     private final List<StringShape> enumsToProcess = new ArrayList<>();
+    private final List<EnumShape> enumShapesToProcess = new ArrayList<>();  // Smithy 2.0 EnumShape
     private final List<StructureShape> inputStructuresToValidate = new ArrayList<>();
     
     /**
@@ -201,6 +202,10 @@ public final class ClientModuleWriter {
         processedStructures.add(structure.getId());
         structuresToGenerate.add(structure);
         
+        // Collect enums and unions from this structure
+        collectEnumsFromStructure(structure);
+        collectUnionsFromStructure(structure);
+        
         for (MemberShape member : structure.getAllMembers().values()) {
             Shape targetShape = model.expectShape(member.getTarget());
             
@@ -250,6 +255,13 @@ public final class ClientModuleWriter {
                     allEnums.add(stringShape.getId());
                     enumsToProcess.add(stringShape);
                 }
+            } else if (targetShape instanceof EnumShape) {
+                // Smithy 2.0 EnumShape (not StringShape with EnumTrait)
+                EnumShape enumShape = (EnumShape) targetShape;
+                if (!allEnums.contains(enumShape.getId())) {
+                    allEnums.add(enumShape.getId());
+                    enumShapesToProcess.add(enumShape);
+                }
             } else if (targetShape instanceof ListShape) {
                 ListShape listShape = (ListShape) targetShape;
                 Shape memberTarget = model.expectShape(listShape.getMember().getTarget());
@@ -258,6 +270,13 @@ public final class ClientModuleWriter {
                     if (stringShape.hasTrait(EnumTrait.class) && !allEnums.contains(stringShape.getId())) {
                         allEnums.add(stringShape.getId());
                         enumsToProcess.add(stringShape);
+                    }
+                } else if (memberTarget instanceof EnumShape) {
+                    // Smithy 2.0 EnumShape in list
+                    EnumShape enumShape = (EnumShape) memberTarget;
+                    if (!allEnums.contains(enumShape.getId())) {
+                        allEnums.add(enumShape.getId());
+                        enumShapesToProcess.add(enumShape);
                     }
                 }
             }
@@ -370,7 +389,7 @@ public final class ClientModuleWriter {
     // ========== Type Definition Writers ==========
     
     private void writeTypeDefinitions(ErlangWriter writer, List<StructureShape> sortedStructures) {
-        if (sortedStructures.isEmpty() && enumsToProcess.isEmpty() && unionsToProcess.isEmpty()) {
+        if (sortedStructures.isEmpty() && enumsToProcess.isEmpty() && enumShapesToProcess.isEmpty() && unionsToProcess.isEmpty()) {
             return;
         }
         
@@ -383,6 +402,11 @@ public final class ClientModuleWriter {
         
         for (StringShape enumShape : enumsToProcess) {
             generateEnum(enumShape, writer);
+        }
+        
+        // Smithy 2.0 EnumShape types
+        for (EnumShape enumShape : enumShapesToProcess) {
+            generateEnumShape(enumShape, writer);
         }
         
         for (UnionShape union : unionsToProcess) {
@@ -432,6 +456,28 @@ public final class ClientModuleWriter {
                 .collect(Collectors.toList());
         
         writer.write("-type $L() :: $L.", enumName, String.join(" | ", values));
+        writer.writeBlankLine();
+    }
+    
+    /**
+     * Generates type definition for Smithy 2.0 EnumShape.
+     * 
+     * <p>EnumShape is different from StringShape with @enum trait.
+     * It has members with enumValue traits instead of EnumTrait on the shape.
+     */
+    private void generateEnumShape(EnumShape enumShape, ErlangWriter writer) {
+        String enumName = EnhancedErlangSymbolProvider.toErlangName(enumShape.getId().getName());
+        
+        // Get enum values from member enumValue traits
+        List<String> values = enumShape.getEnumValues().keySet().stream()
+                .map(name -> "'" + name + "'")
+                .collect(Collectors.toList());
+        
+        if (values.isEmpty()) {
+            writer.write("-type $L() :: binary().", enumName);
+        } else {
+            writer.write("-type $L() :: $L.", enumName, String.join(" | ", values));
+        }
         writer.writeBlankLine();
     }
     
@@ -837,6 +883,9 @@ public final class ClientModuleWriter {
         } else if (shape instanceof StructureShape) {
             return EnhancedErlangSymbolProvider.toErlangName(shape.getId().getName()) + "()";
         } else if (shape instanceof UnionShape) {
+            return EnhancedErlangSymbolProvider.toErlangName(shape.getId().getName()) + "()";
+        } else if (shape instanceof EnumShape) {
+            // Smithy 2.0 EnumShape
             return EnhancedErlangSymbolProvider.toErlangName(shape.getId().getName()) + "()";
         }
         
