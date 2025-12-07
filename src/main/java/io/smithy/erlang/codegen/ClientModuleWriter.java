@@ -624,7 +624,7 @@ public final class ClientModuleWriter {
             writer.write("NewInput = Input#{<<\"$L\">> => NextToken},", inputTokenJson);
             writer.write("$L_recursive(Client, NewInput, Options, NewAcc);", helperName);
             writer.dedent();
-            writer.write("{ok, Result} ->", items);
+            writer.write("{ok, Result} ->");
             writer.indent();
             writer.write("{ok, Acc ++ [Result]};");
             writer.dedent();
