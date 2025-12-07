@@ -109,3 +109,6 @@ build/test-results/
 
 .m2/
 target/
+
+# Ignore test branch
+generate-aws-sdk/
