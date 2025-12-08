@@ -7,9 +7,10 @@ all: clean copy generate compile analyze test
 
 copy:
 	#
-	# Copy the model from the JAVA test
+	# Download S3 model from AWS SDKs: https://github.com/aws/api-models-aws/blob/main/models/s3/service/2006-03-01/s3-2006-03-01.json
 	#
-	cp ../../src/test/resources/models/aws-s3-client.smithy model/
+	wget https://raw.githubusercontent.com/aws/api-models-aws/refs/heads/main/models/s3/service/2006-03-01/s3-2006-03-01.json
+	mv s3-2006-03-01.json model/
 	#
 	# Copy the tests from the JAVA test resources
 	#
@@ -50,7 +51,7 @@ test:
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
 	# remove copied files
-	rm -rf model/aws-s3-client.smithy test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl test/aws_s3_test.erl
+	rm -rf model/s3-2006-03-01.json test/aws_sigv4_test.erl test/aws_credentials_test.erl test/aws_config_test.erl test/aws_s3_test.erl
 
 docker/test: clean copy generate compile docker/clean
 	docker compose build && docker compose run --rm test

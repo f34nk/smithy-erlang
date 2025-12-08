@@ -17,8 +17,8 @@
   },
   "plugins": {
     "erlang-codegen": {
-      "service": "com.example.s3.test#S3Client",
-      "module": "s3_client",
+      "service": "com.amazonaws.s3#AmazonS3",
+      "module": "amazon_s3",
       "outputDir": "src/generated"
     }
   }

@@ -18,7 +18,7 @@ Reference: https://smithy.io/2.0/index.html
 - Enum types as atoms with validation
 - Topological sorting for dependency-ordered type definitions
 - Smithy Build plugin integration
-- JSON AST file support
+- Support for [Smithy Interface Definition Language (IDL)](https://smithy.io/2.0/spec/idl.html) and [JSON AST](https://smithy.io/2.0/spec/json-ast.html)
 
 ### Protocol Support
 - All 5 AWS protocols supported:
@@ -69,19 +69,19 @@ make examples
 ```
 See [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples)
 
-Run end to end demo:
+Or generate and run the official [AWS SDK S3 model](https://github.com/aws/api-models-aws/tree/main/models/s3/service/2006-03-01):
 
 ```bash
 make demo
 ```
 
-The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto) and executes functions from the generated `s3_client`.
+The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto) and executes functions from the generated `amazon_s3` module.
 
 See [aws-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/aws-demo/src/aws_demo_app.erl)
 
 ## Basic Usage
 
-Create `smithy-build.json`:
+Create [smithy-build.json](https://smithy.io/2.0/guides/smithy-build-json.html):
 
 ```json
 {
@@ -89,7 +89,14 @@ Create `smithy-build.json`:
   "sources": ["model"],
   "maven": {
     "dependencies": ["io.smithy.erlang:smithy-erlang:0.1.0"],
-    "repositories": [{"url": "file://${user.home}/.m2/repository"}]
+    "repositories": [
+      {
+        "url": "https://repo1.maven.org/maven2"
+      },
+      {
+        "url": "file://${user.home}/.m2/repository"
+      }
+    ]
   },
   "plugins": {
     "erlang-codegen": {
@@ -101,7 +108,7 @@ Create `smithy-build.json`:
 }
 ```
 
-Run generation:
+Build model:
 
 ```bash
 smithy build
