@@ -8,6 +8,7 @@
 
 import os
 import concurrent.futures
+from functools import partial
 import glob
 import jq
 import json
@@ -22,11 +23,15 @@ MODEL_DIRNAME = "model"
 GENERATED_DIRNAME = "src"
 
 
-def generate(sdk_id: str):
+def generate(sdk_id: str, index: int = 0, total: int = 0):
+    result = {}
 
     start_time = time.time()
-    print(f"Start building {sdk_id} ...")
+    result["sdk_id"] = sdk_id
+    result["process"] = f"{index}/{total}"
+
     def build(path: str):
+        print(f"{index}/{total} - building: {sdk_id}")
         command = f"cd {path} && smithy build"
         build_log = f"{path}/smithy-build.log"
         with open(build_log, "w+") as file:
@@ -49,8 +54,6 @@ def generate(sdk_id: str):
             .replace("e_c2", "ec2")
             .replace("_d_b", "_db")
         )
-
-    result = {}
 
     path = os.path.join(INPUT_PATH, sdk_id)
     json_files = glob.glob(f"{path}/**/*.json", recursive=True)
@@ -132,19 +135,22 @@ def generate(sdk_id: str):
 def main():
     start_time = time.time()
 
-    sdks = sorted(os.listdir(INPUT_PATH))
-    sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations"]
-    print(f"Processing {len(sdks)} SDKs")
-
+    # sdks = sorted(os.listdir(INPUT_PATH))
+    # sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations"]
+    # sdks = ["s3", "dynamodb", "ec2"]
+    sdks = ["s3"]
+    
     # This sets the worker count to the minimum of:
     # Number of SDKs to process
     # 4× CPU cores
     # Hard cap of 64 (to avoid memory issues from too many JVM processes)
     max_workers = min(len(sdks), os.cpu_count() * 4, 64)
-    print(f"Using {max_workers} workers ({os.cpu_count()} cores available, max {64} workers)")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(generate, sdk): sdk for sdk in sdks}
+        # Use partial to bind total, then pass sdk and index per task
+        total = len(sdks)
+        gen = partial(generate, total=total)
+        futures = {executor.submit(gen, sdk, i + 1): sdk for i, sdk in enumerate(sdks)}
         for future in concurrent.futures.as_completed(futures):
             sdk = futures[future]
             try:
@@ -153,7 +159,12 @@ def main():
                 print(f"ERROR: Failed to generate {sdk}: {e}")
 
     end_time = time.time()
+    print(f"Processing {len(sdks)} SDKs")
+    print(
+        f"Using {max_workers} workers ({os.cpu_count()} cores available, max {64} workers)"
+    )
     print(f"Total time: {end_time - start_time:.2f} seconds")
+
 
 if __name__ == "__main__":
     main()

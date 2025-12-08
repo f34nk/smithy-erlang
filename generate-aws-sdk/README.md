@@ -34,3 +34,6 @@ Edit `generate.py` to customize which services to generate:
 ```python
 sdks = ["s3", "dynamodb", "ec2"]  # Add or remove services
 ```
+
+Processing all 415 SDKs, using 40 workers (10 cores available, max 64 workers), 
+takes ~1.5 minutes.
