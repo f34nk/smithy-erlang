@@ -31,7 +31,7 @@ def generate(sdk_id: str):
         build_log = f"{path}/smithy-build.log"
         with open(build_log, "w+") as file:
             process = subprocess.Popen(command, shell=True, stdout=file, stderr=file)
-        process.wait()
+            process.wait()  # Wait inside with block to keep file open
         return process.returncode, build_log
 
     def exec(command: str):
