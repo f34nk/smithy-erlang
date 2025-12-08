@@ -25,7 +25,7 @@ GENERATED_DIRNAME = "src"
 def generate(sdk_id: str):
 
     start_time = time.time()
-
+    print(f"Start building {sdk_id} ...")
     def build(path: str):
         command = f"cd {path} && smithy build"
         build_log = f"{path}/smithy-build.log"
@@ -144,9 +144,13 @@ def main():
     print(f"Using {max_workers} workers ({os.cpu_count()} cores available, max {64} workers)")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(generate, sdk) for sdk in sdks]
-        # Wait for all functions to complete
-        concurrent.futures.wait(futures)
+        futures = {executor.submit(generate, sdk): sdk for sdk in sdks}
+        for future in concurrent.futures.as_completed(futures):
+            sdk = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"ERROR: Failed to generate {sdk}: {e}")
 
     end_time = time.time()
     print(f"Total time: {end_time - start_time:.2f} seconds")
