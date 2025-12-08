@@ -131,12 +131,19 @@ def generate(sdk_id: str):
 
 def main():
     start_time = time.time()
-    
-    sdks = sorted(os.listdir(INPUT_PATH))
-    sdks = ["s3", "dynamodb", "ec2"]
-    # sdks = ["amplifyuibuilder"]
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    sdks = sorted(os.listdir(INPUT_PATH))
+    sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations"]
+    print(f"Processing {len(sdks)} SDKs")
+
+    # This sets the worker count to the minimum of:
+    # Number of SDKs to process
+    # 4× CPU cores
+    # Hard cap of 64 (to avoid memory issues from too many JVM processes)
+    max_workers = min(len(sdks), os.cpu_count() * 4, 64)
+    print(f"Using {max_workers} workers ({os.cpu_count()} cores available, max {64} workers)")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(generate, sdk) for sdk in sdks]
         # Wait for all functions to complete
         concurrent.futures.wait(futures)
