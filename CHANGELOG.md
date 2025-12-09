@@ -91,16 +91,16 @@
 - Field validation for @required trait
 - HTTP protocol bindings: @httpLabel (path parameters), @httpHeader, @httpQuery, @httpPayload
 - URI template parser with proper parameter substitution
-- Single-module code generation (types, records, and functions in one file)
-- Type aliases in function specs for documentation while using maps at runtime
-- Dialyzer suppression for intentional type spec mismatches
+- Single-module code generation (types and functions in one file)
+- Map types with atom keys for type definitions (e.g., `#{bucket := binary()}`)
+- Dialyzer suppression for type/runtime key mismatch (atom keys in types, binary keys at runtime)
 - Four example services: user-service, storage-service, paginated-service, aws-s3-client
 - Comprehensive test coverage with 199+ tests across examples
 - GitHub CI/CD workflow
 
 ### Changed
 - Refactored from separate header files to single-module approach
-- Records now only in type specs, maps used at runtime
+- Type definitions use map types with atom keys (no records)
 - Improved error handling with detailed validation messages
 
 ### Limitations

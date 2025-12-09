@@ -188,22 +188,24 @@ Check out [TRAITS.md](https://github.com/f34nk/smithy-erlang/blob/main/TRAITS.md
 
 ## Type System Trade-offs
 
-The generator uses type aliases in function specs for documentation while using maps at runtime:
+The generator uses map types with atom keys in type definitions:
 
 ```erlang
 -type get_object_input() :: #{
-    <<"Bucket">> := binary(),
-    <<"Key">> := binary()
+    bucket := binary(),
+    key := binary()
 }.
 
 -spec get_object(Client :: map(), Input :: get_object_input()) -> 
     {ok, get_object_output()} | {error, term()}.
 ```
 
+Note: [Erlang does not allow binary literals as map keys in type specifications](https://github.com/erlang/otp/issues/6202) (e.g., `<<"Bucket">> := binary()` is a syntax error). The generator uses atom keys (`bucket`) in types, while runtime code uses binary keys (`<<"Bucket">>`) matching AWS JSON format. Dialyzer warnings are suppressed where this type/runtime mismatch occurs.
+
 This provides:
 - Clear documentation via type names
 - Zero runtime overhead (no record conversion)
-- Dialyzer warnings suppressed where specs intentionally differ from implementation
+- Idiomatic Erlang type definitions with atom keys
 
 ## License
 
