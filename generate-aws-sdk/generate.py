@@ -4,6 +4,9 @@
 # dependencies = [
 #   "jq"
 # ]
+# [[tool.uv.index]]
+# name = "pipy"
+# url = "https://pypi.org/simple/"
 # ///
 
 import os
@@ -137,8 +140,8 @@ def main():
 
     # sdks = sorted(os.listdir(INPUT_PATH))
     # sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations"]
-    # sdks = ["s3", "dynamodb", "ec2"]
-    sdks = ["s3"]
+    sdks = ["s3", "dynamodb", "ec2"]
+    # sdks = ["s3"]
     
     # This sets the worker count to the minimum of:
     # Number of SDKs to process

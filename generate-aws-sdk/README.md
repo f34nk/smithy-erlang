@@ -1,6 +1,6 @@
 # AWS SDK Generator
 
-Generates Erlang AWS SDKs from official AWS Smithy models using smithy-erlang.
+Generates Erlang AWS SDKs from the [official AWS Smithy models](https://github.com/aws/api-models-aws) using smithy-erlang.
 
 ## Prerequisites
 

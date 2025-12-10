@@ -11,7 +11,7 @@ _build/
 erl_crash.dump
 
 # ignore copied files
-model/s3-2006-03-01.json
+model/*.json
 test/aws_sigv4_test.erl
 test/aws_credentials_test.erl
 test/aws_config_test.erl
