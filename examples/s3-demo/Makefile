@@ -19,13 +19,6 @@ copy:
 	#
 	wget https://raw.githubusercontent.com/aws/api-models-aws/refs/heads/main/models/s3/service/2006-03-01/s3-2006-03-01.json
 	mv s3-2006-03-01.json model/
-	#
-	# Copy the tests from the JAVA test resources
-	#
-	cp ../../src/test/resources/aws_sigv4_test.erl test/
-	cp ../../src/test/resources/aws_credentials_test.erl test/
-	cp ../../src/test/resources/aws_config_test.erl test/
-	cp ../../src/test/resources/aws_s3_test.erl test/
 
 .PHONY: generate
 generate:
