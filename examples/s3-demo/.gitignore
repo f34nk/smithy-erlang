@@ -11,9 +11,8 @@ _build/
 erl_crash.dump
 
 terraform/.terraform
-terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
+terraform/.terraform.lock*
+terraform/terraform.tfstate*
 
 # ignore copied files
 model/*.json

@@ -69,9 +69,8 @@ demo: copy generate compile docker/start terraform
 
 .PHONY: clean
 clean:
-	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
-	# remove copied files
-	rm -rf model/dynamodb-2012-08-10.json
+	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump erl_crash.dump test/*.beam
+	rm -rf model/*.json
 	rm -rf terraform/.terraform terraform/terraform.tfstate terraform/terraform.tfstate.backup terraform/.terraform.lock.hcl
 
 .PHONY: terraform
