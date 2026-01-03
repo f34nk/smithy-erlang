@@ -83,6 +83,7 @@ The ***-demo** examples generate client code from the official [AWS SDK smithy m
 | `make examples/sns-demo` | [sns-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sns-demo/src/aws_demo_app.erl)  |
 | `make examples/kinesis-demo` | [kinesis-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl)  |
 | `make examples/firehose-demo` | [firehose-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/firehose-demo/src/aws_demo_app.erl)  |
+| `make examples/ssm-demo` | [ssm-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/ssm-demo/src/aws_demo_app.erl)  |
 
 ## Basic Usage
 
