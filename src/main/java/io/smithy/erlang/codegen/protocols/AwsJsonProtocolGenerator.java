@@ -214,13 +214,11 @@ public class AwsJsonProtocolGenerator implements ProtocolGenerator {
         
         writer.writeComment("AWS JSON protocol headers");
         
-        // Get service name and version
+        // X-Amz-Target header format: {ServiceName}.{OperationName}
+        // The service name (e.g., DynamoDB_20120810) already includes the API version
         String serviceName = service.getId().getName();
-        String serviceVersion = service.getVersion();
-        
-        // X-Amz-Target header format: {ServiceName}_{Version}.{OperationName}
         String operationName = operation.getId().getName();
-        String target = serviceName + "_" + serviceVersion + "." + operationName;
+        String target = serviceName + "." + operationName;
         
         writer.write("Headers = [");
         writer.indent();

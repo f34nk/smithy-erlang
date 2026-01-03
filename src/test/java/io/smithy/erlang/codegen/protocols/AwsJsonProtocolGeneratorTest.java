@@ -155,8 +155,10 @@ class AwsJsonProtocolGeneratorTest {
             
             String output = writer.toString();
             assertTrue(output.contains("X-Amz-Target"), "Should contain X-Amz-Target header");
-            assertTrue(output.contains("TestService_2023-01-01.GetItem"), 
-                    "Should have correct target format");
+            // X-Amz-Target uses service shape name directly (e.g., DynamoDB_20120810.GetItem)
+            // AWS service names already include the API version in the shape name
+            assertTrue(output.contains("TestService.GetItem"), 
+                    "Should have correct target format (service name + operation)");
             
             cleanupDir(tempDir);
         }
