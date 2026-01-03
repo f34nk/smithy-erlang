@@ -72,12 +72,20 @@ See [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples)
 Or generate and run the official [AWS SDK S3 model](https://github.com/aws/api-models-aws/tree/main/models/s3/service/2006-03-01):
 
 ```bash
-make demo
+make demo/s3
 ```
 
-The demo creates a mocked AWS S3 bucket using [localstack](https://github.com/localstack/localstack) and executes functions from the generated `aws_s3_client` module.
+The s3 demo creates a mocked AWS S3 bucket using [localstack](https://github.com/localstack/localstack) and executes functions from the generated `aws_s3_client` module.
 
-See [s3-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl)
+See [s3-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl) for details.
+
+```bash
+make demo/dynamodb
+```
+
+The dynamodb demo creates a mocked AWS DynamoDB instance using [localstack](https://github.com/localstack/localstack) and executes functions from the generated `aws_dynamodb_client` module.
+
+See [dynamodb-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/dynamodb-demo/src/aws_demo_app.erl) for details.
 
 ## Basic Usage
 

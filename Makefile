@@ -97,7 +97,11 @@ examples/clean:
 	done
 
 .PHONY: demo
-demo:
-	cd examples/s3-demo && \
+demo/%:
+	#
+	# Run $@
+	#
+	name=$(shell echo $@|sed 's/demo\///g') && \
+	cd examples/$$name-demo && \
 	make clean && \
 	make demo
