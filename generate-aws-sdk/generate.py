@@ -73,8 +73,8 @@ def generate(sdk_id: str, index: int = 0, total: int = 0):
         result["model"] = source_path
         result["key"] = key
 
-        model_name = key.split("#")[1]
-        module_name = snake_case(model_name)
+        model_name = key.split("#")[0]
+        module_name = f'aws_{model_name.split(".")[-1]}_client'
 
         build_json = {
             "version": "1.0",
