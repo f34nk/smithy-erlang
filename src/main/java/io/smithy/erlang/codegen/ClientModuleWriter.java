@@ -287,6 +287,41 @@ public final class ClientModuleWriter {
                         enumShapesToProcess.add(enumShape);
                     }
                 }
+            } else if (targetShape instanceof MapShape) {
+                // Handle enums used as map keys or values
+                MapShape mapShape = (MapShape) targetShape;
+                
+                // Check map key
+                Shape keyTarget = model.expectShape(mapShape.getKey().getTarget());
+                if (keyTarget instanceof StringShape) {
+                    StringShape stringShape = (StringShape) keyTarget;
+                    if (stringShape.hasTrait(EnumTrait.class) && !allEnums.contains(stringShape.getId())) {
+                        allEnums.add(stringShape.getId());
+                        enumsToProcess.add(stringShape);
+                    }
+                } else if (keyTarget instanceof EnumShape) {
+                    EnumShape enumShape = (EnumShape) keyTarget;
+                    if (!allEnums.contains(enumShape.getId())) {
+                        allEnums.add(enumShape.getId());
+                        enumShapesToProcess.add(enumShape);
+                    }
+                }
+                
+                // Check map value
+                Shape valueTarget = model.expectShape(mapShape.getValue().getTarget());
+                if (valueTarget instanceof StringShape) {
+                    StringShape stringShape = (StringShape) valueTarget;
+                    if (stringShape.hasTrait(EnumTrait.class) && !allEnums.contains(stringShape.getId())) {
+                        allEnums.add(stringShape.getId());
+                        enumsToProcess.add(stringShape);
+                    }
+                } else if (valueTarget instanceof EnumShape) {
+                    EnumShape enumShape = (EnumShape) valueTarget;
+                    if (!allEnums.contains(enumShape.getId())) {
+                        allEnums.add(enumShape.getId());
+                        enumShapesToProcess.add(enumShape);
+                    }
+                }
             }
         }
     }
