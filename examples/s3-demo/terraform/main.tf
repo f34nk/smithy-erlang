@@ -18,13 +18,16 @@ provider "aws" {
   skip_requesting_account_id  = true
 
   endpoints {
-    # https://stackoverflow.com/a/63112795
-    s3 = "http://host.docker.internal:5050"
+    s3 = var.endpoint
   }
 }
 
+variable "endpoint" {
+  type = string
+}
+
 resource "aws_s3_bucket" "config_bucket" {
-  bucket = "us1-nonprod-configs"
+  bucket = "us-east-1-nonprod-configs"
 }
 
 resource "aws_s3_object" "config_file1" {

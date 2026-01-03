@@ -10,6 +10,11 @@ _build/
 *.beam
 erl_crash.dump
 
+terraform/.terraform
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+
 # ignore copied files
 model/*.json
 test/aws_sigv4_test.erl

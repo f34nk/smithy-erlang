@@ -5,10 +5,9 @@ run() ->
     io:format("~n=== Running S3 Client Application ===~n~n"),
 
     %% Create S3 client instance with AWS credentials
-    %% Use 'moto' hostname as it's the Docker Compose service name
     io:format("Creating S3 client...~n"),
     Config = #{
-        endpoint => <<"http://moto:5050">>,
+        endpoint => <<"http://localhost:4566">>,
         region => <<"us-east-1">>,
         credentials => #{
             access_key_id => <<"dummy">>,
@@ -59,7 +58,7 @@ run() ->
 
     %% Put an object to S3 bucket
     PutInput = #{
-        <<"Bucket">> => <<"us1-nonprod-configs">>,
+        <<"Bucket">> => <<"us-east-1-nonprod-configs">>,
         <<"Key">> => <<"configs/test.txt">>,
         <<"Body">> => <<"Hello World">>,
         <<"ContentType">> => <<"text/plain">>
@@ -74,7 +73,7 @@ run() ->
 
     %% List objects in the bucket
     ListObjectsInput = #{
-        <<"Bucket">> => <<"us1-nonprod-configs">>,
+        <<"Bucket">> => <<"us-east-1-nonprod-configs">>,
         <<"Prefix">> => <<"configs/">>,
         <<"MaxKeys">> => 100,
         <<"Delimiter">> => <<"">>
@@ -121,7 +120,7 @@ run() ->
 
     %% Get the object from S3 bucket
     GetInput = #{
-        <<"Bucket">> => <<"us1-nonprod-configs">>,
+        <<"Bucket">> => <<"us-east-1-nonprod-configs">>,
         <<"Key">> => <<"configs/test.txt">>
     },
     case aws_s3_client:get_object(Client, GetInput) of

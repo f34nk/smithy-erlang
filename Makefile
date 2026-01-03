@@ -1,6 +1,5 @@
 X:=$(shell find examples -type d -not -name examples -maxdepth 1 -exec basename {} \;)
 EXAMPLES:=$(foreach x,$(X),examples/$(x)/)
-TMPDIR:=build/tmp
 
 .PHONY: all
 all: clean build test
@@ -31,17 +30,18 @@ test/java:
 .PHONY: test/resources
 test/resources:
 	#
-	# Run JAVA resources tests
+	# Run resources tests
 	#
-	rm -rf "$(TMPDIR)" && \
-	mkdir -p "$(TMPDIR)/test" && \
-	find src/*/resources -type f -name *.erl -exec cp {} "$(TMPDIR)/test/" \;
+	temp="$$(pwd)/build/tmp" && \
+	rm -rf "$$temp" && \
+	mkdir -p "$$temp/test" && \
+	find src/*/resources -type f -name *.erl -exec cp {} "$$temp/test/" \; && \
 	echo \
 	{erl_opts, [debug_info]}.\\n\
 	{deps, []}.\\n\
-	{eunit_opts, [verbose]}. >> "$(TMPDIR)/rebar.config" && \
-    tree $(TMPDIR) && \
-    cd "$(TMPDIR)" && \
+	{eunit_opts, [verbose]}. > "$$temp/rebar.config" && \
+    tree $$temp && \
+    cd "$$temp" && \
     find test/ -type f -name "*_test.erl" | \
     xargs -I {} basename {} | \
     sed 's/_test.erl/_test/g' | \
@@ -98,5 +98,6 @@ examples/clean:
 
 .PHONY: demo
 demo:
-	cd examples/aws-demo && \
-	make docker/test
+	cd examples/s3-demo && \
+	make clean && \
+	make demo
