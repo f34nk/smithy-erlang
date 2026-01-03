@@ -75,12 +75,13 @@ The ***-demo** examples generate client code from the official [AWS SDK smithy m
 |--|:--:|
 | `make examples/s3-demo` | [s3-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl)  |
 | `make examples/dynamodb-demo` | [dynamodb-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/dynamodb-demo/src/aws_demo_app.erl)  |
+| `make examples/rds-demo` | [rds-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/rds-demo/src/aws_demo_app.erl)  |
 | `make examples/ec2-demo` | [ec2-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/ec2-demo/src/aws_demo_app.erl)  |
-| `make examples/sqs-demo` | [sqs-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl)  |
-| `make examples/kinesis-demo` | [kinesis-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl)  |
 | `make examples/lambda-demo` | [lambda-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/lambda-demo/src/aws_demo_app.erl)  |
 | `make examples/iam-demo` | [iam-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/iam-demo/src/aws_demo_app.erl)  |
+| `make examples/sqs-demo` | [sqs-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl)  |
 | `make examples/sns-demo` | [sns-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sns-demo/src/aws_demo_app.erl)  |
+| `make examples/kinesis-demo` | [kinesis-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl)  |
 | `make examples/firehose-demo` | [firehose-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/firehose-demo/src/aws_demo_app.erl)  |
 
 ## Basic Usage
