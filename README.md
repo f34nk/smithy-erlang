@@ -62,49 +62,24 @@ Run generator tests:
 make test
 ```
 
-Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for fully functional example apps.
+Checkout [examples/](https://github.com/f34nk/smithy-erlang/tree/main/examples) for fully functional example apps.
 
 Run any example with: 
 ```shell
 make examples/<example_name> # without trailing slash
 ```
 
-The "*demo" examples generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and mock AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
+The `*-demo` examples generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and mock AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
 
-```bash
-make examples/s3-demo
-```
-See [s3-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/dynamodb-demo
-```
-See [dynamodb-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/dynamodb-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/ec2-demo
-```
-See [ec2-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/ec2-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/sqs-demo
-```
-See [sqs-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/kinesis-demo
-```
-See [kinesis-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/lambda-demo
-```
-See [lambda-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/lambda-demo/src/aws_demo_app.erl) for details.
-
-```bash
-make examples/iam-demo
-```
-See [iam-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/iam-demo/src/aws_demo_app.erl) for details.
+|  |    |
+|--|:--:|
+| `make examples/s3-demo` | [s3-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl)  |
+| `make examples/dynamodb-demo` | [dynamodb-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/dynamodb-demo/src/aws_demo_app.erl)  |
+| `make examples/ec2-demo` | [ec2-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/ec2-demo/src/aws_demo_app.erl)  |
+| `make examples/sqs-demo` | [sqs-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl)  |
+| `make examples/kinesis-demo` | [kinesis-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl)  |
+| `make examples/lambda-demo` | [lambda-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/lambda-demo/src/aws_demo_app.erl)  |
+| `make examples/iam-demo` | [iam-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/iam-demo/src/aws_demo_app.erl)  |
 
 ## Basic Usage
 
