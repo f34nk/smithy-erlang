@@ -18,7 +18,7 @@
   "plugins": {
     "erlang-codegen": {
       "service": "com.amazonaws.s3#AmazonS3",
-      "module": "amazon_s3",
+      "module": "aws_s3_client",
       "outputDir": "src/generated"
     }
   }

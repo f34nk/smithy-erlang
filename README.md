@@ -75,7 +75,7 @@ Or generate and run the official [AWS SDK S3 model](https://github.com/aws/api-m
 make demo
 ```
 
-The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto) and executes functions from the generated `amazon_s3` module.
+The demo creates a mocked AWS S3 bucket using [moto](https://github.com/getmoto/moto) and executes functions from the generated `aws_s3_client` module.
 
 See [aws-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/aws-demo/src/aws_demo_app.erl)
 

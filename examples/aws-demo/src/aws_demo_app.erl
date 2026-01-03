@@ -15,12 +15,12 @@ run() ->
             secret_access_key => <<"dummy">>
         }
     },
-    {ok, Client} = amazon_s3:new(Config),
+    {ok, Client} = aws_s3_client:new(Config),
     io:format("Client created successfully~n~n"),
 
     %% List buckets (disable retry to see the actual error)
     ListInput = #{},
-    try amazon_s3:list_buckets(Client, ListInput, #{enable_retry => false}) of
+    try aws_s3_client:list_buckets(Client, ListInput, #{enable_retry => false}) of
         {ok, ListOutput} ->
             io:format("~nSUCCESS: ListBuckets returned successfully!~n"),
             io:format("Response: ~p~n~n", [ListOutput]),
@@ -64,7 +64,7 @@ run() ->
         <<"Body">> => <<"Hello World">>,
         <<"ContentType">> => <<"text/plain">>
     },
-    case amazon_s3:put_object(Client, PutInput) of
+    case aws_s3_client:put_object(Client, PutInput) of
         {ok, PutOutput} ->
             io:format("~nSUCCESS: PutObject returned successfully!~n"),
             io:format("Response: ~p~n~n", [PutOutput]);
@@ -79,7 +79,7 @@ run() ->
         <<"MaxKeys">> => 100,
         <<"Delimiter">> => <<"">>
     },
-    try amazon_s3:list_objects(Client, ListObjectsInput) of
+    try aws_s3_client:list_objects(Client, ListObjectsInput) of
         {ok, ListObjectsOutput} ->
             io:format("~nSUCCESS: ListObjects returned successfully!~n"),
             io:format("Response: ~p~n~n", [ListObjectsOutput]),
@@ -124,7 +124,7 @@ run() ->
         <<"Bucket">> => <<"us1-nonprod-configs">>,
         <<"Key">> => <<"configs/test.txt">>
     },
-    case amazon_s3:get_object(Client, GetInput) of
+    case aws_s3_client:get_object(Client, GetInput) of
         {ok, GetOutput} ->
             io:format("~nSUCCESS: GetObject returned successfully!~n"),
             io:format("Response: ~p~n~n", [GetOutput]);
