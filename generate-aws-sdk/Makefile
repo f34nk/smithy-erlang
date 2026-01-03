@@ -14,7 +14,7 @@ init:
 	fi
 
 .PHONY: build
-build: init
+build: init clean
 	#
 	# Build AWS SDK models
 	#
