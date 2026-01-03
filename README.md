@@ -91,6 +91,11 @@ make examples/sqs-demo
 ```
 See [sqs-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl) for details.
 
+```bash
+make examples/kinesis-demo
+```
+See [kinesis-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl) for details.
+
 
 ## Basic Usage
 
