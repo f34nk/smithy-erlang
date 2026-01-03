@@ -62,14 +62,14 @@ Run generator tests:
 make test
 ```
 
-Checkout [examples/](https://github.com/f34nk/smithy-erlang/tree/main/examples) for fully functional example apps.
+Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for fully functional Erlang apps.
 
 Run any example with: 
 ```shell
-make examples/<example_name> # without trailing slash
+make examples/<example_name> # <----- without trailing slash
 ```
 
-The `*-demo` examples generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and mock AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
+The ***-demo** examples generate client code from the official [AWS SDK smithy models](https://github.com/aws/api-models-aws/tree/main/models/) (in **JSON AST** format) and create AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated client against the mocked infrastructure.
 
 |  |    |
 |--|:--:|
@@ -80,6 +80,7 @@ The `*-demo` examples generate client code from the official [AWS SDK models](ht
 | `make examples/kinesis-demo` | [kinesis-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/kinesis-demo/src/aws_demo_app.erl)  |
 | `make examples/lambda-demo` | [lambda-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/lambda-demo/src/aws_demo_app.erl)  |
 | `make examples/iam-demo` | [iam-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/iam-demo/src/aws_demo_app.erl)  |
+| `make examples/sns-demo` | [sns-demo](https://github.com/f34nk/smithy-erlang/blob/main/examples/sns-demo/src/aws_demo_app.erl)  |
 
 ## Basic Usage
 
