@@ -177,7 +177,8 @@ public final class ClientModuleWriter {
             
             boolean hasRequiredFields = inputShape.getAllMembers().values().stream()
                     .anyMatch(member -> member.hasTrait(RequiredTrait.class));
-            if (hasRequiredFields) {
+            // Avoid duplicates - multiple operations may share the same input structure
+            if (hasRequiredFields && !inputStructuresToValidate.contains(inputShape)) {
                 inputStructuresToValidate.add(inputShape);
             }
         });
@@ -222,6 +223,13 @@ public final class ClientModuleWriter {
                 Shape valueTarget = model.expectShape(mapShape.getValue().getTarget());
                 if (valueTarget instanceof StructureShape) {
                     collectStructuresRecursive((StructureShape) valueTarget);
+                } else if (valueTarget instanceof ListShape) {
+                    // Handle maps with list values, e.g., #{binary() => [write_request()]}
+                    ListShape valueListShape = (ListShape) valueTarget;
+                    Shape listMemberTarget = model.expectShape(valueListShape.getMember().getTarget());
+                    if (listMemberTarget instanceof StructureShape) {
+                        collectStructuresRecursive((StructureShape) listMemberTarget);
+                    }
                 }
             }
         }
