@@ -351,9 +351,15 @@ public final class ClientModuleWriter {
             apiExports.add(opName + "/2");
             apiExports.add(opName + "/3");
             
-            if (operation.hasTrait(PaginatedTrait.class)) {
-                apiExports.add(opName + "_all_pages/2");
-                apiExports.add(opName + "_all_pages/3");
+            // Only export pagination helper if the trait has both inputToken and outputToken
+            // (matching the condition in generatePaginationHelper)
+            Optional<PaginatedTrait> paginatedTrait = operation.getTrait(PaginatedTrait.class);
+            if (paginatedTrait.isPresent()) {
+                PaginatedTrait trait = paginatedTrait.get();
+                if (trait.getInputToken().isPresent() && trait.getOutputToken().isPresent()) {
+                    apiExports.add(opName + "_all_pages/2");
+                    apiExports.add(opName + "_all_pages/3");
+                }
             }
         }
         
