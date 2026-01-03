@@ -62,7 +62,14 @@ Run generator tests:
 make test
 ```
 
-All demos generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and creates AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
+Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for fully functional example apps.
+
+Run any example with: 
+```shell
+make examples/<example_name> # without trailing slash
+```
+
+The "*demo" examples generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and mock AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
 
 ```bash
 make examples/s3-demo
@@ -84,9 +91,6 @@ make examples/sqs-demo
 ```
 See [sqs-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl) for details.
 
-Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for more ...
-
-Run any example with: `make example/<example_name>` (without trailing slash)
 
 ## Basic Usage
 
