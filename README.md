@@ -79,6 +79,11 @@ make examples/ec2-demo
 ```
 See [ec2-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/ec2-demo/src/aws_demo_app.erl) for details.
 
+```bash
+make examples/sqs-demo
+```
+See [sqs-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/sqs-demo/src/aws_demo_app.erl) for details.
+
 Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for more ...
 
 Run any example with: `make example/<example_name>` (without trailing slash)
