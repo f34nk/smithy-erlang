@@ -101,6 +101,11 @@ make examples/lambda-demo
 ```
 See [lambda-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/lambda-demo/src/aws_demo_app.erl) for details.
 
+```bash
+make examples/iam-demo
+```
+See [iam-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/iam-demo/src/aws_demo_app.erl) for details.
+
 ## Basic Usage
 
 Create [smithy-build.json](https://smithy.io/2.0/guides/smithy-build-json.html):
