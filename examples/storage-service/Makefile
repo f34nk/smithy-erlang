@@ -43,3 +43,5 @@ test:
 clean:
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump test/*.beam
 	rm -rf test/aws_retry_test.erl
+
+demo: copy generate compile analyze test

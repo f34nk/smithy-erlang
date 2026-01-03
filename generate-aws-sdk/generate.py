@@ -75,6 +75,7 @@ def generate(sdk_id: str, index: int = 0, total: int = 0):
 
         model_name = key.split("#")[0]
         module_name = f'aws_{model_name.split(".")[-1]}_client'
+        result["module"] = module_name
 
         build_json = {
             "version": "1.0",
@@ -139,9 +140,7 @@ def main():
     start_time = time.time()
 
     # sdks = sorted(os.listdir(INPUT_PATH))
-    # sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations"]
-    sdks = ["s3", "dynamodb", "ec2"]
-    # sdks = ["s3"]
+    sdks = ["s3", "dynamodb", "ec2", "lambda", "sns", "sqs", "iam", "sts", "route53", "cloudfront", "waf", "organizations", "kinesis", "cloudwatch"]
     
     # This sets the worker count to the minimum of:
     # Number of SDKs to process

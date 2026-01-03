@@ -7,7 +7,7 @@ run() ->
     %% Create S3 client instance with AWS credentials
     io:format("Creating S3 client...~n"),
     Config = #{
-        endpoint => <<"http://localhost:4566">>,
+        endpoint => unicode:characters_to_binary(os:getenv("AWS_ENDPOINT")),
         region => <<"us-east-1">>,
         credentials => #{
             access_key_id => <<"dummy">>,

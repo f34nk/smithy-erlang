@@ -62,30 +62,26 @@ Run generator tests:
 make test
 ```
 
-Run all example builds and tests:
-
-```bash
-make examples
-```
-See [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples)
-
 All demos generate client code from the official [AWS SDK models](https://github.com/aws/api-models-aws/tree/main/models/) and creates AWS infrastructure using [localstack](https://github.com/localstack/localstack). The demo app then executes functions from the generated clienst against the mocked infrastructure.
 
 ```bash
-make demo/s3
+make examples/s3-demo
 ```
 See [s3-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/s3-demo/src/aws_demo_app.erl) for details.
 
 ```bash
-make demo/dynamodb
+make examples/dynamodb-demo
 ```
 See [dynamodb-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/dynamodb-demo/src/aws_demo_app.erl) for details.
 
 ```bash
-make demo/ec2
+make examples/ec2-demo
 ```
 See [ec2-demo/src/aws_demo_app.erl](https://github.com/f34nk/smithy-erlang/blob/main/examples/ec2-demo/src/aws_demo_app.erl) for details.
 
+Checkout [examples](https://github.com/f34nk/smithy-erlang/tree/main/examples) for more ...
+
+Run any example with: `make example/<example_name>` (without trailing slash)
 
 ## Basic Usage
 

@@ -83,7 +83,7 @@ examples/%: $(EXAMPLES)
 	#
 	# Build $@
 	#
-	cd $@ && make
+	cd $@ && make clean demo
 
 # Usage: make examples/clean
 examples/clean:
@@ -95,13 +95,3 @@ examples/clean:
 		make clean ; \
 		cd - ; \
 	done
-
-.PHONY: demo
-demo/%:
-	#
-	# Run $@
-	#
-	name=$(shell echo $@|sed 's/demo\///g') && \
-	cd examples/$$name-demo && \
-	make clean && \
-	make demo

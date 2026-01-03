@@ -7,7 +7,7 @@ run() ->
     %% Create EC2 client instance with AWS credentials
     io:format("Creating EC2 client...~n"),
     Config = #{
-        endpoint => <<"http://localhost:4568">>,
+        endpoint => unicode:characters_to_binary(os:getenv("AWS_ENDPOINT")),
         region => <<"us-east-1">>,
         service => <<"ec2">>,  %% Required for SigV4 signing with custom endpoints
         credentials => #{

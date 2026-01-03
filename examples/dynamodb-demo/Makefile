@@ -1,10 +1,11 @@
-export HOST_PORT=4567
+export HOST_PORT=4569
 export AWS_ACCESS_KEY_ID=dummy
 export AWS_SECRET_ACCESS_KEY=dummy
 export AWS_DEFAULT_REGION=us-east-1
 export AWS_ENDPOINT=http://localhost:$(HOST_PORT)
 export TF_VAR_endpoint=$(AWS_ENDPOINT)
-export CONTAINER_NAME=dynamodb-demo
+export SERVICES=dynamodb
+export CONTAINER_NAME=$(SERVICES)-demo
 
 YELLOW=\033[1;33m
 NC=\033[0m
@@ -68,7 +69,7 @@ demo: copy generate compile docker/start terraform
 	-eval "application:ensure_all_started(inets), application:ensure_all_started(ssl), application:ensure_all_started(jsx), aws_demo_app:run(), halt()."
 
 .PHONY: clean
-clean:
+clean: docker/stop
 	rm -rf build _build src/generated/*.erl src/generated/*.hrl rebar3.crashdump erl_crash.dump test/*.beam
 	rm -rf model/*.json
 	rm -rf terraform/.terraform terraform/terraform.tfstate terraform/terraform.tfstate.backup terraform/.terraform.lock.hcl
@@ -87,7 +88,7 @@ docker/start: docker/stop
 	# Run LocalStack in Docker
 	#
 	@echo "Forward port $$HOST_PORT to Localstack port 4566"
-	docker run --rm -d -p $(HOST_PORT):4566 -e SERVICES=dynamodb --name $(CONTAINER_NAME) localstack/localstack
+	docker run --rm -d -p $(HOST_PORT):4566 -e SERVICES=$(SERVICES) --name $(CONTAINER_NAME) localstack/localstack
 
 .PHONY: docker/stop
 docker/stop:
